@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Data (large / raw, not tracked)
+model/data/raw/
+model/data/processed/
+!model/data/raw/.gitkeep
+!model/data/processed/.gitkeep
+model/artifacts/
+!model/artifacts/.gitkeep
+
+# Node / frontend
+node_modules/
+dist/
+build/
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store
+
+# Docker
+*.log

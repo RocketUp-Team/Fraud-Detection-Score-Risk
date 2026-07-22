@@ -1,0 +1,20 @@
+[project]
+name = "fraud-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "QuanDH", email = "hongquan.contact@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.139.2",
+    "uvicorn>=0.51.0",
+]
+
+[project.scripts]
+fraud-backend = "fraud_backend:main"
+
+[build-system]
+requires = ["uv_build>=0.11.17,<0.12.0"]
+build-backend = "uv_build"

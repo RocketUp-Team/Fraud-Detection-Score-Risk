@@ -1,0 +1,33 @@
+[project]
+name = "fraud-model"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "QuanDH", email = "hongquan.contact@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "catboost>=1.2.10",
+    "joblib>=1.5.3",
+    "lightgbm>=4.7.0",
+    "numpy>=2.3.5",
+    "pandas>=3.0.3",
+    "pyarrow>=25.0.0",
+    "scikit-learn>=1.9.0",
+    "shap>=0.51.0",
+    "xgboost>=3.2.0",
+]
+
+[project.scripts]
+fraud-model = "fraud_model:main"
+
+[build-system]
+requires = ["uv_build>=0.11.17,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.15.22",
+]
