@@ -38,3 +38,18 @@ Khởi động: PostgreSQL (`5432`), backend FastAPI stub (`8000`, `/health`,
 service riêng — theo kế hoạch, nó được đóng gói thành module Python
 (`fraud_model.score.score()`) và Trung import trực tiếp vào backend ở
 Ngày 5, không gọi qua network.
+
+## Training model qua Spark cluster (profile riêng)
+
+`model/` xử lý dữ liệu (load/merge/feature prep) bằng PySpark trước khi train
+model bằng sklearn/LightGBM/XGBoost/CatBoost (xem `model/README.md`). Spark
+cluster không khởi động cùng `docker compose up` mặc định — chỉ bật khi
+training, qua profile `training`:
+
+```bash
+docker compose --profile training up -d spark-master spark-worker
+docker compose --profile training run --rm model-training \
+  uv run python -m fraud_model.train_baseline
+```
+
+Spark UI: `http://localhost:8080`.

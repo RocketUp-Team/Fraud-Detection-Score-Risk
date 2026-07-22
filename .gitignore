@@ -11,6 +11,7 @@ model/data/processed/
 !model/data/processed/.gitkeep
 model/artifacts/
 !model/artifacts/.gitkeep
+model/catboost_info/
 
 # Node / frontend
 node_modules/

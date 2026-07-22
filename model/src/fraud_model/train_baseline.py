@@ -1,15 +1,23 @@
 """Ngày 1: setup training env + chạy thử baseline pipeline (Quân).
 
+Load/merge/split dữ liệu chạy phân tán bằng Spark (`data.py`, `features.py`);
+convert sang pandas ngay trước khi train (Logistic Regression của sklearn
+không đọc Spark DataFrame). Có StandardScaler vì các cột V-columns của
+IEEE-CIS chênh lệch scale rất lớn — thiếu bước này khiến solver `lbfgs`
+không hội tụ và train chậm bất thường trên dữ liệu thật (590k dòng).
+
 Chạy:
     uv run python -m fraud_model.train_baseline
 """
 import joblib
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 from . import config
 from .data import DatasetNotFoundError, load_merged, time_based_split
-from .features import prepare_baseline_features
+from .features import prepare_baseline_features, to_pandas_xy
 
 
 def main() -> None:
@@ -21,14 +29,14 @@ def main() -> None:
 
     train_df, val_df = time_based_split(df)
 
-    X_train = prepare_baseline_features(train_df)
-    y_train = train_df[config.TARGET_COL]
-
-    X_val = prepare_baseline_features(val_df)
+    X_train, y_train = to_pandas_xy(prepare_baseline_features(train_df))
+    X_val, y_val = to_pandas_xy(prepare_baseline_features(val_df))
     X_val = X_val.reindex(columns=X_train.columns, fill_value=-999)
-    y_val = val_df[config.TARGET_COL]
 
-    model = LogisticRegression(max_iter=1000, class_weight="balanced")
+    model = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(max_iter=1000, class_weight="balanced"),
+    )
     model.fit(X_train, y_train)
 
     val_proba = model.predict_proba(X_val)[:, 1]

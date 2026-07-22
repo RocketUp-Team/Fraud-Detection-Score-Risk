@@ -34,5 +34,39 @@ services:
     depends_on:
       - backend
 
+  # --- Spark: chỉ dùng cho training (model/), không cần cho demo chấm điểm.
+  # Chạy: docker compose --profile training run --rm model-training uv run python -m fraud_model.train_baseline
+  spark-master:
+    image: bitnami/spark:3.5
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    profiles: ["training"]
+
+  spark-worker:
+    image: bitnami/spark:3.5
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+    depends_on:
+      - spark-master
+    profiles: ["training"]
+
+  model-training:
+    build: ./model
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    volumes:
+      - ./model/data:/app/data
+      - ./model/artifacts:/app/artifacts
+    depends_on:
+      - spark-master
+      - spark-worker
+    profiles: ["training"]
+
 volumes:
   db_data:

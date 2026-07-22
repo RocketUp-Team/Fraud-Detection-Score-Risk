@@ -41,6 +41,11 @@ Với 8 ngày, **không làm một hệ thống hoàn chỉnh** — chỉ cần 
 - So sánh nhiều model (LightGBM, XGBoost, CatBoost) trên PR-AUC/ROC-AUC
 - Tuning model tốt nhất, sinh giải thích SHAP
 - Đóng gói model cuối thành module `score(features) -> {proba, shap}` để Trung gọi
+- Xử lý dữ liệu (load/merge/split/feature prep) chạy trên **PySpark**, convert
+  sang pandas ngay trước khi train (sklearn/LightGBM/XGBoost/CatBoost không
+  đọc trực tiếp Spark DataFrame). Spark cluster (`spark-master`/`spark-worker`)
+  nằm trong profile Docker Compose riêng (`--profile training`), không ảnh
+  hưởng service demo chấm điểm — xem `model/README.md`.
 
 ### Trung — Backend
 - Scaffold FastAPI + schema CSDL (PostgreSQL) + Docker
