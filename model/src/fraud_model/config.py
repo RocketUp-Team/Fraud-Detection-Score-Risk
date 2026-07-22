@@ -17,3 +17,7 @@ TARGET_COL = "isFraud"
 VAL_FRACTION = 0.2
 
 BASELINE_MODEL_PATH = ARTIFACTS_DIR / "baseline_logreg.joblib"
+COMPARISON_RESULTS_PATH = ARTIFACTS_DIR / "model_comparison.json"
+FINAL_MODEL_PATH = ARTIFACTS_DIR / "final_model.joblib"
+
+TREE_MODEL_NAMES = {"lightgbm", "xgboost", "catboost"}
