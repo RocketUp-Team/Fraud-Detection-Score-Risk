@@ -1,0 +1,551 @@
+<title>Risk Scoring Engine — Kế hoạch Demo 8 ngày</title>
+<style>
+  :root {
+    --bg: #f1f3f1;
+    --bg-raised: #ffffff;
+    --ink: #161b1a;
+    --ink-soft: #4d5f5c;
+    --ink-faint: #7c8c88;
+    --border: #dbe1de;
+    --accent: #0e7c78;
+    --accent-ink: #ffffff;
+    --accent-soft: #e2f0ee;
+    --risk-low: #2f8f52;
+    --risk-med: #b8791a;
+    --risk-high: #c23b3b;
+    --risk-low-bg: #e6f2e9;
+    --risk-med-bg: #f6ecd9;
+    --risk-high-bg: #f7e4e2;
+    --code-bg: #e9edec;
+    --shadow: 0 1px 2px rgba(20,30,28,0.04), 0 6px 20px rgba(20,30,28,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101513;
+      --bg-raised: #171e1c;
+      --ink: #e7ece9;
+      --ink-soft: #9db0ac;
+      --ink-faint: #6c7d79;
+      --border: #263330;
+      --accent: #3fc9c3;
+      --accent-ink: #06201f;
+      --accent-soft: #163330;
+      --risk-low: #4caf6d;
+      --risk-med: #e0a83f;
+      --risk-high: #e0605c;
+      --risk-low-bg: #17281d;
+      --risk-med-bg: #2b2418;
+      --risk-high-bg: #2c1c1b;
+      --code-bg: #1c2422;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101513; --bg-raised: #171e1c; --ink: #e7ece9; --ink-soft: #9db0ac; --ink-faint: #6c7d79;
+    --border: #263330; --accent: #3fc9c3; --accent-ink: #06201f; --accent-soft: #163330;
+    --risk-low: #4caf6d; --risk-med: #e0a83f; --risk-high: #e0605c;
+    --risk-low-bg: #17281d; --risk-med-bg: #2b2418; --risk-high-bg: #2c1c1b;
+    --code-bg: #1c2422; --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f1f3f1; --bg-raised: #ffffff; --ink: #161b1a; --ink-soft: #4d5f5c; --ink-faint: #7c8c88;
+    --border: #dbe1de; --accent: #0e7c78; --accent-ink: #ffffff; --accent-soft: #e2f0ee;
+    --risk-low: #2f8f52; --risk-med: #b8791a; --risk-high: #c23b3b;
+    --risk-low-bg: #e6f2e9; --risk-med-bg: #f6ecd9; --risk-high-bg: #f7e4e2;
+    --code-bg: #e9edec; --shadow: 0 1px 2px rgba(20,30,28,0.04), 0 6px 20px rgba(20,30,28,0.05);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent-soft); }
+
+  h1, h2, h3, h4 {
+    font-family: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    font-weight: 600;
+    text-wrap: balance;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  code, .mono, .tabnum { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+  a { color: var(--accent); }
+
+  /* ---- Shell layout ---- */
+  .shell {
+    display: grid;
+    grid-template-columns: 240px minmax(0,1fr);
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+  .toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 18px 28px 24px;
+    border-right: 1px solid var(--border);
+  }
+  .toc-brand {
+    font-family: ui-serif, Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .toc-sub {
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    margin-bottom: 20px;
+  }
+  .toc nav { display: flex; flex-direction: column; gap: 2px; }
+  .toc nav a {
+    text-decoration: none;
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: flex;
+    gap: 8px;
+  }
+  .toc nav a:hover { background: var(--accent-soft); color: var(--ink); }
+  .toc nav a .num { color: var(--ink-faint); font-variant-numeric: tabular-nums; width: 1.2em; }
+
+  main { padding: 0 44px 80px; min-width: 0; }
+
+  .hero {
+    padding: 40px 0 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 36px;
+  }
+  .hero .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .hero h1 { font-size: 2.1rem; margin: 0 0 10px; }
+  .hero p.lede { color: var(--ink-soft); font-size: 1.02rem; max-width: 62ch; margin: 0 0 18px; }
+  .hero .meta-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.78rem; padding: 5px 11px; border-radius: 999px;
+    background: var(--bg-raised); border: 1px solid var(--border); color: var(--ink-soft);
+  }
+
+  section { margin-bottom: 52px; scroll-margin-top: 20px; }
+  section > h2 {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 0 0 6px;
+  }
+  section > h2 .idx { color: var(--accent); font-family: ui-monospace, monospace; font-size: 1rem; }
+  section > .section-intro { color: var(--ink-soft); margin: 0 0 20px; max-width: 68ch; }
+
+  .card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+  }
+
+  ul.plain { margin: 0; padding-left: 1.2em; }
+  ul.plain li { margin-bottom: 6px; }
+
+  .goal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .goal-grid { grid-template-columns: 1fr; } }
+  .goal-card { padding: 16px 18px; }
+  .goal-card h4 { font-size: 0.95rem; margin: 0 0 8px; font-family: inherit; }
+  .goal-card p { margin: 0; color: var(--ink-soft); font-size: 0.9rem; }
+  .scope-out { opacity: 0.85; }
+  .scope-out h4::before { content: "✕ "; color: var(--risk-high); }
+  .scope-in h4::before { content: "✓ "; color: var(--risk-low); }
+
+  pre.mermaid { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 10px; padding: 18px; overflow-x: auto; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  thead th { background: var(--accent-soft); color: var(--ink); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--accent-soft); }
+  td.num, th.num { font-variant-numeric: tabular-nums; font-family: ui-monospace, monospace; }
+
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; }
+  .badge.low { background: var(--risk-low-bg); color: var(--risk-low); }
+  .badge.med { background: var(--risk-med-bg); color: var(--risk-med); }
+  .badge.high { background: var(--risk-high-bg); color: var(--risk-high); }
+
+  .owner { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+  .dot.quan { background: #6d5bd0; }
+  .dot.an { background: #1e88a8; }
+  .dot.long { background: #c9832a; }
+  .dot.trung { background: #4c9a5a; }
+
+  .team-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  @media (max-width: 980px) { .team-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .team-grid { grid-template-columns: 1fr; } }
+  .role-card { padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .role-card .who { display: flex; align-items: center; gap: 9px; }
+  .role-card .who .dot { width: 11px; height: 11px; }
+  .role-card .who h3 { margin: 0; font-size: 1.1rem; font-family: ui-serif, serif; }
+  .role-card .role-title { font-size: 0.78rem; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .role-card ul { margin: 4px 0 0; padding-left: 1.1em; font-size: 0.86rem; color: var(--ink-soft); }
+  .role-card ul li { margin-bottom: 5px; }
+  .role-card .stack { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+  .role-card .stack span { font-size: 0.7rem; padding: 2px 8px; border-radius: 6px; background: var(--code-bg); color: var(--ink-soft); }
+
+  .callout { padding: 16px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-raised); font-size: 0.9rem; }
+  .callout.warn { border-color: color-mix(in srgb, var(--risk-med) 40%, var(--border)); }
+  .callout.warn strong { color: var(--risk-med); }
+
+  .risk-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .risk-row { display: grid; grid-template-columns: 130px 1fr; gap: 14px; padding: 12px 16px; border-radius: 8px; }
+  .risk-row.high { background: var(--risk-high-bg); }
+  .risk-row.med { background: var(--risk-med-bg); }
+  .risk-row.low { background: var(--risk-low-bg); }
+  .risk-row .label { font-weight: 700; font-size: 0.82rem; }
+  .risk-row.high .label { color: var(--risk-high); }
+  .risk-row.med .label { color: var(--risk-med); }
+  .risk-row.low .label { color: var(--risk-low); }
+  .risk-row p { margin: 0; font-size: 0.86rem; color: var(--ink-soft); }
+
+  .checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+  @media (max-width: 700px) { .checklist { grid-template-columns: 1fr; } }
+  .checklist label { display: flex; gap: 10px; align-items: flex-start; font-size: 0.9rem; color: var(--ink-soft); }
+  .checklist input { margin-top: 4px; accent-color: var(--accent); }
+
+  footer { padding: 20px 0 60px; color: var(--ink-faint); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 40px; }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    .toc { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 16px 20px; }
+    .toc nav { flex-direction: row; flex-wrap: wrap; }
+    main { padding: 0 20px 60px; }
+  }
+</style>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="toc-brand">Risk Scoring Engine</div>
+    <div class="toc-sub">Kế hoạch Demo 8 ngày · IEEE-CIS Fraud Detection</div>
+    <nav>
+      <a href="#overview"><span class="num">01</span>Mục tiêu &amp; phạm vi</a>
+      <a href="#architecture"><span class="num">02</span>Kiến trúc hệ thống</a>
+      <a href="#data-model"><span class="num">03</span>Dữ liệu &amp; mô hình AI</a>
+      <a href="#api"><span class="num">04</span>Thiết kế API &amp; CSDL</a>
+      <a href="#team"><span class="num">05</span>Phân công 4 người</a>
+      <a href="#roadmap"><span class="num">06</span>Gantt chart 8 ngày</a>
+      <a href="#risks"><span class="num">07</span>Rủi ro với lịch gấp</a>
+      <a href="#demo"><span class="num">08</span>Checklist demo</a>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="hero">
+      <div class="eyebrow">Demo · 4 thành viên · 22/07 → 29/07/2026 (8 ngày)</div>
+      <h1>Risk Scoring Engine — chấm điểm rủi ro gian lận giao dịch</h1>
+      <p class="lede">Ứng dụng chấm điểm rủi ro (0–100) cho từng giao dịch dựa trên mô hình học máy huấn luyện từ bộ dữ liệu IEEE-CIS Fraud Detection, có API chấm điểm, dashboard xem điểm rủi ro + giải thích SHAP, và luồng rà soát/gắn nhãn thủ công.</p>
+      <div class="meta-row">
+        <span class="chip">Dataset: IEEE-CIS (Vesta) · ~590k giao dịch · gian lận ~3.5%</span>
+        <span class="chip">Data · Model · BE · FE</span>
+        <span class="chip">An · Quân · Trung · Long</span>
+      </div>
+    </div>
+
+    <section id="overview">
+      <h2><span class="idx">01</span>Mục tiêu &amp; phạm vi rút gọn cho 8 ngày</h2>
+      <p class="section-intro">Với 8 ngày, <strong>không làm một hệ thống hoàn chỉnh</strong> — chỉ cần chứng minh pipeline chạy được end-to-end với 1 model tốt nhất đã chọn.</p>
+      <div class="goal-grid">
+        <div class="card goal-card scope-in">
+          <h4>Trong phạm vi</h4>
+          <p>1 model duy nhất đã so sánh &amp; chọn (không thử nghiệm dàn trải), API chấm điểm 1 giao dịch + SHAP top-5, dashboard danh sách/chi tiết/rà soát gắn nhãn, Docker chạy local cho buổi demo.</p>
+        </div>
+        <div class="card goal-card scope-out">
+          <h4>Cắt bỏ hoàn toàn</h4>
+          <p>Đăng nhập/phân quyền (dùng tài khoản demo cứng), retraining tự động &amp; model registry nhiều phiên bản, streaming thật/deploy cloud, bảng theo dõi drift phức tạp — chỉ 1 biểu đồ PR-AUC tĩnh.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="idx">02</span>Kiến trúc hệ thống</h2>
+      <p class="section-intro">Bốn khối rõ ràng để mỗi người làm song song mà ít giẫm chân nhau: <strong>An</strong> chuẩn bị dữ liệu &amp; feature, <strong>Quân</strong> đóng gói model thành hàm độc lập, <strong>Trung</strong> là nguồn sự thật cho dữ liệu &amp; nghiệp vụ, <strong>Long</strong> chỉ nói chuyện với Backend.</p>
+      <pre class="mermaid">
+flowchart LR
+  subgraph DATA["Data / EDA — An"]
+    RAW[Raw IEEE-CIS] --> CLEAN[Cleaning + Feature Engineering]
+  end
+
+  subgraph AI["Model — Quân"]
+    CLEAN --> MDL[So sánh model: LGBM/XGBoost/CatBoost]
+    MDL --> EXP[SHAP Explainer]
+    MDL --> ART[(Model Artifact .pkl)]
+  end
+
+  subgraph BE["Backend — Trung"]
+    ING[Batch Import CSV] --> DB[(PostgreSQL)]
+    SCORE[Scoring Service] --> DB
+    CASE[Case / Review API] --> DB
+    ART --> SCORE
+    EXP --> SCORE
+  end
+
+  subgraph FE["Frontend Dashboard — Long"]
+    LIST[Danh sách giao dịch]
+    DETAIL[Chi tiết + SHAP]
+    REVIEW[Màn hình rà soát]
+    MON[Biểu đồ PR-AUC]
+  end
+
+  CLIENT[Giao dịch mẫu / CSV demo] --> ING
+  DB --> LIST
+  DB --> DETAIL
+  DB --> REVIEW
+  DB --> MON
+  REVIEW -->|nhãn phản hồi| DB
+      </pre>
+      <div class="callout" style="margin-top:14px;">
+        Điểm mấu chốt: model chỉ trả về <code>probability</code> + top feature contributions, không quyết định nghiệp vụ. Trong bản demo 8 ngày, bỏ qua Rules Engine phức tạp — hiển thị thẳng điểm số + để nhân viên tự quyết khi rà soát.
+      </div>
+    </section>
+
+    <section id="data-model">
+      <h2><span class="idx">03</span>Dữ liệu &amp; mô hình AI</h2>
+      <p class="section-intro">IEEE-CIS gồm 2 bảng nối qua <code>TransactionID</code>: <code>transaction</code> (~434 cột: số tiền, thẻ, địa chỉ, khoảng cách, counting features <code>C1–C14</code>, time-delta <code>D1–D15</code>, match features <code>M1–M9</code>, Vesta engineered <code>V1–V339</code>) và <code>identity</code> (~41 cột: thiết bị, trình duyệt, thông tin định danh). Nhãn <code>isFraud</code> mất cân bằng nặng (~3.5% gian lận).</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Hạng mục</th><th>Quyết định kỹ thuật</th><th>Lý do</th></tr></thead>
+          <tbody>
+            <tr><td>Xử lý mất cân bằng</td><td>Không oversample thô; dùng <code>scale_pos_weight</code> / class weight + đánh giá bằng PR-AUC</td><td>Oversample (SMOTE) trên dữ liệu tabular nhiễu dễ tạo mẫu giả, sai lệch feature V/C</td></tr>
+            <tr><td>Chia train/validation</td><td>Chia theo thời gian (<code>TransactionDT</code>), không random split</td><td>Dữ liệu có tính thời gian — random split gây leakage, model ảo tưởng độ chính xác</td></tr>
+            <tr><td>Missing values</td><td>Giữ NaN cho model tree-based (LightGBM/XGBoost tự xử lý)</td><td>Không cần impute thủ công, tránh mất tín hiệu "thiếu dữ liệu = rủi ro"</td></tr>
+            <tr><td>Categorical encoding</td><td>Label encoding hoặc target encoding có kiểm soát leakage cho <code>card</code>, <code>ProductCD</code>, <code>P/R_emaildomain</code>, <code>M1–M9</code></td><td>Cardinality cao, one-hot sẽ nổ chiều dữ liệu</td></tr>
+            <tr><td>Thuật toán chính</td><td>LightGBM (baseline), thử XGBoost để so sánh</td><td>Chuẩn công nghiệp cho bài toán tabular gian lận, train nhanh, xử lý tốt missing/imbalance</td></tr>
+            <tr><td>Metric đánh giá</td><td>PR-AUC làm chính, ROC-AUC phụ, theo dõi recall @ fixed precision</td><td>Với lớp hiếm, ROC-AUC dễ "ảo" — PR-AUC phản ánh đúng bài toán rà soát gian lận</td></tr>
+            <tr><td>Giải thích kết quả</td><td>SHAP values, trả kèm top-5 feature đóng góp mỗi giao dịch</td><td>Nhân viên rà soát cần biết "vì sao điểm cao" — yêu cầu bắt buộc của bài toán risk scoring</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="api">
+      <h2><span class="idx">04</span>Thiết kế API &amp; CSDL</h2>
+      <p class="section-intro">Hợp đồng API là ranh giới giữa Trung (Backend) và Long (Frontend) — nên chốt bằng JSON mẫu ngay <strong>Ngày 1</strong>, để cả 4 người code song song ngay từ Ngày 2.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Mô tả</th><th>Owner</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">POST /api/transactions/score</td><td>Chấm điểm 1 giao dịch real-time, trả <code>score</code>, <code>decision</code>, <code>top_features</code></td><td><span class="owner"><span class="dot trung"></span>Trung</span></td></tr>
+            <tr><td class="mono">POST /api/transactions/import</td><td>Nạp batch CSV (mô phỏng luồng giao dịch) vào hệ thống</td><td><span class="owner"><span class="dot trung"></span>Trung</span></td></tr>
+            <tr><td class="mono">GET /api/transactions</td><td>Danh sách giao dịch, lọc theo mức rủi ro / thời gian / trạng thái</td><td><span class="owner"><span class="dot trung"></span>Trung</span></td></tr>
+            <tr><td class="mono">GET /api/transactions/:id</td><td>Chi tiết giao dịch + giải thích SHAP</td><td><span class="owner"><span class="dot trung"></span>Trung</span></td></tr>
+            <tr><td class="mono">GET /api/cases · POST /api/cases/:id/review</td><td>Danh sách case cần rà soát, gửi quyết định + nhãn phản hồi của nhân viên</td><td><span class="owner"><span class="dot trung"></span>Trung</span></td></tr>
+            <tr><td class="mono">GET /api/models/metrics</td><td>Chỉ số PR-AUC/ROC-AUC của model đang phục vụ (tĩnh, cho biểu đồ demo)</td><td><span class="owner"><span class="dot trung"></span>Trung</span></td></tr>
+            <tr><td class="mono">internal: score(features) -> {proba, shap}</td><td>Hàm nội bộ do Quân đóng gói, Trung import trực tiếp vào scoring service</td><td><span class="owner"><span class="dot quan"></span>Quân</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap" style="margin-top:16px;">
+        <table>
+          <thead><tr><th>Bảng CSDL</th><th>Trường chính</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">transactions</td><td>id, transaction_dt, amount, card_info, product_cd, raw_features (jsonb), imported_at</td></tr>
+            <tr><td class="mono">risk_scores</td><td>id, transaction_id, model_version, score, decision, top_features (jsonb), scored_at</td></tr>
+            <tr><td class="mono">cases</td><td>id, transaction_id, status (open/reviewing/closed), assigned_to, priority</td></tr>
+            <tr><td class="mono">feedback</td><td>id, case_id, analyst_id, label (fraud/legit), note, created_at</td></tr>
+            <tr><td class="mono">model_registry</td><td>version, trained_at, metric_pr_auc, metric_roc_auc, artifact_path</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="team">
+      <h2><span class="idx">05</span>Phân công 4 người</h2>
+      <p class="section-intro">Mỗi người sở hữu trọn một lát cắt của pipeline; điểm bàn giao giữa các lát cắt là mốc đồng bộ bắt buộc trong Gantt chart bên dưới.</p>
+      <div class="team-grid">
+        <div class="card role-card">
+          <div class="who"><span class="dot an"></span><h3>An</h3></div>
+          <div class="role-title">Data Processing &amp; EDA</div>
+          <ul>
+            <li>Khảo sát, làm sạch bộ IEEE-CIS (<code>transaction</code> + <code>identity</code>)</li>
+            <li>Xử lý mất cân bằng lớp, missing values, chia train/val theo thời gian</li>
+            <li>Feature engineering (aggregation theo card/email/device) → bàn giao cho Quân</li>
+            <li>Chuẩn bị bộ ca demo (giao dịch fraud/legit mẫu) để trình diễn trực tiếp</li>
+          </ul>
+          <div class="stack"><span>Python</span><span>pandas</span><span>Jupyter</span></div>
+        </div>
+        <div class="card role-card">
+          <div class="who"><span class="dot quan"></span><h3>Quân</h3></div>
+          <div class="role-title">Huấn luyện &amp; đóng gói mô hình</div>
+          <ul>
+            <li>Train baseline (Logistic Regression) từ feature pipeline của An</li>
+            <li>So sánh LightGBM / XGBoost / CatBoost trên PR-AUC, chọn model tối ưu</li>
+            <li>Tuning model tốt nhất, sinh giải thích SHAP</li>
+            <li>Đóng gói model cuối thành module <code>score(features) -> {proba, shap}</code></li>
+          </ul>
+          <div class="stack"><span>LightGBM</span><span>XGBoost</span><span>CatBoost</span><span>SHAP</span></div>
+        </div>
+        <div class="card role-card">
+          <div class="who"><span class="dot trung"></span><h3>Trung</h3></div>
+          <div class="role-title">Backend</div>
+          <ul>
+            <li>Scaffold FastAPI + schema CSDL + Docker</li>
+            <li>API transactions (CRUD/list/detail), scoring, case/review, import CSV</li>
+            <li>Tích hợp module <code>score()</code> của Quân vào API chấm điểm thật</li>
+            <li>Docker Compose full stack cho buổi demo</li>
+          </ul>
+          <div class="stack"><span>FastAPI</span><span>PostgreSQL</span><span>Docker</span></div>
+        </div>
+        <div class="card role-card">
+          <div class="who"><span class="dot long"></span><h3>Long</h3></div>
+          <div class="role-title">Frontend</div>
+          <ul>
+            <li>Scaffold FE (React + TypeScript), wireframe, layout</li>
+            <li>Danh sách giao dịch + filter theo mức rủi ro</li>
+            <li>Chi tiết giao dịch: điểm số, quyết định, biểu đồ SHAP top-5</li>
+            <li>Màn rà soát: duyệt/từ chối/gắn nhãn, nối API thật của Trung</li>
+          </ul>
+          <div class="stack"><span>React</span><span>TypeScript</span><span>Recharts</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <h2><span class="idx">06</span>Gantt chart 8 ngày</h2>
+      <p class="section-intro">Bắt đầu <strong>22/07/2026</strong>, demo <strong>29/07/2026</strong>. Mỗi hàng là một ngày làm việc trọn vẹn — không có ngày nghỉ trong 8 ngày này.</p>
+      <pre class="mermaid">
+gantt
+    title Lo trinh Demo Risk Scoring (22/07 - 29/07/2026)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %d/%m
+
+    section An - Data/EDA
+    Khao sat du lieu tho            :a1, 2026-07-22, 1d
+    EDA day du (imbalance, missing) :a2, after a1, 1d
+    Feature engineering + ban giao  :a3, after a2, 1d
+    Viet phan du lieu cho bao cao   :a4, after a3, 1d
+    Chuan bi bo ca demo             :a5, after a4, 1d
+    QA edge case du lieu            :a6, after a5, 1d
+    Bug bash + ra so lieu           :a7, after a6, 1d
+    Demo                            :milestone, a8, after a7, 0d
+
+    section Quan - Model
+    Setup training env + baseline   :q1, 2026-07-22, 1d
+    Feature pipeline + train baseline :q2, after q1, 1d
+    So sanh model LGBM/XGB/CatBoost :q3, after q2, 1d
+    Tuning + SHAP explainability    :q4, after q3, 1d
+    Dong goi model + ham score()    :q5, after q4, 1d
+    Ho tro tich hop, theo doi latency :q6, after q5, 1d
+    Bug bash + chot so lieu model   :q7, after q6, 1d
+    Demo                            :milestone, q8, after q7, 0d
+
+    section Trung - Backend
+    Scaffold FastAPI + DB + Docker  :t1, 2026-07-22, 1d
+    CRUD transactions API (mock)    :t2, after t1, 1d
+    Scoring + case/review endpoint  :t3, after t2, 1d
+    Batch import CSV                :t4, after t3, 1d
+    Tich hop model that vao scoring :t5, after t4, 1d
+    Docker compose full stack       :t6, after t5, 1d
+    Bug bash, fix contract mismatch :t7, after t6, 1d
+    Demo                            :milestone, t8, after t7, 0d
+
+    section Long - Frontend
+    Scaffold FE + wireframe (mock)  :l1, 2026-07-22, 1d
+    Danh sach giao dich (mock)      :l2, after l1, 1d
+    Chi tiet giao dich + bieu do    :l3, after l2, 1d
+    Panel giai thich SHAP (mock)    :l4, after l3, 1d
+    Man ra soat, noi API that       :l5, after l4, 1d
+    Polish dashboard + bieu do theo doi :l6, after l5, 1d
+    Bug bash, rehearsal             :l7, after l6, 1d
+    Demo                            :milestone, l8, after l7, 0d
+      </pre>
+
+      <h3 style="font-size:1.05rem; margin: 28px 0 10px;">Điểm đồng bộ bắt buộc</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ngày</th><th>Mốc</th><th>Bàn giao</th></tr></thead>
+          <tbody>
+            <tr><td class="num">22/07 · Ngày 1</td><td>Chốt hợp đồng API (JSON mẫu) trước cuối ngày</td><td><span class="owner"><span class="dot trung"></span>Trung</span> ↔ <span class="owner"><span class="dot long"></span>Long</span></td></tr>
+            <tr><td class="num">24/07 · Ngày 3</td><td>Feature pipeline bàn giao</td><td><span class="owner"><span class="dot an"></span>An</span> → <span class="owner"><span class="dot quan"></span>Quân</span></td></tr>
+            <tr><td class="num">26/07 · Ngày 5</td><td>Model đóng gói <code>score()</code> bàn giao</td><td><span class="owner"><span class="dot quan"></span>Quân</span> → <span class="owner"><span class="dot trung"></span>Trung</span></td></tr>
+            <tr><td class="num">27/07 · Ngày 6</td><td>Tích hợp full stack lần đầu, tất cả cùng test</td><td>Cả 4 người</td></tr>
+            <tr><td class="num">28/07 · Ngày 7</td><td>Bug bash toàn bộ + tổng duyệt kịch bản demo</td><td>Cả 4 người</td></tr>
+            <tr><td class="num">29/07 · Ngày 8</td><td>Demo</td><td>Cả 4 người</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:1.05rem; margin: 28px 0 10px;">Lịch chi tiết theo ngày</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ngày</th><th><span class="owner"><span class="dot an"></span>An</span></th><th><span class="owner"><span class="dot quan"></span>Quân</span></th><th><span class="owner"><span class="dot trung"></span>Trung</span></th><th><span class="owner"><span class="dot long"></span>Long</span></th></tr></thead>
+          <tbody>
+            <tr><td class="num">1 · 22/07 T4</td><td>Khảo sát dữ liệu thô, báo cáo chất lượng</td><td>Setup training env, chạy thử baseline pipeline</td><td>Scaffold FastAPI + DB schema + Docker</td><td>Scaffold FE, wireframe, render mock data</td></tr>
+            <tr><td class="num">2 · 23/07 T5</td><td>EDA đầy đủ: imbalance, missing, phân phối feature</td><td>Feature pipeline theo EDA, train baseline (LogReg)</td><td>CRUD transactions API (trả score mock)</td><td>UI danh sách giao dịch (mock data)</td></tr>
+            <tr><td class="num">3 · 24/07 T6</td><td><strong>Bàn giao feature engineering cho Quân</strong></td><td>So sánh LightGBM/XGBoost/CatBoost theo PR-AUC</td><td>Scoring endpoint (stub) + case/review endpoint</td><td>UI chi tiết giao dịch + biểu đồ điểm số</td></tr>
+            <tr><td class="num">4 · 25/07 T7</td><td>Viết phần dữ liệu cho báo cáo, hỗ trợ review feature</td><td>Tuning model tốt nhất, sinh SHAP explainability</td><td>Batch import CSV, tạm nối API với mock model</td><td>Panel giải thích SHAP (dùng mock API)</td></tr>
+            <tr><td class="num">5 · 26/07 CN</td><td>Chuẩn bị bộ ca demo (fraud/legit mẫu)</td><td><strong>Đóng gói model cuối</strong> + hàm score() + docs</td><td><strong>Tích hợp model thật</strong> vào scoring API</td><td>Màn rà soát (duyệt/từ chối/gắn nhãn), nối API thật</td></tr>
+            <tr><td class="num">6 · 27/07 T2</td><td>QA edge case dữ liệu (thiếu identity, outlier)</td><td>Hỗ trợ debug tích hợp, theo dõi latency scoring</td><td>Docker compose full stack, chạy thử tích hợp</td><td>Polish dashboard, biểu đồ theo dõi PR-AUC</td></tr>
+            <tr><td class="num">7 · 28/07 T3</td><td>Bug bash, rà lại số liệu trình bày</td><td>Bug bash, chốt số liệu model cho slide</td><td>Bug bash, fix lỗi hợp đồng API</td><td>Bug bash, polish UI, tổng duyệt</td></tr>
+            <tr><td class="num">8 · 29/07 T4</td><td colspan="4" style="text-align:center; font-weight:700;">Demo</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="risks">
+      <h2><span class="idx">07</span>Rủi ro với lịch 8 ngày</h2>
+      <div class="risk-grid">
+        <div class="risk-row high">
+          <div class="label">CAO · Không đủ thời gian nếu chờ tuần tự</div>
+          <p>Nếu Trung chờ Quân xong model rồi mới code API, hoặc Long chờ Trung xong API rồi mới code UI, 8 ngày là không đủ. Bắt buộc làm song song với <strong>mock/stub trước</strong> — chỉ tích hợp thật vào Ngày 5–6.</p>
+        </div>
+        <div class="risk-row high">
+          <div class="label">CAO · Data leakage do vội</div>
+          <p>Áp lực thời gian dễ khiến bỏ qua bước chia train/test theo thời gian, dùng random split cho nhanh — dẫn đến số liệu ảo khi trình bày. An phải chốt cách chia dữ liệu ngay Ngày 1–2.</p>
+        </div>
+        <div class="risk-row med">
+          <div class="label">TB · Đóng gói model trễ</div>
+          <p>Nếu Ngày 5 Quân chưa xong <code>score()</code>, Trung mất nốt thời gian còn lại để tích hợp. Nếu trễ, dùng tạm model baseline (Logistic Regression) để demo pipeline chạy được.</p>
+        </div>
+        <div class="risk-row low">
+          <div class="label">THẤP · Thiếu dữ liệu identity</div>
+          <p>Bảng <code>identity</code> chỉ khớp được ~24% giao dịch — An cần xử lý rõ trường hợp thiếu ngay từ Ngày 1, không để pipeline lỗi khi thiếu identity.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo">
+      <h2><span class="idx">08</span>Checklist demo (29/07/2026)</h2>
+      <p class="section-intro">Kịch bản demo nên đi hết một vòng pipeline trong dưới 5 phút để hội đồng thấy rõ 4 mảng đều hoạt động.</p>
+      <div class="card" style="padding: 18px 20px;">
+        <div class="checklist">
+          <label><input type="checkbox"> Import 1 batch CSV giao dịch mẫu và thấy điểm rủi ro xuất hiện trong dashboard</label>
+          <label><input type="checkbox"> Mở 1 giao dịch điểm cao, chỉ ra được top feature SHAP giải thích vì sao</label>
+          <label><input type="checkbox"> Rà soát 1 case: gắn nhãn, hệ thống lưu phản hồi</label>
+          <label><input type="checkbox"> Trình bày rõ vì sao chọn model này (so sánh PR-AUC giữa các model)</label>
+          <label><input type="checkbox"> Trình bày rõ cách chia train/test theo thời gian (chống leakage)</label>
+          <label><input type="checkbox"> Mỗi người trình bày đúng phần mình phụ trách (Data / Model / BE / FE)</label>
+          <label><input type="checkbox"> Có kịch bản dự phòng (video quay sẵn) nếu demo trực tiếp lỗi</label>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Risk Scoring Engine · Kế hoạch Demo 8 ngày dựa trên bộ dữ liệu IEEE-CIS Fraud Detection (Kaggle/Vesta) · Soạn cho nhóm 4 thành viên.
+    </footer>
+  </main>
+</div>
