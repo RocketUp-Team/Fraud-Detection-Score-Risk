@@ -1,0 +1,10 @@
+pyspark>=4.2.0
+numpy>=2.3.5
+pandas>=3.0.3
+pyarrow>=25.0.0
+matplotlib>=3.10.0
+plotly>=6.3.0
+scipy>=1.16.0
+jupyterlab>=4.4.0
+ipykernel>=6.30.1
+kaggle>=1.7.4

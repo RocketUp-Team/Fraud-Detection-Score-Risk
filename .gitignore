@@ -27,3 +27,9 @@ build/
 
 # Docker
 *.log
+data/ieee-fraud-detection.zip
+data/ieee-fraud-detection/sample_submission.csv
+data/ieee-fraud-detection/test_identity.csv
+data/ieee-fraud-detection/test_transaction.csv
+data/ieee-fraud-detection/train_identity.csv
+data/ieee-fraud-detection/train_transaction.csv
