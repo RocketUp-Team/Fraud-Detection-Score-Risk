@@ -23,6 +23,22 @@ Mỗi thư mục có README riêng mô tả cách setup và chạy phần việc
 - **Quân → Trung**: module `score(features) -> {proba, shap}` (Ngày 5)
 - **Trung ↔ Long**: hợp đồng API JSON (chốt Ngày 1, tích hợp thật Ngày 5)
 
+## IEEE-CIS preprocessing
+
+Đọc [data/README.md](data/README.md) và [data/ieee_cis/README_DATA_PROCESSING_EDA.md](data/ieee_cis/README_DATA_PROCESSING_EDA.md) để chạy pipeline Spark và bàn giao dữ liệu cho model workflow:
+
+```powershell
+docker compose -f data\ieee_cis\docker-compose.preprocessing.yml build
+docker compose -f data\ieee_cis\docker-compose.preprocessing.yml run --rm preprocess
+docker compose -f data\ieee_cis\docker-compose.preprocessing.yml run --rm verify-processed
+```
+
+Kết quả đã ghi nhận và hướng dẫn bàn giao cho Quân:
+
+- [data/ieee_cis/RESULTS_REPORT.md](data/ieee_cis/RESULTS_REPORT.md)
+- [data/ieee_cis/HANDOVER_TO_QUAN.md](data/ieee_cis/HANDOVER_TO_QUAN.md)
+- [data/ieee_cis/README_DATA_PROCESSING_EDA.md](data/ieee_cis/README_DATA_PROCESSING_EDA.md)
+
 ## Bắt đầu
 
 Trong lúc chờ bàn giao, mỗi phần phát triển độc lập với mock/stub (xem mục 5 của kế hoạch — rủi ro nếu làm tuần tự). Xem README trong từng thư mục để biết chi tiết setup.

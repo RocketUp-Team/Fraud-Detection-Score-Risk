@@ -1,0 +1,6 @@
+filename,path,size_mb
+train_transaction.csv,/app/data/raw/train_transaction.csv,651.69
+train_identity.csv,/app/data/raw/train_identity.csv,25.3
+test_transaction.csv,/app/data/raw/test_transaction.csv,584.79
+test_identity.csv,/app/data/raw/test_identity.csv,24.6
+sample_submission.csv,/app/data/raw/sample_submission.csv,5.8

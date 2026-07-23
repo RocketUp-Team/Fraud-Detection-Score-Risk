@@ -1,0 +1,33 @@
+FROM python:3.11-slim-bookworm
+
+ARG HADOOP_VERSION=3.3.6
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
+    HADOOP_HOME=/opt/hadoop \
+    PATH=/opt/hadoop/bin:/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH \
+    SPARK_LOCAL_IP=127.0.0.1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl openjdk-17-jre-headless procps tini \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL "https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz" -o /tmp/hadoop.tar.gz \
+    && mkdir -p /opt \
+    && tar -xzf /tmp/hadoop.tar.gz -C /opt \
+    && mv "/opt/hadoop-${HADOOP_VERSION}" /opt/hadoop \
+    && rm -f /tmp/hadoop.tar.gz
+
+WORKDIR /app
+COPY docker/requirements.preprocessing.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY pipeline/ieee_cis_preprocess.py /app/pipeline/ieee_cis_preprocess.py
+COPY pipeline/data_processing_eda.py /app/pipeline/data_processing_eda.py
+COPY pipeline/verify_processed.py /app/pipeline/verify_processed.py
+COPY ieee_cis_data_processing_eda.ipynb /app/notebooks/ieee_cis_data_processing_eda.ipynb
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["python", "/app/pipeline/ieee_cis_preprocess.py"]
