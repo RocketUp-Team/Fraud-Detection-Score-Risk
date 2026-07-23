@@ -1,3 +1,0 @@
-dataset,transaction_rows_before,identity_rows,joined_rows_after,matched_identity_rows,unmatched_transaction_rows,row_difference,status
-train,590540,144233,590540,144233,446307,0,pass
-test,506691,141907,506691,141907,364784,0,pass

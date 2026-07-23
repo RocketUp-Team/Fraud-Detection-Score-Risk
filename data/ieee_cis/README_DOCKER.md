@@ -1,4 +1,4 @@
-# IEEE-CIS BDA501 Spark Preprocessing Bundle
+# IEEE-CIS Spark Preprocessing Bundle
 
 ## 1. Copy files into the project
 
@@ -27,7 +27,7 @@ Required files:
 Install Java 17 and Python dependencies, then open:
 
 ```text
-ieee_cis_bda501_complete_pipeline.ipynb
+ieee_cis_data_processing_eda.ipynb
 ```
 
 The notebook auto-detects the exact Windows path and creates:
@@ -41,8 +41,8 @@ data\processed\ieee_cis_spark
 Open PowerShell in the project root:
 
 ```powershell
-docker compose -f docker-compose.preprocessing.yml build
-docker compose -f docker-compose.preprocessing.yml run --rm preprocess
+docker compose -f data/ieee_cis/docker-compose.preprocessing.yml build
+docker compose -f data/ieee_cis/docker-compose.preprocessing.yml run --rm preprocess
 ```
 
 The container reads raw files through a read-only bind mount and writes outputs back to the host:
@@ -58,7 +58,7 @@ The preprocessing image now bundles Java, Spark, and Hadoop so Spark can write p
 ## 4. Verify training readiness
 
 ```powershell
-docker compose -f docker-compose.preprocessing.yml run --rm verify-processed
+docker compose -f data/ieee_cis/docker-compose.preprocessing.yml run --rm verify-processed
 ```
 
 Expected status:

@@ -1,6 +1,6 @@
 filename,path,size_mb
-sample_submission.csv,D:\MSE\16. Big Data\Fraud-Detection-Score-Risk\data\data\ieee-fraud-detection\sample_submission.csv,5.8
-test_identity.csv,D:\MSE\16. Big Data\Fraud-Detection-Score-Risk\data\data\ieee-fraud-detection\test_identity.csv,24.6
-test_transaction.csv,D:\MSE\16. Big Data\Fraud-Detection-Score-Risk\data\data\ieee-fraud-detection\test_transaction.csv,584.79
-train_identity.csv,D:\MSE\16. Big Data\Fraud-Detection-Score-Risk\data\data\ieee-fraud-detection\train_identity.csv,25.3
-train_transaction.csv,D:\MSE\16. Big Data\Fraud-Detection-Score-Risk\data\data\ieee-fraud-detection\train_transaction.csv,651.69
+train_transaction.csv,/app/data/raw/train_transaction.csv,651.69
+train_identity.csv,/app/data/raw/train_identity.csv,25.3
+test_transaction.csv,/app/data/raw/test_transaction.csv,584.79
+test_identity.csv,/app/data/raw/test_identity.csv,24.6
+sample_submission.csv,/app/data/raw/sample_submission.csv,5.8

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""IEEE-CIS distributed preprocessing pipeline for BDA501.
+"""IEEE-CIS distributed preprocessing pipeline.
 Generated together with the matching Jupyter notebook.
 """
 from __future__ import annotations
@@ -46,7 +46,7 @@ SEED = int(os.getenv("PIPELINE_SEED", "42"))
 np.random.seed(SEED)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-logger = logging.getLogger("ieee_cis_bda501")
+logger = logging.getLogger("ieee_cis_pipeline")
 
 WINDOWS_PROJECT_ROOT = Path(r"D:\MSE\16. Big Data\Fraud-Detection-Score-Risk")
 WINDOWS_RAW_DATA_DIR = Path(r"D:\MSE\16. Big Data\Fraud-Detection-Score-Risk\data\data\ieee-fraud-detection")
@@ -122,9 +122,8 @@ FEATURE_STORE_DIR = OUTPUT_DIR / "feature_store"
 MODEL_READY_DIR = OUTPUT_DIR / "model_ready"
 MODEL_DIR = OUTPUT_DIR / "artifacts" / "decision_tree_demo"
 DEMO_DIR = OUTPUT_DIR / "demo"
-CHECKPOINT_DIR = OUTPUT_DIR / "checkpoints"
 SPARK_LOCAL_DIR = OUTPUT_DIR / "spark-local"
-for directory in [REPORTS_DIR, FIGURES_DIR, FEATURE_STORE_DIR, MODEL_READY_DIR, MODEL_DIR.parent, DEMO_DIR, CHECKPOINT_DIR, SPARK_LOCAL_DIR]:
+for directory in [REPORTS_DIR, FIGURES_DIR, FEATURE_STORE_DIR, MODEL_READY_DIR, MODEL_DIR.parent, DEMO_DIR, SPARK_LOCAL_DIR]:
     directory.mkdir(parents=True, exist_ok=True)
 
 RUN_FULL_PROFILE = os.getenv("RUN_FULL_PROFILE", "true").lower() in {"1", "true", "yes"}
@@ -132,6 +131,10 @@ RUN_MODEL_DEMO = os.getenv("RUN_MODEL_DEMO", "true").lower() in {"1", "true", "y
 WRITE_WIDE_FEATURE_STORE = os.getenv("WRITE_WIDE_FEATURE_STORE", "true").lower() in {"1", "true", "yes"}
 IMBALANCE_RATIO = float(os.getenv("IMBALANCE_RATIO", "4.0"))
 PROFILE_BATCH_SIZE = int(os.getenv("PROFILE_BATCH_SIZE", "40"))
+PARQUET_EXPORT_ENABLED = (
+    os.name != "nt"
+    or os.getenv("ENABLE_WINDOWS_PARQUET", "false").lower() in {"1", "true", "yes"}
+)
 
 print(json.dumps({
     "project_root": str(PROJECT_ROOT),
@@ -141,28 +144,34 @@ print(json.dumps({
     "run_model_demo": RUN_MODEL_DEMO,
     "write_wide_feature_store": WRITE_WIDE_FEATURE_STORE,
     "imbalance_ratio_legit_to_fraud": IMBALANCE_RATIO,
+    "parquet_export_enabled": PARQUET_EXPORT_ENABLED,
     "seed": SEED,
 }, indent=2))
 
 def create_spark_session() -> SparkSession:
+    os.environ["PYSPARK_PYTHON"] = sys.executable
+    os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
     master = os.getenv("SPARK_MASTER", "local[*]")
     shuffle_partitions = os.getenv("SPARK_SHUFFLE_PARTITIONS", str(max(16, (os.cpu_count() or 4) * 2)))
     builder = (
         SparkSession.builder
-        .appName("BDA501-IEEE-CIS-Fraud-Preprocessing")
+        .appName("IEEE-CIS-Fraud-Preprocessing")
         .master(master)
+        .config("spark.pyspark.python", sys.executable)
+        .config("spark.pyspark.driver.python", sys.executable)
         .config("spark.sql.shuffle.partitions", shuffle_partitions)
         .config("spark.default.parallelism", os.getenv("SPARK_DEFAULT_PARALLELISM", str(max(8, os.cpu_count() or 4))))
         .config("spark.sql.adaptive.enabled", "true")
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
         .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        .config("spark.sql.execution.arrow.pyspark.enabled", "true")
+        .config("spark.sql.execution.arrow.pyspark.enabled", "false")
         .config("spark.sql.sources.partitionOverwriteMode", "dynamic")
         .config("spark.local.dir", str(SPARK_LOCAL_DIR))
+        .config("spark.driver.memory", os.getenv("SPARK_DRIVER_MEMORY", "8g"))
+        .config("spark.driver.maxResultSize", os.getenv("SPARK_DRIVER_MAX_RESULT_SIZE", "1g"))
     )
     spark = builder.getOrCreate()
     spark.sparkContext.setLogLevel(os.getenv("SPARK_LOG_LEVEL", "WARN"))
-    spark.sparkContext.setCheckpointDir(str(CHECKPOINT_DIR))
     return spark
 
 
@@ -182,7 +191,8 @@ def chunked(values: list[str], size: int) -> Iterable[list[str]]:
 def spark_path(path: Path) -> str:
     path = path.resolve()
     if os.name == "nt":
-        return path.as_uri()
+        # Hadoop on native Windows interprets encoded file URIs incorrectly.
+        return path.as_posix()
     return str(path)
 
 
@@ -212,10 +222,27 @@ def write_json(payload: dict, path: Path) -> None:
 
 
 def write_single_csv(df: DataFrame, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        # Reports are deliberately small; avoid Hadoop permission operations.
+        df.toPandas().to_csv(path, index=False)
+        return
     df.coalesce(1).write.mode("overwrite").option("header", True).csv(spark_path(path))
 
 
+def normalize_identity_columns(columns: list[str]) -> list[str]:
+    """Normalize Kaggle test identity headers (id-01) to train names (id_01)."""
+    return [re.sub(r"^id-(\d+)$", r"id_\1", column) for column in columns]
+
+
 def write_parquet(df: DataFrame, path: Path, partition_cols: list[str] | None = None) -> None:
+    if not PARQUET_EXPORT_ENABLED:
+        logger.warning(
+            "Skipping Parquet export on native Windows: %s. "
+            "Run the supplied Docker Linux pipeline for full Parquet output.",
+            path,
+        )
+        return
     writer = df.write.mode("overwrite")
     if partition_cols:
         writer.partitionBy(*partition_cols).parquet(spark_path(path))
@@ -332,12 +359,13 @@ inventory_pdf = pd.DataFrame([
 ])
 print(inventory_pdf.to_string(index=False))
 print(f"Total source size: {inventory_pdf['size_mb'].sum():,.2f} MB")
-assert inventory_pdf.loc[inventory_pdf["filename"].isin(REQUIRED_FILES), "size_mb"].sum() >= 500, "The four required files must total at least 500 MB for the BDA501 requirement."
+assert inventory_pdf.loc[inventory_pdf["filename"].isin(REQUIRED_FILES), "size_mb"].sum() >= 500, "The required IEEE-CIS files must total at least 500 MB."
+inventory_pdf.to_csv(REPORTS_DIR / "source_inventory.csv", index=False)
 
 train_tx_schema = build_transaction_schema(read_csv_header(source_paths["train_transaction"]))
 test_tx_schema = build_transaction_schema(read_csv_header(source_paths["test_transaction"]))
-train_id_schema = build_identity_schema(read_csv_header(source_paths["train_identity"]))
-test_id_schema = build_identity_schema(read_csv_header(source_paths["test_identity"]))
+train_id_schema = build_identity_schema(normalize_identity_columns(read_csv_header(source_paths["train_identity"])))
+test_id_schema = build_identity_schema(normalize_identity_columns(read_csv_header(source_paths["test_identity"])))
 
 train_transaction = read_with_schema(source_paths["train_transaction"], train_tx_schema)
 test_transaction = read_with_schema(source_paths["test_transaction"], test_tx_schema)
@@ -360,8 +388,10 @@ join_audit = spark.createDataFrame(pd.DataFrame([train_join_audit, test_join_aud
 join_audit.show(truncate=False)
 assert join_audit.filter(F.col("status") == "fail").count() == 0, "Transaction-identity join changed the transaction grain."
 
-train_merged = train_merged.persist(StorageLevel.MEMORY_AND_DISK)
-test_merged = test_merged.persist(StorageLevel.MEMORY_AND_DISK)
+# The joined IEEE-CIS tables are very wide. Keep them on disk instead of
+# filling the JVM heap with columnar cache blocks.
+train_merged = train_merged.persist(StorageLevel.DISK_ONLY)
+test_merged = test_merged.persist(StorageLevel.DISK_ONLY)
 train_rows = train_merged.count()
 test_rows = test_merged.count()
 print("Merged train rows/columns:", train_rows, len(train_merged.columns))
@@ -428,9 +458,13 @@ print(json.dumps(imbalance_summary, indent=2))
 
 write_parquet(data_profile, REPORTS_DIR / "data_profile_parquet")
 write_single_csv(data_profile.orderBy(F.desc("null_pct")), REPORTS_DIR / "data_profile_csv")
+write_single_csv(data_profile.orderBy(F.desc("null_pct")), REPORTS_DIR / "missingness_profile_csv")
 write_single_csv(key_audit, REPORTS_DIR / "key_audit_csv")
+write_single_csv(key_audit, REPORTS_DIR / "key_audit.csv")
 write_single_csv(join_audit, REPORTS_DIR / "join_audit_csv")
+write_single_csv(join_audit, REPORTS_DIR / "join_audit.csv")
 write_single_csv(class_distribution, REPORTS_DIR / "class_distribution_csv")
+write_single_csv(class_distribution, REPORTS_DIR / "class_distribution.csv")
 write_json(imbalance_summary, REPORTS_DIR / "imbalance_summary.json")
 
 CATEGORICAL_TO_NORMALIZE = [
@@ -623,6 +657,33 @@ split_counts = {
 print(json.dumps(split_counts, indent=2))
 assert sum(split_counts[k] for k in ["train", "validation", "holdout"]) == train_rows
 
+split_report_rows = []
+for split_name, split_df in [
+    ("train", train_split_base),
+    ("validation", validation_split_base),
+    ("holdout", holdout_split_base),
+]:
+    split_row = split_df.agg(
+        F.count("*").alias("rows"),
+        F.min("TransactionDT").alias("min_transaction_dt"),
+        F.max("TransactionDT").alias("max_transaction_dt"),
+        F.sum(F.when(F.col("isFraud") == 1, 1).otherwise(0)).alias("fraud"),
+    ).first()
+    rows = int(split_row["rows"])
+    fraud = int(split_row["fraud"] or 0)
+    split_report_rows.append({
+        "dataset": split_name,
+        "rows": rows,
+        "legitimate": rows - fraud,
+        "fraud": fraud,
+        "fraud_rate": fraud / max(rows, 1),
+        "min_transaction_dt": int(split_row["min_transaction_dt"]),
+        "max_transaction_dt": int(split_row["max_transaction_dt"]),
+    })
+split_report = spark.createDataFrame(pd.DataFrame(split_report_rows))
+write_single_csv(split_report, REPORTS_DIR / "chronological_split_csv")
+write_single_csv(split_report, REPORTS_DIR / "split_summary_csv")
+
 
 def build_training_lookups(train_df: DataFrame) -> dict[str, DataFrame]:
     return {
@@ -679,6 +740,8 @@ def apply_training_lookups(df: DataFrame, lookups: dict[str, DataFrame]) -> Data
 
 
 lookups = build_training_lookups(train_split_base)
+for lookup_name, lookup_df in lookups.items():
+    write_parquet(lookup_df, FEATURE_STORE_DIR / f"{lookup_name}_aggregates")
 train_features = add_training_window_history(train_split_base)
 validation_features = apply_training_lookups(validation_split_base, lookups)
 holdout_features = apply_training_lookups(holdout_split_base, lookups)
@@ -738,9 +801,9 @@ def apply_imputer(df: DataFrame) -> DataFrame:
 
 
 train_model_ready = apply_imputer(train_model_raw).persist(StorageLevel.MEMORY_AND_DISK)
-validation_model_ready = apply_imputer(validation_model_raw).persist(StorageLevel.MEMORY_AND_DISK)
-holdout_model_ready = apply_imputer(holdout_model_raw).persist(StorageLevel.MEMORY_AND_DISK)
-test_model_ready = apply_imputer(test_model_raw).persist(StorageLevel.MEMORY_AND_DISK)
+validation_model_ready = apply_imputer(validation_model_raw).persist(StorageLevel.DISK_ONLY)
+holdout_model_ready = apply_imputer(holdout_model_raw).persist(StorageLevel.DISK_ONLY)
+test_model_ready = apply_imputer(test_model_raw).persist(StorageLevel.DISK_ONLY)
 
 train_class_counts = {int(row["isFraud"]): int(row["count"]) for row in train_model_ready.groupBy("isFraud").count().collect()}
 train_legit = train_class_counts.get(0, 0)
@@ -758,7 +821,7 @@ legit_train = train_model_ready.filter(F.col("isFraud") == 0)
 desired_legit = min(train_legit, int(train_fraud * IMBALANCE_RATIO))
 legit_fraction = min(1.0, desired_legit / max(train_legit, 1))
 legit_sample = legit_train.sample(withReplacement=False, fraction=legit_fraction, seed=SEED)
-train_balanced = fraud_train.unionByName(legit_sample).repartition(max(8, spark.sparkContext.defaultParallelism)).persist(StorageLevel.MEMORY_AND_DISK)
+train_balanced = fraud_train.unionByName(legit_sample).repartition(max(8, spark.sparkContext.defaultParallelism)).persist(StorageLevel.DISK_ONLY)
 
 def label_counts(df: DataFrame) -> tuple[int, int]:
     counts = {int(row["isFraud"]): int(row["count"]) for row in df.groupBy("isFraud").count().collect()}
@@ -769,6 +832,7 @@ validation_legit, validation_fraud = label_counts(validation_model_ready)
 holdout_legit, holdout_fraud = label_counts(holdout_model_ready)
 balance_report = spark.createDataFrame(pd.DataFrame([
     {"dataset": "train_original", "legitimate": train_legit, "fraud": train_fraud, "legit_to_fraud_ratio": train_legit / max(train_fraud, 1)},
+    {"dataset": "train_weighted", "legitimate": train_legit, "fraud": train_fraud, "legit_to_fraud_ratio": train_legit / max(train_fraud, 1)},
     {"dataset": "train_balanced", "legitimate": balanced_legit, "fraud": balanced_fraud, "legit_to_fraud_ratio": balanced_legit / max(balanced_fraud, 1)},
     {"dataset": "validation_untouched", "legitimate": validation_legit, "fraud": validation_fraud, "legit_to_fraud_ratio": validation_legit / max(validation_fraud, 1)},
     {"dataset": "holdout_untouched", "legitimate": holdout_legit, "fraud": holdout_fraud, "legit_to_fraud_ratio": holdout_legit / max(holdout_fraud, 1)},
@@ -782,6 +846,7 @@ write_parquet(validation_model_ready, MODEL_READY_DIR / "validation")
 write_parquet(holdout_model_ready, MODEL_READY_DIR / "holdout")
 write_parquet(test_model_ready, MODEL_READY_DIR / "kaggle_test")
 write_single_csv(balance_report, REPORTS_DIR / "class_balance_report_csv")
+write_single_csv(balance_report, REPORTS_DIR / "imbalance_comparison_csv")
 
 def calculate_binary_metrics(predictions: DataFrame, dataset_name: str) -> dict[str, object]:
     counts = {
@@ -816,36 +881,64 @@ if RUN_MODEL_DEMO:
     ]
     assembled_inputs = NUMERIC_COLUMNS + [f"{c}__idx" for c in CATEGORICAL_COLUMNS]
     assembler = VectorAssembler(inputCols=assembled_inputs, outputCol="features", handleInvalid="keep")
-    classifier = DecisionTreeClassifier(
-        labelCol="isFraud",
-        featuresCol="features",
-        predictionCol="prediction",
-        probabilityCol="probability",
-        rawPredictionCol="rawPrediction",
-        maxDepth=int(os.getenv("DT_MAX_DEPTH", "8")),
-        maxBins=int(os.getenv("DT_MAX_BINS", "128")),
-        minInstancesPerNode=int(os.getenv("DT_MIN_INSTANCES_PER_NODE", "50")),
-        seed=SEED,
-    )
-    ml_pipeline = Pipeline(stages=[*indexers, assembler, classifier])
-    start = time.time()
-    ml_model = ml_pipeline.fit(train_balanced)
-    training_seconds = time.time() - start
-    if MODEL_DIR.exists():
-        import shutil
-        shutil.rmtree(MODEL_DIR)
-    ml_model.write().overwrite().save(spark_path(MODEL_DIR))
+    def build_tree_pipeline(weight_col: str | None = None) -> Pipeline:
+        classifier_kwargs = {
+            "labelCol": "isFraud",
+            "featuresCol": "features",
+            "predictionCol": "prediction",
+            "probabilityCol": "probability",
+            "rawPredictionCol": "rawPrediction",
+            "maxDepth": int(os.getenv("DT_MAX_DEPTH", "8")),
+            "maxBins": int(os.getenv("DT_MAX_BINS", "128")),
+            "minInstancesPerNode": int(os.getenv("DT_MIN_INSTANCES_PER_NODE", "50")),
+            "seed": SEED,
+        }
+        if weight_col:
+            classifier_kwargs["weightCol"] = weight_col
+        classifier = DecisionTreeClassifier(**classifier_kwargs)
+        return Pipeline(stages=[*indexers, assembler, classifier])
 
-    validation_predictions = ml_model.transform(validation_model_ready).withColumn("fraud_probability", vector_to_array("probability")[1])
-    holdout_predictions = ml_model.transform(holdout_model_ready).withColumn("fraud_probability", vector_to_array("probability")[1])
-    test_predictions = ml_model.transform(test_model_ready).withColumn("fraud_probability", vector_to_array("probability")[1])
+    training_jobs = [
+        ("baseline_tree", train_model_ready, None),
+        ("weighted_tree", train_weighted, "class_weight"),
+        ("undersampled_tree", train_balanced, None),
+    ]
+    champion_name = None
+    champion_validation_pr_auc = -1.0
+    champion_holdout_predictions = None
+    champion_test_predictions = None
+    for model_name, training_df, weight_col in training_jobs:
+        ml_pipeline = build_tree_pipeline(weight_col)
+        start = time.time()
+        fitted_model = ml_pipeline.fit(training_df)
+        training_seconds = time.time() - start
+        model_path = MODEL_DIR.parent / model_name
+        fitted_model.write().overwrite().save(spark_path(model_path))
 
-    model_metrics.append({**calculate_binary_metrics(validation_predictions, "validation"), "training_seconds": training_seconds})
-    model_metrics.append({**calculate_binary_metrics(holdout_predictions, "holdout"), "training_seconds": training_seconds})
+        validation_predictions = fitted_model.transform(validation_model_ready).withColumn("fraud_probability", vector_to_array("probability")[1])
+        holdout_predictions = fitted_model.transform(holdout_model_ready).withColumn("fraud_probability", vector_to_array("probability")[1])
+        test_predictions = fitted_model.transform(test_model_ready).withColumn("fraud_probability", vector_to_array("probability")[1])
+
+        validation_metrics = calculate_binary_metrics(validation_predictions, "validation")
+        holdout_metrics = calculate_binary_metrics(holdout_predictions, "holdout")
+        model_metrics.extend([
+            {"model": model_name, **validation_metrics, "training_seconds": training_seconds},
+            {"model": model_name, **holdout_metrics, "training_seconds": training_seconds},
+        ])
+        if validation_metrics["pr_auc"] > champion_validation_pr_auc:
+            champion_validation_pr_auc = validation_metrics["pr_auc"]
+            champion_name = model_name
+            champion_holdout_predictions = holdout_predictions
+            champion_test_predictions = test_predictions
+
     model_metrics_df = spark.createDataFrame(pd.DataFrame(model_metrics))
     model_metrics_df.show(truncate=False)
     write_single_csv(model_metrics_df, REPORTS_DIR / "decision_tree_metrics_csv")
+    write_single_csv(model_metrics_df, REPORTS_DIR / "decision_tree_metrics.csv")
     write_json({"metrics": model_metrics, "training_seconds": training_seconds}, REPORTS_DIR / "decision_tree_metrics.json")
+
+    if champion_holdout_predictions is None or champion_test_predictions is None:
+        raise RuntimeError("No Decision Tree model completed successfully.")
 
     case_type = (
         F.when((F.col("isFraud") == 1) & (F.col("prediction") == 1), "true_positive")
@@ -855,7 +948,7 @@ if RUN_MODEL_DEMO:
     )
     case_window = Window.partitionBy("case_type").orderBy(F.desc("fraud_probability"), F.asc("TransactionID"))
     demo_cases = (
-        holdout_predictions
+        champion_holdout_predictions
         .withColumn("case_type", case_type)
         .withColumn("case_rank", F.row_number().over(case_window))
         .filter(F.col("case_rank") <= 3)
@@ -869,8 +962,24 @@ if RUN_MODEL_DEMO:
     demo_cases.show(20, truncate=False)
     write_parquet(demo_cases, DEMO_DIR / "demo_cases_parquet")
     write_single_csv(demo_cases, DEMO_DIR / "demo_cases_csv")
+    write_single_csv(
+        demo_cases.filter(F.col("isFraud") == 1),
+        DEMO_DIR / "real_fraud_cases_csv",
+    )
+    write_single_csv(
+        demo_cases.filter(F.col("isFraud") == 0),
+        DEMO_DIR / "real_legitimate_cases_csv",
+    )
+    demo_file_names = {
+        "true_positive": "true_positive_cases_csv",
+        "true_negative": "true_negative_cases_csv",
+        "false_positive": "false_positive_cases_csv",
+        "false_negative": "false_negative_cases_csv",
+    }
+    for case_name, file_name in demo_file_names.items():
+        write_single_csv(demo_cases.filter(F.col("case_type") == case_name), DEMO_DIR / file_name)
 
-    kaggle_predictions = test_predictions.select("TransactionID", F.col("fraud_probability").alias("isFraud")).orderBy("TransactionID")
+    kaggle_predictions = champion_test_predictions.select("TransactionID", F.col("fraud_probability").alias("isFraud")).orderBy("TransactionID")
     write_single_csv(kaggle_predictions, DEMO_DIR / "kaggle_test_predictions_csv")
 else:
     logger.info("RUN_MODEL_DEMO=false; skipped the Decision Tree demonstration.")
@@ -892,9 +1001,10 @@ for column in CATEGORICAL_COLUMNS:
     })
 feature_catalog = spark.createDataFrame(pd.DataFrame(feature_catalog_rows))
 write_single_csv(feature_catalog, REPORTS_DIR / "feature_catalog_csv")
+write_single_csv(feature_catalog, REPORTS_DIR / "feature_catalog.csv")
 
 manifest = {
-    "pipeline": "BDA501 IEEE-CIS Spark preprocessing and EDA",
+    "pipeline": "IEEE-CIS Spark preprocessing and EDA",
     "generated_at_utc": pd.Timestamp.utcnow().isoformat(),
     "platform": platform.platform(),
     "python_version": sys.version,
@@ -927,14 +1037,17 @@ manifest = {
 write_json(manifest, OUTPUT_DIR / "manifest.json")
 
 required_output_paths = [
-    MODEL_READY_DIR / "train_original",
-    MODEL_READY_DIR / "train_weighted",
-    MODEL_READY_DIR / "train_balanced",
-    MODEL_READY_DIR / "validation",
-    MODEL_READY_DIR / "holdout",
-    MODEL_READY_DIR / "kaggle_test",
     OUTPUT_DIR / "manifest.json",
 ]
+if PARQUET_EXPORT_ENABLED:
+    required_output_paths.extend([
+        MODEL_READY_DIR / "train_original",
+        MODEL_READY_DIR / "train_weighted",
+        MODEL_READY_DIR / "train_balanced",
+        MODEL_READY_DIR / "validation",
+        MODEL_READY_DIR / "holdout",
+        MODEL_READY_DIR / "kaggle_test",
+    ])
 missing_outputs = [str(path) for path in required_output_paths if not path.exists()]
 assert not missing_outputs, f"Missing required outputs: {missing_outputs}"
 
