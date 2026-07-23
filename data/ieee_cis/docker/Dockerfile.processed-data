@@ -1,0 +1,4 @@
+FROM alpine:3.20
+WORKDIR /opt/ieee-cis
+COPY data/processed/ieee_cis_spark /opt/ieee-cis/data
+CMD ["sh", "-c", "find /opt/ieee-cis/data -maxdepth 3 -type d | sort && echo 'Processed IEEE-CIS data image is ready.'"]

@@ -1,0 +1,34 @@
+services:
+  preprocess:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.preprocessing
+    image: ieee-cis-bda501-preprocess:latest
+    environment:
+      PROJECT_ROOT: /app
+      IEEE_CIS_DATA_DIR: /app/data/raw
+      IEEE_CIS_OUTPUT_DIR: /app/data/processed/ieee_cis_spark
+      HADOOP_HOME: /opt/hadoop
+      SPARK_MASTER: local[*]
+      SPARK_SHUFFLE_PARTITIONS: "32"
+      SPARK_DEFAULT_PARALLELISM: "16"
+      RUN_FULL_PROFILE: "true"
+      RUN_MODEL_DEMO: "true"
+      WRITE_WIDE_FEATURE_STORE: "true"
+      IMBALANCE_RATIO: "4.0"
+      PIPELINE_SEED: "42"
+    volumes:
+      - ./data/data/ieee-fraud-detection:/app/data/raw:ro
+      - ./data/processed:/app/data/processed
+    deploy:
+      resources:
+        limits:
+          memory: 12g
+    restart: "no"
+
+  verify-processed:
+    image: ieee-cis-bda501-preprocess:latest
+    entrypoint: ["python", "/app/pipeline/verify_processed.py"]
+    volumes:
+      - ./data/processed:/app/data/processed:ro
+    restart: "no"

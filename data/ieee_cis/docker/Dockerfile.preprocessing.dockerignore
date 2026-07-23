@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__
+*.pyc
+.ipynb_checkpoints
+backend
+frontend
+docs
+model
+data
+*.zip
