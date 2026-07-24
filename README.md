@@ -28,7 +28,7 @@ Mỗi thư mục có README riêng mô tả cách setup và chạy phần việc
 The completed root-level workflow is documented in [README_DATA_PIPELINE.md](README_DATA_PIPELINE.md). It produces the verified handoff at `data/processed/ieee_cis_fraud_risk`.
 
 ```powershell
- Sau khi clone repository, thành viên khác cần cung cấp raw data tại:
+ Sau khi clone repository, thành viên khác cần cung cấp raw data tại: https://drive.google.com/file/d/1n-PNthwE5DCWEqYuZjsl__OXCJqyX3mI/view?usp=sharing
 
   data/data/ieee-fraud-detection/
 docker compose -f docker-compose.preprocessing.yml build
