@@ -16,8 +16,13 @@
     "docker/requirements.preprocessing.txt",
     "docker/verify_processed.py",
     "ieee_cis_data_processing_eda.ipynb",
+    "pyproject.toml",
+    "run_local.ps1",
     "pipeline/data_processing_eda.py",
+    "pipeline/__init__.py",
+    "pipeline/cli.py",
     "pipeline/ieee_cis_preprocess.py",
+    "pipeline/notebook_ieee_cis_data_processing_eda.py",
     "requirements.local.txt",
     "setup_local_windows.ps1"
   ]

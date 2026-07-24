@@ -55,6 +55,32 @@ This design deliberately avoids copying the Kaggle dataset into the Docker image
 
 The preprocessing image now bundles Java, Spark, and Hadoop so Spark can write parquet output cleanly inside the container without relying on a Windows-only `winutils.exe` setup.
 
+## 3a. Run locally without Docker
+
+The notebook is exported to `pipeline/notebook_ieee_cis_data_processing_eda.py` for audit/reference. The maintained runnable entrypoint is the packaged CLI and it uses the same implementation as the Docker job.
+
+```powershell
+cd "D:\MSE\16. Big Data\Fraud-Detection-Score-Risk"
+Set-ExecutionPolicy -Scope Process Bypass
+.\data\ieee_cis\setup_local_windows.ps1
+.\data\ieee_cis\run_local.ps1
+```
+
+Equivalent direct command after setup:
+
+```powershell
+Push-Location .\data\ieee_cis
+& .\.venv\Scripts\python.exe -m pipeline.cli `
+  --raw-dir "..\data\data\ieee-fraud-detection" `
+  --output-dir "..\processed\ieee_cis_spark" `
+  --master "local[*]"
+& .\.venv\Scripts\python.exe -m pipeline.verify_processed `
+  --output-dir "..\processed\ieee_cis_spark"
+Pop-Location
+```
+
+For a faster smoke run, append `--skip-model-demo --skip-profile --no-wide-feature-store`. The full run requires Java 17 and enough RAM for the Kaggle CSV files.
+
 ## 4. Verify training readiness
 
 ```powershell

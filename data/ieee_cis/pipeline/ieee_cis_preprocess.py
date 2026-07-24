@@ -788,6 +788,8 @@ test_model_raw = select_model_columns(test_features, include_label=False)
 imputed_names = [f"{c}__imputed" for c in NUMERIC_COLUMNS]
 imputer = Imputer(strategy="median", inputCols=NUMERIC_COLUMNS, outputCols=imputed_names)
 imputer_model = imputer.fit(train_model_raw)
+median_values = imputer_model.surrogateDF.collect()[0].asDict() if NUMERIC_COLUMNS else {}
+write_json({str(key): value for key, value in median_values.items()}, OUTPUT_DIR / "artifacts" / "numeric_medians.json")
 
 
 def apply_imputer(df: DataFrame) -> DataFrame:
@@ -1002,6 +1004,28 @@ for column in CATEGORICAL_COLUMNS:
 feature_catalog = spark.createDataFrame(pd.DataFrame(feature_catalog_rows))
 write_single_csv(feature_catalog, REPORTS_DIR / "feature_catalog_csv")
 write_single_csv(feature_catalog, REPORTS_DIR / "feature_catalog.csv")
+
+# Small audit artifacts are materialized after distributed aggregation. The
+# source datasets remain Spark/Parquet; only bounded report rows use Pandas.
+outlier_rows = []
+for column in [c for c in ["TransactionAmt", "dist1", "dist2", "C1", "D1"] if c in train_features.columns]:
+    quantiles = train_features.approxQuantile(column, [0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99], 0.01)
+    if len(quantiles) == 7:
+        outlier_rows.append({"column_name": column, "p01": quantiles[0], "p05": quantiles[1], "p25": quantiles[2], "p50": quantiles[3], "p75": quantiles[4], "p95": quantiles[5], "p99": quantiles[6], "min": train_features.agg(F.min(column)).first()[0], "max": train_features.agg(F.max(column)).first()[0]})
+if outlier_rows:
+    write_single_csv(spark.createDataFrame(pd.DataFrame(outlier_rows)), REPORTS_DIR / "numeric_outlier_profile.csv")
+
+type_rows = [{"dataset": "train_joined", "column_name": field.name, "spark_type": field.dataType.simpleString()} for field in train_merged.schema.fields]
+write_single_csv(spark.createDataFrame(pd.DataFrame(type_rows)), REPORTS_DIR / "type_conversion_summary.csv")
+write_single_csv(spark.createDataFrame(pd.DataFrame(feature_catalog_rows)), REPORTS_DIR / "feature_selection.csv")
+(REPORTS_DIR / "leakage_controls.md").write_text(
+    "# Leakage controls\n\n"
+    "- Chronological split occurs before imputation and entity lookup fitting.\n"
+    "- Numeric medians and card/email/device aggregates are fitted on training data only.\n"
+    "- Validation and holdout are not resampled.\n"
+    "- TransactionDT is treated as relative ordering, not calendar time.\n",
+    encoding="utf-8",
+)
 
 manifest = {
     "pipeline": "IEEE-CIS Spark preprocessing and EDA",

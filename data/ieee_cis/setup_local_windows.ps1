@@ -19,6 +19,7 @@ if (-not (Test-Path $VenvPython)) {
 
 & $VenvPython -m pip install --upgrade pip setuptools wheel
 & $VenvPython -m pip install -r requirements.local.txt
+& $VenvPython -m pip install -e .
 & $VenvPython -m ipykernel install --user --name fraud-detection-spark --display-name "Python (Fraud Spark)"
 
 Write-Host ""
