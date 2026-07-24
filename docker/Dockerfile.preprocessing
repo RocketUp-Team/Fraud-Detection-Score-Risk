@@ -22,7 +22,7 @@ WORKDIR /app
 COPY requirements.preprocessing.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY pipeline /app/pipeline
-COPY data/ieee_cis/pipeline /app/data/ieee_cis/pipeline
+COPY data/ieee_cis/pipeline/ieee_cis_preprocess.py /app/data/ieee_cis/pipeline/ieee_cis_preprocess.py
 COPY config /app/config
 COPY ieee_cis_fraud_risk_data_pipeline.ipynb /app/ieee_cis_fraud_risk_data_pipeline.ipynb
 

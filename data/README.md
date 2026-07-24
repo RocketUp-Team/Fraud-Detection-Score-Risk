@@ -6,10 +6,10 @@ Xem chi tiết phân công & lịch: [`../docs/RISK_SCORING_PLAN.md`](../docs/RI
 
 **Bàn giao cho Quân:** chạy Docker preprocessing rồi đọc `data/processed/ieee_cis_spark/HANDOVER_TO_QUAN.md`. Feature contract nằm trong `model_ready/` và manifest.
 
-Notebook: `ieee_cis/ieee_cis_data_processing_eda.ipynb`.
+Notebook: `../ieee_cis_fraud_risk_data_pipeline.ipynb`.
 
-Docker guide: `ieee_cis/README_DATA_PROCESSING_EDA.md`.
+Docker guide: `../README_DATA_PIPELINE.md`.
 
-Handover contract: `ieee_cis/HANDOVER_TO_QUAN.md`.
+Handover contract: `../HANDOVER_PROCESSED_DATA.md`.
 
-Results report: `ieee_cis/RESULTS_REPORT.md`.
+Results are generated under `processed/ieee_cis_fraud_risk/reports/` after the Docker run.

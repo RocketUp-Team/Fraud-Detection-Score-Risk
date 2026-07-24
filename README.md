@@ -36,19 +36,7 @@ docker compose -f docker-compose.preprocessing.yml run --rm preprocess
 docker compose -f docker-compose.preprocessing.yml run --rm verify-processed
 ```
 
-Đọc [data/README.md](data/README.md) và [data/ieee_cis/README_DATA_PROCESSING_EDA.md](data/ieee_cis/README_DATA_PROCESSING_EDA.md) để chạy pipeline Spark và bàn giao dữ liệu cho model workflow:
-
-```powershell
-docker compose -f data\ieee_cis\docker-compose.preprocessing.yml build
-docker compose -f data\ieee_cis\docker-compose.preprocessing.yml run --rm preprocess
-docker compose -f data\ieee_cis\docker-compose.preprocessing.yml run --rm verify-processed
-```
-
-Kết quả đã ghi nhận và hướng dẫn bàn giao cho Quân:
-
-- [data/ieee_cis/RESULTS_REPORT.md](data/ieee_cis/RESULTS_REPORT.md)
-- [data/ieee_cis/HANDOVER_TO_QUAN.md](data/ieee_cis/HANDOVER_TO_QUAN.md)
-- [data/ieee_cis/README_DATA_PROCESSING_EDA.md](data/ieee_cis/README_DATA_PROCESSING_EDA.md)
+Thông tin input/output và hướng dẫn bàn giao nằm trong [README_DATA_PIPELINE.md](README_DATA_PIPELINE.md), [DATA_DICTIONARY.md](DATA_DICTIONARY.md) và [HANDOVER_PROCESSED_DATA.md](HANDOVER_PROCESSED_DATA.md).
 
 ## Bắt đầu
 

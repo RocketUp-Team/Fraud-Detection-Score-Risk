@@ -30,7 +30,7 @@ The image uses Java 17, Spark 3.5.1 and Hadoop 3.3.6. It runs Spark locally insi
 
 The workflow performs source discovery and size validation, typed Spark ingestion, identity-column normalization, key and join audits, missingness profiling, categorical cleanup, temporal feature engineering, Spark SQL EDA, chronological splitting, training-only median imputation and entity aggregates, weighted and undersampled training variants, Decision Tree comparison, demo-case extraction, Parquet export, and manifest generation.
 
-The maintained root entrypoint is `pipeline/fraud_risk_data_pipeline.py`. The earlier assignment bundle under `data/ieee_cis/pipeline` is preserved and used as the shared Spark implementation.
+The maintained root entrypoint is `pipeline/fraud_risk_data_pipeline.py`. The shared Spark implementation is kept at `data/ieee_cis/pipeline/ieee_cis_preprocess.py` and is copied into the image by the root Dockerfile.
 
 ## Downstream handoff
 
