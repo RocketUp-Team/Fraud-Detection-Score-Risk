@@ -1,7 +1,6 @@
 FROM python:3.11-slim-bookworm
 
 ARG HADOOP_VERSION=3.3.6
-
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -13,7 +12,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl openjdk-17-jre-headless procps tini \
     && rm -rf /var/lib/apt/lists/*
-
 RUN curl -fsSL "https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz" -o /tmp/hadoop.tar.gz \
     && mkdir -p /opt \
     && tar -xzf /tmp/hadoop.tar.gz -C /opt \
@@ -21,13 +19,12 @@ RUN curl -fsSL "https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VE
     && rm -f /tmp/hadoop.tar.gz
 
 WORKDIR /app
-COPY docker/requirements.preprocessing.txt /app/requirements.txt
+COPY requirements.preprocessing.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
-
-COPY pipeline/ieee_cis_preprocess.py /app/pipeline/ieee_cis_preprocess.py
-COPY pipeline/data_processing_eda.py /app/pipeline/data_processing_eda.py
-COPY pipeline/verify_processed.py /app/pipeline/verify_processed.py
-COPY ieee_cis_data_processing_eda.ipynb /app/notebooks/ieee_cis_data_processing_eda.ipynb
+COPY pipeline /app/pipeline
+COPY data/ieee_cis/pipeline/ieee_cis_preprocess.py /app/data/ieee_cis/pipeline/ieee_cis_preprocess.py
+COPY config /app/config
+COPY ieee_cis_fraud_risk_data_pipeline.ipynb /app/ieee_cis_fraud_risk_data_pipeline.ipynb
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["python", "/app/pipeline/ieee_cis_preprocess.py"]
+CMD ["python", "-m", "pipeline.fraud_risk_data_pipeline"]

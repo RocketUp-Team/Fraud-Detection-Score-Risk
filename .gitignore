@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
 
 # Data (large / raw, not tracked)
 model/data/raw/
@@ -31,3 +33,7 @@ data/ieee-fraud-detection.zip
 data/data/ieee-fraud-detection/*
 data/data/notebook/*
 data/processed/ieee_cis_spark/*
+data/processed/ieee_cis_fraud_risk/*
+!data/processed/ieee_cis_fraud_risk/.gitkeep
+data/processed/**/spark-local/
+*._SUCCESS*

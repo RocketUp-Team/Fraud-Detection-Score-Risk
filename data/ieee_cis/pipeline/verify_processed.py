@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import json
 import os
+import argparse
 from pathlib import Path
 
 
-def main() -> None:
-    root = Path(os.getenv("IEEE_CIS_OUTPUT_DIR", "/app/data/processed/ieee_cis_spark"))
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Verify IEEE-CIS model-ready outputs.")
+    parser.add_argument("--output-dir", type=Path, help="Processed output directory.")
+    args = parser.parse_args(argv)
+    root = args.output_dir or Path(os.getenv("IEEE_CIS_OUTPUT_DIR", "/app/data/processed/ieee_cis_spark"))
     manifest_path = root / "manifest.json"
     if not manifest_path.is_file():
         raise FileNotFoundError(f"Processed-data manifest not found: {manifest_path}")

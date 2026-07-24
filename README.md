@@ -25,19 +25,18 @@ Mỗi thư mục có README riêng mô tả cách setup và chạy phần việc
 
 ## IEEE-CIS preprocessing
 
-Đọc [data/README.md](data/README.md) và [data/ieee_cis/README_DATA_PROCESSING_EDA.md](data/ieee_cis/README_DATA_PROCESSING_EDA.md) để chạy pipeline Spark và bàn giao dữ liệu cho model workflow:
+The completed root-level workflow is documented in [README_DATA_PIPELINE.md](README_DATA_PIPELINE.md). It produces the verified handoff at `data/processed/ieee_cis_fraud_risk`.
 
 ```powershell
-docker compose -f data\ieee_cis\docker-compose.preprocessing.yml build
-docker compose -f data\ieee_cis\docker-compose.preprocessing.yml run --rm preprocess
-docker compose -f data\ieee_cis\docker-compose.preprocessing.yml run --rm verify-processed
+ Sau khi clone repository, thành viên khác cần cung cấp raw data tại: https://drive.google.com/file/d/1n-PNthwE5DCWEqYuZjsl__OXCJqyX3mI/view?usp=sharing
+
+  data/data/ieee-fraud-detection/
+docker compose -f docker-compose.preprocessing.yml build
+docker compose -f docker-compose.preprocessing.yml run --rm preprocess
+docker compose -f docker-compose.preprocessing.yml run --rm verify-processed
 ```
 
-Kết quả đã ghi nhận và hướng dẫn bàn giao cho Quân:
-
-- [data/ieee_cis/RESULTS_REPORT.md](data/ieee_cis/RESULTS_REPORT.md)
-- [data/ieee_cis/HANDOVER_TO_QUAN.md](data/ieee_cis/HANDOVER_TO_QUAN.md)
-- [data/ieee_cis/README_DATA_PROCESSING_EDA.md](data/ieee_cis/README_DATA_PROCESSING_EDA.md)
+Thông tin input/output và hướng dẫn bàn giao nằm trong [README_DATA_PIPELINE.md](README_DATA_PIPELINE.md), [DATA_DICTIONARY.md](DATA_DICTIONARY.md) và [HANDOVER_PROCESSED_DATA.md](HANDOVER_PROCESSED_DATA.md).
 
 ## Bắt đầu
 

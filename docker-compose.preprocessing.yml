@@ -1,0 +1,36 @@
+services:
+  preprocess:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.preprocessing
+    image: fraud-risk-preprocessor:1.0.0
+    environment:
+      PROJECT_ROOT: /app
+      IEEE_CIS_DATA_DIR: /app/data/raw
+      IEEE_CIS_OUTPUT_DIR: /app/data/processed/ieee_cis_fraud_risk
+      SPARK_MASTER: local[4]
+      SPARK_DRIVER_MEMORY: 8g
+      SPARK_DRIVER_MAX_RESULT_SIZE: 1g
+      SPARK_SHUFFLE_PARTITIONS: "64"
+      SPARK_DEFAULT_PARALLELISM: "8"
+      RUN_FULL_PROFILE: "true"
+      RUN_MODEL_DEMO: "true"
+      # The canonical downstream contract is model_ready + aggregate lookup
+      # tables. Wide convenience tables are optional and can exhaust local
+      # Spark JVMs on this 1.3 GB dataset.
+      WRITE_WIDE_FEATURE_STORE: "false"
+      IMBALANCE_RATIO: "3.0"
+      PIPELINE_SEED: "42"
+    volumes:
+      - ./data/data/ieee-fraud-detection:/app/data/raw:ro
+      - ./data/processed:/app/data/processed
+    command: ["python", "-m", "pipeline.fraud_risk_data_pipeline"]
+    restart: "no"
+
+  verify-processed:
+    image: fraud-risk-preprocessor:1.0.0
+    entrypoint: ["python", "-m", "pipeline.verify_processed_data"]
+    volumes:
+      - ./data/processed:/app/data/processed:ro
+    command: ["--output-dir", "/app/data/processed/ieee_cis_fraud_risk"]
+    restart: "no"

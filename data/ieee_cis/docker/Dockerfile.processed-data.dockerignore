@@ -1,7 +1,0 @@
-*
-!data/
-!data/processed/
-!data/processed/ieee_cis_spark/
-!data/processed/ieee_cis_spark/**
-!docker/
-!docker/Dockerfile.processed-data
