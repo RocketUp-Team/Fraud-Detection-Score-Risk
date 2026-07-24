@@ -1,0 +1,27 @@
+project_name: fraud-risk-ieee-cis
+pipeline_version: 1.0.0
+input_dir: data/data/ieee-fraud-detection
+output_dir: data/processed/ieee_cis_fraud_risk
+spark:
+  master: local[4]
+  driver_memory: 8g
+  driver_max_result_size: 1g
+  shuffle_partitions: 64
+  default_parallelism: 8
+missingness:
+  low_max: 0.20
+  medium_max: 0.70
+  high_max: 0.95
+outliers:
+  quantiles: [0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99]
+  relative_error: 0.01
+split:
+  train_ratio: 0.70
+  validation_ratio: 0.15
+  holdout_ratio: 0.15
+imbalance:
+  undersample_legitimate_to_fraud: 3.0
+  seed: 42
+reports:
+  row_limit: 1000
+  minimum_entity_support: 20

@@ -1,0 +1,221 @@
+{
+  "pipeline": "IEEE-CIS Spark preprocessing and EDA",
+  "generated_at_utc": "2026-07-24T16:50:22.810523+00:00",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+  "python_version": "3.11.15 (main, Jul 14 2026, 02:10:36) [GCC 12.2.0]",
+  "spark_version": "3.5.1",
+  "spark_master": "local[4]",
+  "project_root": "/app",
+  "raw_data_dir": "/app/data/raw",
+  "output_dir": "/app/data/processed/ieee_cis_fraud_risk",
+  "source_files": [
+    {
+      "filename": "train_transaction.csv",
+      "path": "/app/data/raw/train_transaction.csv",
+      "size_mb": 651.69
+    },
+    {
+      "filename": "train_identity.csv",
+      "path": "/app/data/raw/train_identity.csv",
+      "size_mb": 25.3
+    },
+    {
+      "filename": "test_transaction.csv",
+      "path": "/app/data/raw/test_transaction.csv",
+      "size_mb": 584.79
+    },
+    {
+      "filename": "test_identity.csv",
+      "path": "/app/data/raw/test_identity.csv",
+      "size_mb": 24.6
+    },
+    {
+      "filename": "sample_submission.csv",
+      "path": "/app/data/raw/sample_submission.csv",
+      "size_mb": 5.8
+    }
+  ],
+  "split_boundaries": {
+    "q70_transaction_dt": 10432860.0,
+    "q85_transaction_dt": 13136628.0
+  },
+  "split_counts": {
+    "train": 412951,
+    "validation": 88493,
+    "holdout": 89096,
+    "q70_transaction_dt": 10432860.0,
+    "q85_transaction_dt": 13136628.0
+  },
+  "imbalance": {
+    "fraud_count": 20663,
+    "legitimate_count": 569877,
+    "fraud_rate": 0.03499000914417313,
+    "legitimate_to_fraud_ratio": 27.579586700866283
+  },
+  "class_weights": {
+    "legitimate": 0.5182227743894787,
+    "fraud": 14.219096480958612
+  },
+  "undersampling_target_legitimate_to_fraud_ratio": 3.0,
+  "numeric_features": [
+    "TransactionAmt",
+    "log_transaction_amount",
+    "amount_decimal",
+    "TransactionDT",
+    "transaction_day",
+    "transaction_week",
+    "transaction_hour",
+    "selected_missing_count",
+    "selected_missing_ratio",
+    "identity_missing_count",
+    "has_identity",
+    "has_device_info",
+    "has_p_email",
+    "has_r_email",
+    "same_email_domain",
+    "high_amount_flag",
+    "dist1",
+    "dist2",
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "C14",
+    "D1",
+    "D2",
+    "D3",
+    "D4",
+    "D5",
+    "D10",
+    "D15",
+    "prior_card_transaction_count",
+    "prior_card_amount_sum",
+    "prior_card_avg_amount",
+    "time_since_previous_card_transaction",
+    "prior_email_transaction_count",
+    "prior_email_amount_sum",
+    "prior_device_transaction_count",
+    "prior_device_amount_sum"
+  ],
+  "categorical_features": [
+    "ProductCD",
+    "card4",
+    "card6",
+    "DeviceType",
+    "device_family",
+    "M4",
+    "amount_band"
+  ],
+  "outputs": {
+    "train_original": "/app/data/processed/ieee_cis_fraud_risk/model_ready/train_original",
+    "train_weighted": "/app/data/processed/ieee_cis_fraud_risk/model_ready/train_weighted",
+    "train_balanced": "/app/data/processed/ieee_cis_fraud_risk/model_ready/train_balanced",
+    "validation": "/app/data/processed/ieee_cis_fraud_risk/model_ready/validation",
+    "holdout": "/app/data/processed/ieee_cis_fraud_risk/model_ready/holdout",
+    "kaggle_test": "/app/data/processed/ieee_cis_fraud_risk/model_ready/kaggle_test",
+    "reports": "/app/data/processed/ieee_cis_fraud_risk/reports",
+    "demo": "/app/data/processed/ieee_cis_fraud_risk/demo",
+    "model": "/app/data/processed/ieee_cis_fraud_risk/artifacts/decision_tree_demo"
+  },
+  "model_demo_metrics": [
+    {
+      "model": "baseline_tree",
+      "dataset": "validation",
+      "tp": 484,
+      "tn": 85224,
+      "fp": 232,
+      "fn": 2553,
+      "precision_fraud": 0.6759776536312849,
+      "recall_fraud": 0.15936779716825816,
+      "f1_fraud": 0.2579269917399414,
+      "pr_auc": 0.020525080623363272,
+      "roc_auc": 0.23300251540986386,
+      "training_seconds": 32.03948140144348
+    },
+    {
+      "model": "baseline_tree",
+      "dataset": "holdout",
+      "tp": 616,
+      "tn": 85670,
+      "fp": 321,
+      "fn": 2489,
+      "precision_fraud": 0.6574172892209178,
+      "recall_fraud": 0.19838969404186796,
+      "f1_fraud": 0.30479960415635826,
+      "pr_auc": 0.02092339052034492,
+      "roc_auc": 0.2374241745068217,
+      "training_seconds": 32.03948140144348
+    },
+    {
+      "model": "weighted_tree",
+      "dataset": "validation",
+      "tp": 1996,
+      "tn": 72757,
+      "fp": 12699,
+      "fn": 1041,
+      "precision_fraud": 0.13582851309969377,
+      "recall_fraud": 0.6572275271649655,
+      "f1_fraud": 0.22512970900067675,
+      "pr_auc": 0.2783394741663621,
+      "roc_auc": 0.6934380235813471,
+      "training_seconds": 29.839590549468994
+    },
+    {
+      "model": "weighted_tree",
+      "dataset": "holdout",
+      "tp": 2138,
+      "tn": 71877,
+      "fp": 14114,
+      "fn": 967,
+      "precision_fraud": 0.1315530396258922,
+      "recall_fraud": 0.6885668276972625,
+      "f1_fraud": 0.22090199927674745,
+      "pr_auc": 0.2981204960204105,
+      "roc_auc": 0.711463475440292,
+      "training_seconds": 29.839590549468994
+    },
+    {
+      "model": "undersampled_tree",
+      "dataset": "validation",
+      "tp": 1593,
+      "tn": 80912,
+      "fp": 4544,
+      "fn": 1444,
+      "precision_fraud": 0.2595730813100864,
+      "recall_fraud": 0.5245307869608166,
+      "f1_fraud": 0.34728580771746237,
+      "pr_auc": 0.025488945196145373,
+      "roc_auc": 0.3737582643280462,
+      "training_seconds": 14.739492416381836
+    },
+    {
+      "model": "undersampled_tree",
+      "dataset": "holdout",
+      "tp": 1688,
+      "tn": 79285,
+      "fp": 6706,
+      "fn": 1417,
+      "precision_fraud": 0.20109602096735762,
+      "recall_fraud": 0.5436392914653784,
+      "f1_fraud": 0.2935907470214801,
+      "pr_auc": 0.02574982501181579,
+      "roc_auc": 0.3774545199661478,
+      "training_seconds": 14.739492416381836
+    }
+  ],
+  "project_name": "Distributed Data Processing and Feature Preparation Pipeline for Fraud Risk Scoring",
+  "pipeline_version": "1.0.0",
+  "processing_timestamp": "2026-07-24T16:50:26.575065+00:00",
+  "status": "ready_for_downstream_training",
+  "output_contract": "data/processed/ieee_cis_fraud_risk",
+  "downstream_recommended_dataset": "model_ready/train_weighted"
+}

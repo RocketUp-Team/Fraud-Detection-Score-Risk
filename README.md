@@ -25,6 +25,14 @@ Mỗi thư mục có README riêng mô tả cách setup và chạy phần việc
 
 ## IEEE-CIS preprocessing
 
+The completed root-level workflow is documented in [README_DATA_PIPELINE.md](README_DATA_PIPELINE.md). It produces the verified handoff at `data/processed/ieee_cis_fraud_risk`.
+
+```powershell
+docker compose -f docker-compose.preprocessing.yml build
+docker compose -f docker-compose.preprocessing.yml run --rm preprocess
+docker compose -f docker-compose.preprocessing.yml run --rm verify-processed
+```
+
 Đọc [data/README.md](data/README.md) và [data/ieee_cis/README_DATA_PROCESSING_EDA.md](data/ieee_cis/README_DATA_PROCESSING_EDA.md) để chạy pipeline Spark và bàn giao dữ liệu cho model workflow:
 
 ```powershell

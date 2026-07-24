@@ -31,3 +31,4 @@ data/ieee-fraud-detection.zip
 data/data/ieee-fraud-detection/*
 data/data/notebook/*
 data/processed/ieee_cis_spark/*
+*._SUCCESS*
