@@ -1,26 +1,43 @@
-"""FastAPI stub — scaffold Ngày 1 (Trung).
+"""FastAPI app — Risk Scoring Engine.
 
-Chỉ có health check + mock endpoints để docker-compose full stack chạy được
-từ đầu (xem docs/RISK_SCORING_PLAN.md mục 5 — làm song song với mock/stub
-trước, tích hợp thật Ngày 5). CRUD/DB/scoring thật do Trung xây tiếp.
+Đã tích hợp model thật của Quân qua `fraud_model.score` (điểm bàn giao Ngày 5,
+xem docs/RISK_SCORING_PLAN.md mục 2). Hợp đồng API: docs/API_CONTRACT.md.
 """
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+import logging
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="Fraud Detection Risk Scoring API")
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from . import config, risk, schemas
+from .db import Base, engine
+from .routers import transactions
+from .scoring import scorer
+from .service import score_features
+
+logging.basicConfig(level=logging.INFO)
 
 
-class Transaction(BaseModel):
-    id: int
-    amount: float
-    risk_score: int
-    decision: str
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Demo 8 ngày: tạo schema trực tiếp, không Alembic (xem db.py).
+    Base.metadata.create_all(bind=engine)
+    # Load model + SHAP explainer trước khi nhận request đầu tiên.
+    scorer.load()
+    yield
 
 
-MOCK_TRANSACTIONS = [
-    Transaction(id=1, amount=129.99, risk_score=12, decision="approve"),
-    Transaction(id=2, amount=4899.00, risk_score=87, decision="review"),
-]
+app = FastAPI(title="Fraud Detection Risk Scoring API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(transactions.router)
 
 
 @app.get("/health")
@@ -28,14 +45,19 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/transactions", response_model=list[Transaction])
-def list_transactions() -> list[Transaction]:
-    return MOCK_TRANSACTIONS
+@app.get("/meta", response_model=schemas.MetaOut)
+def meta() -> schemas.MetaOut:
+    info = scorer.info
+    return schemas.MetaOut(
+        model_version=info["model_version"],
+        model_name=info["model_name"],
+        explainability=info["explainability"],
+        bands=[schemas.BandRange(band=b, min=lo, max=hi) for b, lo, hi in risk.BANDS],
+        warning=info.get("warning"),
+    )
 
 
-@app.get("/transactions/{transaction_id}", response_model=Transaction)
-def get_transaction(transaction_id: int) -> Transaction:
-    for tx in MOCK_TRANSACTIONS:
-        if tx.id == transaction_id:
-            return tx
-    raise HTTPException(status_code=404, detail="Transaction not found")
+@app.post("/score", response_model=schemas.ScoreResponse, tags=["scoring"])
+def score_transaction(payload: schemas.ScoreRequest) -> schemas.ScoreResponse:
+    """Chấm điểm ad-hoc, KHÔNG ghi DB — dùng cho demo nhập giao dịch mới."""
+    return schemas.ScoreResponse(**score_features(payload.features))
