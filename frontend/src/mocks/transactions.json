@@ -1,0 +1,117 @@
+{
+  "items": [
+    {
+      "transaction_id": 2987000,
+      "amount": 68.5,
+      "fraud_probability": 0.0143,
+      "risk_score": 1,
+      "risk_band": "low",
+      "decision": "approve",
+      "scored_at": "2026-07-26T08:41:02Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "pending"
+    },
+    {
+      "transaction_id": 2987004,
+      "amount": 129.99,
+      "fraud_probability": 0.1207,
+      "risk_score": 12,
+      "risk_band": "low",
+      "decision": "approve",
+      "scored_at": "2026-07-26T08:41:05Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "approved"
+    },
+    {
+      "transaction_id": 2987011,
+      "amount": 315.0,
+      "fraud_probability": 0.2884,
+      "risk_score": 29,
+      "risk_band": "guarded",
+      "decision": "approve",
+      "scored_at": "2026-07-26T08:42:11Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "pending"
+    },
+    {
+      "transaction_id": 2987019,
+      "amount": 59.0,
+      "fraud_probability": 0.4471,
+      "risk_score": 45,
+      "risk_band": "medium",
+      "decision": "review",
+      "scored_at": "2026-07-26T08:43:47Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "pending"
+    },
+    {
+      "transaction_id": 2987026,
+      "amount": 1250.0,
+      "fraud_probability": 0.5892,
+      "risk_score": 59,
+      "risk_band": "medium",
+      "decision": "review",
+      "scored_at": "2026-07-26T08:44:19Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "rejected"
+    },
+    {
+      "transaction_id": 2987033,
+      "amount": 2199.5,
+      "fraud_probability": 0.7318,
+      "risk_score": 73,
+      "risk_band": "high",
+      "decision": "review",
+      "scored_at": "2026-07-26T08:45:02Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "pending"
+    },
+    {
+      "transaction_id": 2987041,
+      "amount": 899.0,
+      "fraud_probability": 0.6644,
+      "risk_score": 66,
+      "risk_band": "high",
+      "decision": "review",
+      "scored_at": "2026-07-26T08:45:58Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "pending"
+    },
+    {
+      "transaction_id": 2987055,
+      "amount": 4899.0,
+      "fraud_probability": 0.8712,
+      "risk_score": 87,
+      "risk_band": "critical",
+      "decision": "reject",
+      "scored_at": "2026-07-26T08:47:30Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "rejected"
+    },
+    {
+      "transaction_id": 2987062,
+      "amount": 7350.25,
+      "fraud_probability": 0.9436,
+      "risk_score": 94,
+      "risk_band": "critical",
+      "decision": "reject",
+      "scored_at": "2026-07-26T08:48:12Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "pending"
+    },
+    {
+      "transaction_id": 2987070,
+      "amount": 24.99,
+      "fraud_probability": 0.0361,
+      "risk_score": 4,
+      "risk_band": "low",
+      "decision": "approve",
+      "scored_at": "2026-07-26T08:49:00Z",
+      "model_version": "lightgbm-2026-07-25",
+      "review_status": "pending"
+    }
+  ],
+  "total": 348,
+  "page": 1,
+  "page_size": 20
+}

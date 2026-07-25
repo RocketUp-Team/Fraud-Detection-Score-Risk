@@ -16,9 +16,14 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    # Context là repo root: backend có path dependency tới ../model.
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
-      DATABASE_URL: postgresql://fraud:fraud@db:5432/fraud
+      # +psycopg = driver psycopg 3 (mặc định postgresql:// là psycopg2, không cài).
+      DATABASE_URL: postgresql+psycopg://fraud:fraud@db:5432/fraud
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
     ports:
       - "8000:8000"
     depends_on:
@@ -26,9 +31,12 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
-    environment:
-      VITE_API_URL: http://localhost:8000
+    build:
+      context: ./frontend
+      args:
+        # Địa chỉ backend theo góc nhìn của TRÌNH DUYỆT (không phải trong mạng
+        # compose) — Vite bake giá trị này vào bundle lúc build.
+        VITE_API_URL: http://localhost:8000
     ports:
       - "5173:5173"
     depends_on:

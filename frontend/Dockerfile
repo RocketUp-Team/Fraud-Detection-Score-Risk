@@ -1,5 +1,11 @@
 FROM node:22-slim AS build
 WORKDIR /app
+
+# Vite thay import.meta.env lúc BUILD, không đọc env lúc chạy — nên địa chỉ
+# backend phải truyền vào đây (build arg), không phải qua `environment:`.
+ARG VITE_API_URL=http://localhost:8000
+ENV VITE_API_URL=$VITE_API_URL
+
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
