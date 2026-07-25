@@ -1,5 +1,6 @@
+from pathlib import Path
+
 from pyspark.sql import DataFrame
-from pyspark.sql import functions as F
 
 from . import config
 from .spark_session import get_spark
@@ -9,38 +10,40 @@ class DatasetNotFoundError(FileNotFoundError):
     pass
 
 
-def _require_file(path):
+def _require_dir(path: Path) -> Path:
     if not path.exists():
         raise DatasetNotFoundError(
-            f"Không tìm thấy {path}. Chạy `bash scripts/download_data.sh` "
-            "để tải bộ IEEE-CIS trước (cần Kaggle API token, xem README.md)."
+            f"Không tìm thấy {path}. Chạy pipeline preprocessing của An trước "
+            "(xem README_DATA_PIPELINE.md ở repo root): "
+            "docker compose -f docker-compose.preprocessing.yml build && "
+            "docker compose -f docker-compose.preprocessing.yml run --rm preprocess"
         )
     return path
 
 
-def load_transaction() -> DataFrame:
+def load_dataset(name: str) -> DataFrame:
+    """name: một trong train_original/train_weighted/train_balanced/
+    validation/holdout/kaggle_test — xem data/ieee_cis/HANDOVER_TO_QUAN.md."""
     spark = get_spark()
-    return spark.read.csv(str(_require_file(config.TRAIN_TRANSACTION_FILE)), header=True, inferSchema=True)
+    return spark.read.parquet(str(_require_dir(config.MODEL_READY_DIR / name)))
 
 
-def load_identity() -> DataFrame:
-    spark = get_spark()
-    return spark.read.csv(str(_require_file(config.TRAIN_IDENTITY_FILE)), header=True, inferSchema=True)
+def load_train_weighted() -> DataFrame:
+    """Điểm bắt đầu khuyến nghị của An — dùng cột `class_weight` làm
+    sample_weight khi train thay vì class_weight='balanced' tự đoán."""
+    return load_dataset("train_weighted")
 
 
-def load_merged() -> DataFrame:
-    """Merge transaction + identity theo TransactionID (left join — chỉ
-    ~24% giao dịch có identity, xem docs mục 5)."""
-    tx = load_transaction()
-    idn = load_identity()
-    return tx.join(idn, on=config.ID_COL, how="left")
+def load_train_balanced() -> DataFrame:
+    return load_dataset("train_balanced")
 
 
-def time_based_split(df: DataFrame, val_fraction: float = config.VAL_FRACTION):
-    """Chia train/val theo TransactionDT tăng dần thay vì random split —
-    random split gây leakage và số liệu ảo (docs mục 5). Ngưỡng chia lấy
-    theo approxQuantile để tránh phải sort/collect toàn bộ dữ liệu về driver."""
-    threshold = df.approxQuantile(config.TIME_COL, [1 - val_fraction], 0.001)[0]
-    train_df = df.filter(F.col(config.TIME_COL) < threshold)
-    val_df = df.filter(F.col(config.TIME_COL) >= threshold)
-    return train_df, val_df
+def load_validation() -> DataFrame:
+    """Dùng để chọn model/tuning — không refit transform nào trên tập này."""
+    return load_dataset("validation")
+
+
+def load_holdout() -> DataFrame:
+    """Chỉ đánh giá MỘT LẦN sau khi đã chốt model trên validation, xem
+    data/ieee_cis/HANDOVER_TO_QUAN.md mục leakage precautions."""
+    return load_dataset("holdout")

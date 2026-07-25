@@ -10,6 +10,17 @@ Bản trình bày trực quan (HTML, có Gantt chart): [`risk-scoring-plan.html`
 
 ---
 
+## 0. Trạng thái tiến độ (cập nhật 25/07 — Ngày 4)
+
+| Người | Trạng thái |
+|---|---|
+| **An** | Xong. Pipeline Spark preprocessing đã chạy + verify (`ready_for_downstream_training`), bàn giao `model_ready/{train_weighted,validation,holdout,...}` + docs contract (`HANDOVER_TO_QUAN.md`, `DATA_DICTIONARY.md`). |
+| **Quân** | Xong Ngày 1–4, bàn giao sớm 1 ngày. Đã train trên feature contract thật của An (không còn dùng feature giả): baseline → so sánh LightGBM/XGBoost/CatBoost → tuning + SHAP. Model cuối: **LightGBM**, validation ROC-AUC 0.888/PR-AUC 0.482, holdout (đánh giá 1 lần) ROC-AUC 0.868/PR-AUC 0.430 — vượt Decision Tree demo của An (holdout PR-AUC 0.298). Module `score(features) -> {proba, shap}` đã đóng gói, đang push nhánh `quan/real-features` + mở PR cho Trung. |
+| **Trung** | Chưa bắt đầu tích hợp thật — `backend/` mới có FastAPI stub (mock). |
+| **Long** | Chưa bắt đầu — `frontend/` mới có Vite scaffold (mock). |
+
+---
+
 ## 1. Mục tiêu & phạm vi rút gọn cho 8 ngày
 
 Với 8 ngày, **không làm một hệ thống hoàn chỉnh** — chỉ cần chứng minh pipeline chạy được end-to-end với 1 model tốt nhất đã chọn.
@@ -116,7 +127,7 @@ gantt
 |---|---|---|
 | 22/07 (Ngày 1) | Chốt hợp đồng API (JSON mẫu) trước cuối ngày | Trung + Long thống nhất, không chờ dữ liệu thật |
 | 24/07 (Ngày 3) | Feature pipeline bàn giao | An → Quân |
-| 26/07 (Ngày 5) | Model đóng gói `score()` bàn giao | Quân → Trung |
+| 26/07 (Ngày 5) | Model đóng gói `score()` bàn giao — **xong sớm 25/07**, xem mục 0 | Quân → Trung |
 | 27/07 (Ngày 6) | Tích hợp full stack lần đầu, tất cả cùng test | Cả 4 người |
 | 28/07 (Ngày 7) | Bug bash toàn bộ + tổng duyệt kịch bản demo | Cả 4 người |
 | 29/07 (Ngày 8) | Demo | Cả 4 người |

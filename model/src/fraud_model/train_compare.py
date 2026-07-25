@@ -1,10 +1,10 @@
-"""Ngày 3: so sánh Logistic Regression / LightGBM / XGBoost / CatBoost theo
-PR-AUC/ROC-AUC (Quân). Ghi kết quả ra `artifacts/model_comparison.json` để
-`tune_and_explain.py` (Ngày 4) đọc lại.
+"""Ngày 3: so sánh Logistic Regression / LightGBM / XGBoost / CatBoost trên
+feature contract thật của An (Quân). Ghi kết quả ra
+`artifacts/model_comparison.json` để `tune_and_explain.py` (Ngày 4) đọc lại.
 
-Load/merge/split dữ liệu chạy phân tán bằng Spark (`data.py`, `features.py`);
-convert sang pandas ngay trước khi train (không thư viện model nào ở đây đọc
-Spark DataFrame trực tiếp).
+Train trên `train_weighted` (sample_weight = cột `class_weight`), đánh giá
+trên `validation`. KHÔNG chạm `holdout` ở bước so sánh model — chỉ đánh giá
+holdout một lần sau khi đã chốt model (tune_and_explain.py).
 
 Chạy:
     uv run python -m fraud_model.train_compare
@@ -20,55 +20,55 @@ from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
 from . import config
-from .data import DatasetNotFoundError, load_merged, time_based_split
-from .features import prepare_baseline_features, to_pandas_xy
+from .data import DatasetNotFoundError, load_train_weighted, load_validation
+from .features import apply_categorical_indexer, fit_categorical_indexer, to_pandas_xy
 
 
-def _build_models(scale_pos_weight: float) -> dict:
-    return {
-        "logreg": make_pipeline(
-            StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")
-        ),
-        "lightgbm": LGBMClassifier(n_estimators=300, class_weight="balanced", verbosity=-1),
-        "xgboost": XGBClassifier(
-            n_estimators=300, eval_metric="aucpr", scale_pos_weight=scale_pos_weight
-        ),
-        "catboost": CatBoostClassifier(
-            iterations=300, auto_class_weights="Balanced", verbose=False
-        ),
+def _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val):
+    if name == "logreg":
+        model.fit(X_train, y_train, logisticregression__sample_weight=w_train)
+    else:
+        model.fit(X_train, y_train, sample_weight=w_train)
+    proba = model.predict_proba(X_val)[:, 1]
+    return model, {
+        "roc_auc": roc_auc_score(y_val, proba),
+        "pr_auc": average_precision_score(y_val, proba),
     }
 
 
 def main() -> dict:
     try:
-        df = load_merged()
+        train_df = load_train_weighted()
+        val_df = load_validation()
     except DatasetNotFoundError as e:
         print(e)
         raise SystemExit(1)
 
-    train_df, val_df = time_based_split(df)
+    indexer = fit_categorical_indexer(train_df)
+    train_df = apply_categorical_indexer(indexer, train_df)
+    val_df = apply_categorical_indexer(indexer, val_df)
 
-    X_train, y_train = to_pandas_xy(prepare_baseline_features(train_df))
-    X_val, y_val = to_pandas_xy(prepare_baseline_features(val_df))
+    X_train, y_train, w_train = to_pandas_xy(train_df)
+    X_val, y_val, _ = to_pandas_xy(val_df)
     X_val = X_val.reindex(columns=X_train.columns, fill_value=-999)
 
-    scale_pos_weight = (y_train == 0).sum() / max((y_train == 1).sum(), 1)
+    models = {
+        "logreg": make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000)),
+        "lightgbm": LGBMClassifier(n_estimators=300, verbosity=-1),
+        "xgboost": XGBClassifier(n_estimators=300, eval_metric="aucpr"),
+        "catboost": CatBoostClassifier(iterations=300, verbose=False),
+    }
 
     results = {}
-    for name, model in _build_models(scale_pos_weight).items():
-        model.fit(X_train, y_train)
-        proba = model.predict_proba(X_val)[:, 1]
-        results[name] = {
-            "roc_auc": roc_auc_score(y_val, proba),
-            "pr_auc": average_precision_score(y_val, proba),
-        }
+    for name, model in models.items():
+        _, results[name] = _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val)
         print(
-            f"[compare] {name:10s} ROC-AUC={results[name]['roc_auc']:.4f}  "
+            f"[compare] {name:10s} validation ROC-AUC={results[name]['roc_auc']:.4f}  "
             f"PR-AUC={results[name]['pr_auc']:.4f}"
         )
 
     best_name = max(results, key=lambda n: results[n]["pr_auc"])
-    print(f"[compare] best model by PR-AUC: {best_name}")
+    print(f"[compare] best model by validation PR-AUC: {best_name}")
 
     config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     with open(config.COMPARISON_RESULTS_PATH, "w") as f:

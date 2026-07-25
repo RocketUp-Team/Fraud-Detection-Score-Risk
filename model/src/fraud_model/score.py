@@ -11,6 +11,7 @@ import joblib
 import pandas as pd
 
 from . import config
+from .features import encode_categoricals_pandas
 
 _artifact = None
 _explainer = None
@@ -46,7 +47,8 @@ def _get_explainer(model, model_name: str):
 
 
 def score(features: dict) -> dict:
-    """features: dict tên_cột -> giá trị cho 1 giao dịch.
+    """features: dict tên_cột -> giá trị thô cho 1 giao dịch (cột categorical
+    như `ProductCD`/`card4`... nhận giá trị string gốc, vd "W"/"visa").
 
     Trả về {"proba": float, "shap": [{"feature", "shap_value"}, ...] | None}.
     "shap" là None khi đang chạy fallback baseline (Logistic Regression).
@@ -55,8 +57,10 @@ def score(features: dict) -> dict:
     model = artifact["model"]
     columns = artifact["feature_columns"]
     model_name = artifact.get("model_name", "baseline_logreg")
+    mappings = artifact.get("category_mappings", {})
 
-    row = pd.DataFrame([{col: features.get(col, -999) for col in columns}], columns=columns)
+    encoded = encode_categoricals_pandas(features, mappings)
+    row = pd.DataFrame([{col: encoded.get(col, -999) for col in columns}], columns=columns)
     proba = float(model.predict_proba(row)[0, 1])
 
     explainer = _get_explainer(model, model_name)
