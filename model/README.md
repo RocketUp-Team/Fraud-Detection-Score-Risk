@@ -110,6 +110,10 @@ thay vì `local[*]`. Xem Spark UI tại `http://localhost:8080` khi cluster ch�
 
 ## `score()` — module bàn giao cho Trung (Ngày 5)
 
+`artifacts/final_model.joblib` (LightGBM đã tune) đã commit sẵn trong repo —
+Trung **không cần train lại**, chỉ cần `uv sync` trong `model/` rồi import
+`fraud_model.score.score` là dùng được ngay.
+
 ```python
 from fraud_model.score import score
 
