@@ -1,6 +1,12 @@
 import pytest
 
-from fraud_model.features import prepare_baseline_features, to_pandas_xy
+from fraud_model.features import (
+    apply_categorical_indexer,
+    encode_categoricals_pandas,
+    extract_category_mappings,
+    fit_categorical_indexer,
+    to_pandas_xy,
+)
 from fraud_model.spark_session import get_spark
 
 
@@ -11,19 +17,46 @@ def spark():
     session.stop()
 
 
-def test_prepare_baseline_features_drops_non_feature_cols_and_fills_na(spark):
-    df = spark.createDataFrame(
+def _make_train_val(spark):
+    train_df = spark.createDataFrame(
         [
-            (1, 100, 0, 50.0, "W"),
-            (2, 200, 1, None, "C"),
+            (1, 100, 0, 50.0, "W", 0.5),
+            (2, 200, 1, 30.0, "C", 14.2),
         ],
+        ["TransactionID", "TransactionDT", "isFraud", "TransactionAmt", "ProductCD", "class_weight"],
+    )
+    val_df = spark.createDataFrame(
+        [(3, 300, 0, 40.0, "W")],
         ["TransactionID", "TransactionDT", "isFraud", "TransactionAmt", "ProductCD"],
     )
+    return train_df, val_df
 
-    features_df = prepare_baseline_features(df)
-    X, y = to_pandas_xy(features_df)
 
-    assert set(X.columns) == {"TransactionAmt", "ProductCD"}
-    assert X["TransactionAmt"].iloc[1] == -999
-    assert X["ProductCD"].dtype.kind == "f"
-    assert list(y) == [0, 1]
+def test_indexer_fits_on_train_and_applies_to_validation_without_refit(spark):
+    train_df, val_df = _make_train_val(spark)
+
+    indexer = fit_categorical_indexer(train_df)
+    train_encoded = apply_categorical_indexer(indexer, train_df)
+    val_encoded = apply_categorical_indexer(indexer, val_df)
+
+    X_train, y_train, w_train = to_pandas_xy(train_encoded)
+    X_val, y_val, w_val = to_pandas_xy(val_encoded)
+
+    assert set(X_train.columns) == {"TransactionAmt", "ProductCD"}
+    assert list(y_train) == [0, 1]
+    assert list(w_train) == [0.5, 14.2]
+    assert w_val is None
+    assert X_val["ProductCD"].iloc[0] == X_train["ProductCD"].iloc[0]  # "W" mapped consistently
+
+
+def test_encode_categoricals_pandas_uses_train_fitted_mapping_and_handles_unseen(spark):
+    train_df, _ = _make_train_val(spark)
+    indexer = fit_categorical_indexer(train_df)
+    mappings = extract_category_mappings(indexer)
+
+    known = encode_categoricals_pandas({"ProductCD": "W", "TransactionAmt": 10.0}, mappings)
+    unseen = encode_categoricals_pandas({"ProductCD": "NEVER_SEEN"}, mappings)
+
+    assert known["ProductCD"] == mappings["ProductCD"]["W"]
+    assert known["TransactionAmt"] == 10.0
+    assert unseen["ProductCD"] == len(mappings["ProductCD"])

@@ -4,15 +4,25 @@ ARG HADOOP_VERSION=3.3.6
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
+    JAVA_HOME=/opt/java \
     HADOOP_HOME=/opt/hadoop \
-    PATH=/opt/hadoop/bin:/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH \
+    PATH=/opt/hadoop/bin:/opt/java/bin:$PATH \
     SPARK_LOCAL_IP=127.0.0.1
 
+# JAVA_HOME trỏ tới symlink /opt/java thay vì hardcode
+# java-17-openjdk-amd64 — đường dẫn thật khác nhau theo kiến trúc CPU
+# (vd arm64 cài ở java-17-openjdk-arm64), symlink này luôn đúng bất kể build
+# trên amd64 hay arm64.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl openjdk-17-jre-headless procps tini \
-    && rm -rf /var/lib/apt/lists/*
-RUN curl -fsSL "https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz" -o /tmp/hadoop.tar.gz \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s "$(dirname "$(dirname "$(readlink -f "$(which java)")")")" /opt/java
+# --retry/-C: archive.apache.org không đáng tin cậy cho file lớn (730MB),
+# hay bị transfer closed giữa chừng — retry + resume từ chỗ đứt thay vì
+# tải lại từ đầu.
+RUN curl -fsSL --retry 8 --retry-all-errors --retry-delay 5 -C - \
+    "https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz" \
+    -o /tmp/hadoop.tar.gz \
     && mkdir -p /opt \
     && tar -xzf /tmp/hadoop.tar.gz -C /opt \
     && mv "/opt/hadoop-${HADOOP_VERSION}" /opt/hadoop \
