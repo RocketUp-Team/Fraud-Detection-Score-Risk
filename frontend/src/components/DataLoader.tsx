@@ -97,8 +97,9 @@ export function DataLoader() {
         >
           {(datasets ?? []).map((d) => (
             <option key={d.name} value={d.name}>
+              {d.recommended ? '★ ' : ''}
               {d.name} — {d.rows.toLocaleString('vi-VN')} dòng
-              {d.recommended ? ' (nên dùng)' : ''}
+              {d.fraud_rate !== null ? `, ${(d.fraud_rate * 100).toFixed(2)}% gian lận` : ''}
             </option>
           ))}
         </select>

@@ -114,6 +114,10 @@ class DatasetOut(BaseModel):
     rows: int
     recommended: bool
     note: str
+    # Tỉ lệ gian lận thật của bộ; None khi bộ không có cột isFraud.
+    fraud_rate: float | None = None
+    has_labels: bool = True
+    model_trained_on: bool = False
 
 
 class LoadRequest(BaseModel):

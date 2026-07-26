@@ -1,7 +1,13 @@
 """Đọc các bộ parquet `model_ready` của An.
 
 Dùng cho cả `seed.py` (CLI) và endpoint nạp dữ liệu từ giao diện.
+
+Mọi thông tin về từng bộ đều SUY RA TỪ DỮ LIỆU, không viết cứng danh sách tên:
+số dòng đọc từ metadata parquet, tỉ lệ gian lận đọc từ cột `isFraud`, phân bố
+gốc lấy từ `manifest.json`. Nhờ vậy An thêm split mới thì nó tự xuất hiện kèm
+nhận định đúng, không cần sửa code.
 """
+import json
 import logging
 from pathlib import Path
 
@@ -9,48 +15,128 @@ log = logging.getLogger(__name__)
 
 # datasets.py -> fraud_backend -> src -> backend -> repo root
 REPO_ROOT = Path(__file__).resolve().parents[3]
-MODEL_READY_DIR = REPO_ROOT / "data" / "processed" / "ieee_cis_fraud_risk" / "model_ready"
+PROCESSED_DIR = REPO_ROOT / "data" / "processed" / "ieee_cis_fraud_risk"
+MODEL_READY_DIR = PROCESSED_DIR / "model_ready"
+MANIFEST_PATH = PROCESSED_DIR / "manifest.json"
 
-# Bộ nào an toàn để nạp lên dashboard. `train_*` thì model ĐÃ học trên đó nên
-# điểm đẹp giả tạo, và `train_balanced` còn bị undersample tới ~20% gian lận.
-SAFE_DATASETS = {"holdout", "validation"}
+LABEL_COL = "isFraud"
 
-DATASET_NOTES = {
-    "holdout": "Model chưa từng thấy, phân bố tự nhiên (~3,5% gian lận). Nên dùng bộ này.",
-    "validation": "Dùng khi tuning model, phân bố tự nhiên.",
-    "train_original": "Model ĐÃ học trên bộ này — điểm sẽ đẹp giả tạo.",
-    "train_weighted": "Model ĐÃ học trên bộ này — điểm sẽ đẹp giả tạo.",
-    "train_balanced": "Đã undersample còn ~20% gian lận — dashboard sẽ méo.",
-    "kaggle_test": "Không có nhãn isFraud, không đối chiếu được.",
-}
+# Sai số cho phép khi so tỉ lệ gian lận của một bộ với phân bố gốc. 0,5 điểm
+# phần trăm: chênh do chia split ngẫu nhiên thì nhỏ hơn nhiều, còn undersample
+# thì lệch hàng chục điểm nên không có vùng xám.
+NATURAL_RATE_TOLERANCE = 0.005
+
+# Cache theo (đường dẫn, mtime) để không đọc lại parquet mỗi lần gọi /datasets.
+_cache: dict[tuple[str, int], dict] = {}
+
+
+def _manifest() -> dict:
+    try:
+        return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        log.warning("Không đọc được manifest (%s) — bỏ phần so sánh phân bố gốc.", exc)
+        return {}
+
+
+def baseline_fraud_rate() -> float | None:
+    """Tỉ lệ gian lận của toàn bộ dữ liệu gốc, theo manifest của An."""
+    rate = _manifest().get("imbalance", {}).get("fraud_rate")
+    return float(rate) if rate is not None else None
+
+
+def _sentence(text: str) -> str:
+    return text[:1].upper() + text[1:] + "."
+
+
+def _describe(directory: Path, baseline: float | None) -> dict | None:
+    """Số liệu thật của một bộ. Trả None nếu thư mục không có parquet."""
+    import pyarrow.parquet as pq
+
+    files = sorted(directory.rglob("*.parquet"))
+    if not files:
+        return None
+
+    rows = 0
+    fraud = 0
+    has_labels = LABEL_COL in pq.ParquetFile(files[0]).schema_arrow.names
+
+    for path in files:
+        pf = pq.ParquetFile(path)
+        rows += pf.metadata.num_rows
+        if has_labels:
+            # Chỉ đọc đúng một cột — nhanh, không nạp 53 cột vào RAM.
+            fraud += int(sum(pf.read(columns=[LABEL_COL])[LABEL_COL].to_pylist()))
+
+    fraud_rate = fraud / rows if has_labels and rows else None
+
+    # "Model đã học trên bộ này chưa" suy từ manifest: An ghi bộ khuyến nghị để
+    # train, và các bộ train khác cùng tiền tố. Không dựa vào tên cứng.
+    trained_hint = _manifest().get("downstream_recommended_dataset", "")
+    train_prefix = Path(trained_hint).name.split("_")[0] if trained_hint else "train"
+    model_trained_on = directory.name.startswith(train_prefix)
+
+    natural = (
+        fraud_rate is not None
+        and baseline is not None
+        and abs(fraud_rate - baseline) <= NATURAL_RATE_TOLERANCE
+    )
+
+    # Nên dùng để nạp lên dashboard khi: có nhãn để đối chiếu, model chưa học
+    # trên đó, và phân bố còn tự nhiên.
+    recommended = bool(has_labels and not model_trained_on and natural)
+
+    reasons = []
+    if not has_labels:
+        reasons.append(f"không có cột {LABEL_COL} nên không đối chiếu được dự đoán với thực tế")
+    else:
+        reasons.append(f"{fraud_rate * 100:.2f}% gian lận")
+        if baseline is not None:
+            reasons.append(
+                "khớp phân bố gốc"
+                if natural
+                else f"lệch phân bố gốc ({baseline * 100:.2f}%) — đã resample"
+            )
+    reasons.append(
+        "model ĐÃ học trên bộ này nên điểm sẽ đẹp giả tạo"
+        if model_trained_on
+        else "model chưa từng thấy bộ này"
+    )
+
+    return {
+        "name": directory.name,
+        "rows": rows,
+        "recommended": recommended,
+        # Chỉ hoa chữ đầu — `capitalize()` sẽ hạ cả `isFraud` thành `isfraud`.
+        "note": _sentence(", ".join(reasons)),
+        "fraud_rate": fraud_rate,
+        "has_labels": has_labels,
+        "model_trained_on": model_trained_on,
+    }
 
 
 def available() -> list[dict]:
-    """Danh sách bộ dữ liệu + số dòng. Số dòng đọc từ metadata của parquet nên
-    nhanh, không phải load cả file."""
+    """Danh sách bộ dữ liệu kèm số liệu suy ra từ chính dữ liệu."""
     if not MODEL_READY_DIR.exists():
         return []
     try:
-        import pyarrow.parquet as pq
+        import pyarrow.parquet  # noqa: F401 — chỉ kiểm tra có cài hay không
     except ImportError:
-        log.warning("Không có pyarrow — không đếm được số dòng.")
+        log.warning("Không có pyarrow — không đọc được parquet.")
         return []
 
+    baseline = baseline_fraud_rate()
     out = []
     for directory in sorted(p for p in MODEL_READY_DIR.iterdir() if p.is_dir()):
-        files = sorted(directory.rglob("*.parquet"))
-        if not files:
-            continue
-        rows = sum(pq.ParquetFile(f).metadata.num_rows for f in files)
-        out.append(
-            {
-                "name": directory.name,
-                "rows": rows,
-                "recommended": directory.name in SAFE_DATASETS,
-                "note": DATASET_NOTES.get(directory.name, ""),
-            }
-        )
-    return out
+        key = (str(directory), directory.stat().st_mtime_ns)
+        if key not in _cache:
+            described = _describe(directory, baseline)
+            if described is None:
+                continue
+            _cache[key] = described
+        out.append(_cache[key])
+
+    # Bộ nên dùng lên trước để người dùng không phải tự đọc hết ghi chú.
+    return sorted(out, key=lambda d: (not d["recommended"], d["name"]))
 
 
 def read_rows(dataset: str, limit: int) -> list[dict]:

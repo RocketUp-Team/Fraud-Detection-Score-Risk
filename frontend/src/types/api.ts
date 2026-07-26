@@ -75,9 +75,14 @@ export type Stats = {
 export type Dataset = {
   name: string
   rows: number
-  /** false = model đã học trên bộ này, hoặc phân bố bị méo */
+  /** false = model đã học trên bộ này, hoặc phân bố bị méo, hoặc thiếu nhãn */
   recommended: boolean
+  /** Câu nhận định do backend sinh từ số liệu thật, không viết cứng */
   note: string
+  /** null khi bộ không có cột isFraud */
+  fraud_rate: number | null
+  has_labels: boolean
+  model_trained_on: boolean
 }
 
 export type LoadMode = 'head' | 'coverage'

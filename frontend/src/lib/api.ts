@@ -129,6 +129,9 @@ export const api = {
           rows: 89092,
           recommended: true,
           note: 'Chế độ mock — cần backend thật để nạp.',
+          fraud_rate: 0.0349,
+          has_labels: true,
+          model_trained_on: false,
         },
       ])
     }
