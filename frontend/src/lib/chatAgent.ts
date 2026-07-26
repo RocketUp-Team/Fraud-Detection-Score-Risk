@@ -8,13 +8,34 @@
  * `runIntent()` và giao diện giữ nguyên.
  */
 import { api } from './api'
-import type { ImportResponse, ScoreResponse, TransactionDetail } from '../types/api'
+import type {
+  Dataset,
+  ImportResponse,
+  Job,
+  LoadMode,
+  RiskBand,
+  ScoreResponse,
+  Stats,
+  Transaction,
+  TransactionDetail,
+} from '../types/api'
 
 export type Intent =
   | { kind: 'score'; features: Record<string, string | number | null>; echo: string[] }
   | { kind: 'import' }
+  | { kind: 'template' }
   | { kind: 'lookup'; transactionId: number }
   | { kind: 'stats' }
+  | { kind: 'datasets' }
+  | { kind: 'top'; count: number; band?: RiskBand }
+  | { kind: 'load'; mode: LoadMode; limit: number; perBand: number }
+  | {
+      kind: 'review'
+      transactionId: number
+      action: 'approve' | 'reject'
+      label: 'fraud' | 'legit'
+    }
+  | { kind: 'navigate'; to: string; label: string }
   | { kind: 'help' }
   | { kind: 'unknown' }
 
@@ -36,6 +57,14 @@ const DEVICE_FAMILY: Record<string, string> = {
   macos: 'macos',
   mac: 'macos',
 }
+
+const BAND_WORDS: { test: RegExp; band: RiskBand }[] = [
+  { test: /nghiem trong|critical/, band: 'critical' },
+  { test: /rui ro cao|muc cao|\bcao\b|high/, band: 'high' },
+  { test: /trung binh|medium/, band: 'medium' },
+  { test: /can luu y|guarded/, band: 'guarded' },
+  { test: /muc thap|\bthap\b|low/, band: 'low' },
+]
 
 function normalize(text: string): string {
   return text
@@ -65,13 +94,78 @@ function extractAmount(text: string): number | null {
   return Number.isFinite(value) ? value : null
 }
 
+/** Mã giao dịch IEEE-CIS là số ≥ 5 chữ số — dùng để phân biệt với "nạp 500". */
+function extractTransactionId(text: string): number | null {
+  const m = text.match(/\b(\d{5,})\b/)
+  return m ? Number(m[1]) : null
+}
+
+function extractBand(text: string): RiskBand | undefined {
+  for (const { test, band } of BAND_WORDS) if (test.test(text)) return band
+  return undefined
+}
+
 export function parseIntent(input: string): Intent {
   const text = normalize(input.trim())
   if (!text) return { kind: 'unknown' }
 
   if (/^(help|giup|huong dan|lam gi|\?)/.test(text)) return { kind: 'help' }
 
+  // ---- Điều hướng: phải xét TRƯỚC các lệnh hành động, vì "mở màn chấm điểm"
+  // cũng khớp regex chấm điểm. Bắt buộc có động từ mở/vào/đi để không nhầm.
+  if (/(mo|vao|di den|chuyen|xem) (man|trang|muc)?\s*/.test(text)) {
+    if (/hang cho|ra soat/.test(text)) return { kind: 'navigate', to: '/review', label: 'Hàng chờ rà soát' }
+    if (/cham diem thu|thu nghiem/.test(text))
+      return { kind: 'navigate', to: '/score', label: 'Chấm điểm thử' }
+    if (/nap du lieu|import|csv/.test(text))
+      return { kind: 'navigate', to: '/import', label: 'Nạp dữ liệu' }
+    if (/danh sach|giao dich/.test(text) && !extractTransactionId(text))
+      return { kind: 'navigate', to: '/transactions', label: 'Danh sách giao dịch' }
+  }
+
+  // ---- File mẫu: xét trước `import` vì "tải file mẫu" cũng chứa "file"
+  if (/(file mau|tai mau|template|mau csv)/.test(text)) return { kind: 'template' }
+
+  // ---- Nạp dữ liệu theo lô
+  if (/(nap|load)\b/.test(text) && !/mo |vao /.test(text)) {
+    if (/du 5 muc|moi muc|day du muc|coverage/.test(text)) {
+      // Bỏ cụm "5 mức" ra trước khi lấy số, nếu không "nạp đủ 5 mức 10" sẽ ăn
+      // số 5 của chính cụm đó thay vì 10 mà người dùng muốn.
+      const per = extractAmount(text.replace(/\b5\s*muc\b/g, ''))
+      return { kind: 'load', mode: 'coverage', limit: 5000, perBand: per && per <= 500 ? per : 20 }
+    }
+    const n = extractAmount(text)
+    if (n !== null) {
+      // Mặc định mẫu ngẫu nhiên: đại diện hơn N dòng đầu (xem README backend).
+      const mode: LoadMode = /dong dau|head|lien tiep/.test(text) ? 'head' : 'sample'
+      return { kind: 'load', mode, limit: Math.min(Math.round(n), 100_000), perBand: 20 }
+    }
+    return { kind: 'load', mode: 'coverage', limit: 5000, perBand: 20 }
+  }
+
+  // ---- Duyệt / từ chối
+  const reviewId = extractTransactionId(text)
+  if (reviewId !== null && /(duyet|thong qua|chap nhan|tu choi|reject|approve)/.test(text)) {
+    const reject = /(tu choi|reject|gian lan|fraud)/.test(text)
+    return {
+      kind: 'review',
+      transactionId: reviewId,
+      action: reject ? 'reject' : 'approve',
+      label: reject ? 'fraud' : 'legit',
+    }
+  }
+
   if (/(csv|nhap file|import|upload|tai len)/.test(text)) return { kind: 'import' }
+
+  if (/(bo du lieu|dataset|co nhung bo)/.test(text)) return { kind: 'datasets' }
+
+  // ---- Top N ca rủi ro cao nhất
+  // `nhat` là dấu hiệu chung của câu hỏi "cái nào ... nhất", bắt được cả
+  // "cao nhất", "nghiêm trọng nhất", "nặng nhất", "nguy hiểm nhất".
+  if (/\bnhat\b|^top\b|\btop \d/.test(text)) {
+    const n = extractAmount(text)
+    return { kind: 'top', count: n && n >= 1 && n <= 20 ? Math.round(n) : 5, band: extractBand(text) }
+  }
 
   if (/(tong quan|thong ke|so lieu|bao nhieu ca|dashboard|stats)/.test(text)) {
     return { kind: 'stats' }
@@ -142,14 +236,22 @@ export type AgentResult =
   | { type: 'score'; text: string; result: ScoreResponse }
   | { type: 'import'; text: string; result: ImportResponse }
   | { type: 'transaction'; text: string; result: TransactionDetail }
+  | { type: 'transactions'; text: string; result: Transaction[] }
+  | { type: 'datasets'; text: string; result: Dataset[] }
+  | { type: 'stats'; text: string; result: Stats }
+  | { type: 'job'; text: string; result: Job }
+  | { type: 'navigate'; text: string; to: string }
+  | { type: 'download'; text: string; url: string }
   | { type: 'await-file'; text: string }
 
 export const HELP_TEXT = [
-  'Tôi hiểu được mấy việc này:',
-  '• `chấm điểm 4899 visa credit mobile android` — gọi model chấm ngay',
-  '• `nhập csv` rồi gắn file — chấm điểm cả lô và lưu vào DB',
-  '• `giao dịch 2987055` — xem điểm và SHAP của một giao dịch đã có',
-  '• `tổng quan` — số liệu hiện tại của hệ thống',
+  'Gõ được mấy việc này:',
+  '• `chấm điểm 4899 visa credit mobile` — model chấm ngay',
+  '• `nạp 5000` — nạp mẫu ngẫu nhiên · `nạp đủ 5 mức 20` — mỗi mức 20 ca',
+  '• `nhập csv` rồi gắn file · `tải file mẫu`',
+  '• `5 ca cao nhất` · `3 ca nghiêm trọng nhất`',
+  '• `giao dịch 2987055` · `duyệt 2987055` · `từ chối 2987055`',
+  '• `tổng quan` · `bộ dữ liệu` · `mở hàng chờ`',
 ].join('\n')
 
 /** Thực thi ý định. Lỗi được trả về dạng text để hiện trong chat, không throw. */
@@ -159,27 +261,97 @@ export async function runIntent(intent: Intent): Promise<AgentResult> {
       case 'help':
         return { type: 'text', text: HELP_TEXT }
 
+      case 'navigate':
+        return { type: 'navigate', text: `Mở ${intent.label}.`, to: intent.to }
+
+      case 'template':
+        return {
+          type: 'download',
+          text: 'File mẫu có đúng 53 cột model cần + 20 dòng thật. Sửa lại rồi nhập vào.',
+          url: api.importTemplateUrl(20),
+        }
+
       case 'import':
         return {
           type: 'await-file',
-          text: 'Gắn file .csv vào đây (nút kẹp giấy bên dưới). Mỗi dòng sẽ được model chấm điểm rồi lưu vào DB. File cần có cột `TransactionID`.',
+          text: 'Gắn file .csv vào đây (nút kẹp giấy bên dưới). Cần cột `TransactionID`, và phải là dữ liệu ĐÃ tiền xử lý — CSV thô Kaggle chỉ khớp 28/53 cột.',
         }
 
       case 'stats': {
         const stats = await api.stats()
-        const bands = stats.by_band.map((b) => `${b.band} ${b.count}`).join(' · ')
         return {
-          type: 'text',
-          text: `Đang có ${stats.total} giao dịch đã chấm, ${stats.pending_review} ca chờ rà soát. Điểm trung bình ${stats.avg_risk_score}/100. Phân bố: ${bands}.`,
+          type: 'stats',
+          text: `${stats.total.toLocaleString('vi-VN')} giao dịch đã chấm, ${stats.pending_review.toLocaleString('vi-VN')} ca chờ rà soát, điểm trung bình ${stats.avg_risk_score}/100.`,
+          result: stats,
+        }
+      }
+
+      case 'datasets': {
+        const datasets = await api.listDatasets()
+        return {
+          type: 'datasets',
+          text: `Có ${datasets.length} bộ trong model_ready. Bộ có dấu ★ là nên dùng.`,
+          result: datasets,
+        }
+      }
+
+      case 'top': {
+        const page = await api.listTransactions({
+          sort: '-risk_score',
+          page_size: intent.count,
+          risk_band: intent.band,
+        })
+        if (page.items.length === 0) {
+          return { type: 'text', text: 'Không có giao dịch nào khớp — DB đã có dữ liệu chưa?' }
+        }
+        return {
+          type: 'transactions',
+          text: `${page.items.length} ca điểm cao nhất${intent.band ? ` ở mức ${intent.band}` : ''}:`,
+          result: page.items,
         }
       }
 
       case 'lookup': {
         const txn = await api.getTransaction(intent.transactionId)
+        return { type: 'transaction', text: `Giao dịch ${txn.transaction_id}:`, result: txn }
+      }
+
+      case 'review': {
+        const txn = await api.submitReview(intent.transactionId, {
+          action: intent.action,
+          label: intent.label,
+          reviewer: 'trợ lý',
+        })
         return {
           type: 'transaction',
-          text: `Giao dịch ${txn.transaction_id}:`,
+          text: `Đã ${intent.action === 'approve' ? 'duyệt' : 'từ chối'} giao dịch ${
+            txn.transaction_id
+          }, gắn nhãn ${intent.label}.`,
           result: txn,
+        }
+      }
+
+      case 'load': {
+        const job = await api.startLoad({
+          dataset: 'holdout',
+          limit: intent.limit,
+          reset: false,
+          mode: intent.mode,
+          per_band: intent.perBand,
+          seed: 42,
+        })
+        const what =
+          intent.mode === 'coverage'
+            ? `${intent.perBand} ca mỗi mức (${intent.perBand * 5} giao dịch)`
+            : `${intent.limit.toLocaleString('vi-VN')} dòng ${
+                intent.mode === 'sample' ? 'mẫu ngẫu nhiên' : 'đầu tiên'
+              }`
+        return {
+          type: 'job',
+          // `reset: false` -> ghi thêm, không xoá. Xoá dữ liệu là việc nguy hiểm,
+          // không để một câu chat làm được.
+          text: `Đang nạp ${what} từ holdout, ghi thêm vào dữ liệu hiện có.`,
+          result: job,
         }
       }
 
@@ -193,10 +365,7 @@ export async function runIntent(intent: Intent): Promise<AgentResult> {
       }
 
       default:
-        return {
-          type: 'text',
-          text: `Chưa hiểu câu đó. ${HELP_TEXT}`,
-        }
+        return { type: 'text', text: `Chưa hiểu câu đó. ${HELP_TEXT}` }
     }
   } catch (error) {
     return {
@@ -209,11 +378,7 @@ export async function runIntent(intent: Intent): Promise<AgentResult> {
 export async function runImport(file: File): Promise<AgentResult> {
   try {
     const result = await api.importCsv(file)
-    return {
-      type: 'import',
-      text: `Đã xử lý ${file.name}:`,
-      result,
-    }
+    return { type: 'import', text: `Đã xử lý ${file.name}:`, result }
   } catch (error) {
     return {
       type: 'text',

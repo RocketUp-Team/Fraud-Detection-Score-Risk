@@ -64,6 +64,11 @@ DATA_PROCESSED_DIR=$HOME/du-lieu/processed docker compose up
 
 Thiếu mount này thì màn "Nạp dữ liệu" báo *"Chưa có dữ liệu đã tiền xử lý"*.
 
+> **Nếu máy có cả Docker Desktop và colima**: cài Docker Desktop sẽ đổi context
+> mặc định sang `desktop-linux`, và `docker compose ps` sẽ báo rỗng dù container
+> đang chạy trên colima. Kiểm bằng `docker context ls`, đổi bằng
+> `docker context use colima`.
+
 Khởi động: PostgreSQL (`5432`), backend FastAPI (`8000`, docs ở `/docs`),
 frontend dashboard (`5173`). `model/` không phải service riêng — nó là module
 Python (`fraud_model.score.score()`) mà backend import trực tiếp, không gọi
