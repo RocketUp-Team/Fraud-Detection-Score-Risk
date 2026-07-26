@@ -24,6 +24,14 @@ services:
       # +psycopg = driver psycopg 3 (mặc định postgresql:// là psycopg2, không cài).
       DATABASE_URL: postgresql+psycopg://fraud:fraud@db:5432/fraud
       CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    volumes:
+      # Parquet của An KHÔNG nằm trong image: 411MB, và .dockerignore loại cả
+      # data/ để build context không phình. Mount lúc chạy, chỉ đọc — thiếu dòng
+      # này thì màn "Nạp dữ liệu" báo "chưa có dữ liệu đã tiền xử lý".
+      # Đường dẫn cấu hình được: máy dev để trong repo, deployment thật thường
+      # để ở volume/NFS riêng. Trên macOS + colima, ~/Documents bị TCC chặn nên
+      # cũng cần trỏ ra ngoài.
+      - ${DATA_PROCESSED_DIR:-./data/processed}:/app/data/processed:ro
     ports:
       - "8000:8000"
     depends_on:

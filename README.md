@@ -46,9 +46,23 @@ Trong lúc chờ bàn giao, mỗi phần phát triển độc lập với mock/s
 
 ```bash
 docker compose up --build
-# rồi seed dữ liệu để dashboard có gì hiển thị:
-docker compose exec backend uv run python -m fraud_backend.seed --limit 300
 ```
+
+Rồi mở `http://localhost:5173` → **Nạp dữ liệu** để nạp giao dịch (hoặc dùng CLI:
+`docker compose exec backend uv run python -m fraud_backend.seed`).
+
+Đã chạy thử thật trên colima: 3 service lên, model LightGBM nạp trong container,
+nạp dữ liệu ghi vào Postgres, review lưu được, frontend phục vụ bundle đã build.
+
+**Parquet không nằm trong image** (411MB, và `.dockerignore` loại `data/`) mà
+mount lúc chạy. Mặc định lấy `./data/processed`. Nếu dữ liệu để chỗ khác — hoặc
+bạn dùng colima trên macOS, nơi `~/Documents` bị chặn bởi cơ chế bảo mật TCC:
+
+```bash
+DATA_PROCESSED_DIR=$HOME/du-lieu/processed docker compose up
+```
+
+Thiếu mount này thì màn "Nạp dữ liệu" báo *"Chưa có dữ liệu đã tiền xử lý"*.
 
 Khởi động: PostgreSQL (`5432`), backend FastAPI (`8000`, docs ở `/docs`),
 frontend dashboard (`5173`). `model/` không phải service riêng — nó là module
