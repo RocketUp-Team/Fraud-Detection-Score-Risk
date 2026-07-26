@@ -2,6 +2,7 @@
   "model_version": "lightgbm-2026-07-25",
   "model_name": "lightgbm",
   "explainability": true,
+  "n_features": 53,
   "bands": [
     { "band": "low", "min": 0, "max": 19 },
     { "band": "guarded", "min": 20, "max": 39 },

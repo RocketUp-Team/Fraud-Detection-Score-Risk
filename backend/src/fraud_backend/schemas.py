@@ -65,6 +65,9 @@ class MetaOut(BaseModel):
     model_version: str
     model_name: str
     explainability: bool
+    # Số feature model mong đợi. Frontend dùng để nói rõ "đã cung cấp 9/53",
+    # vì chấm ad-hoc chỉ điền được một phần, phần còn lại là giá trị mặc định.
+    n_features: int
     bands: list[BandRange]
     # Chỉ có khi model thật chưa dùng được (xem scoring._HeuristicScorer).
     warning: str | None = None

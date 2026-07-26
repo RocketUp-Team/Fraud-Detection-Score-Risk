@@ -54,6 +54,8 @@ export type Meta = {
   model_version: string
   model_name: string
   explainability: boolean
+  /** Số feature model mong đợi — dùng để nói rõ "đã cung cấp 9/53". */
+  n_features: number
   bands: BandRange[]
   /** Chỉ có khi backend chưa dùng được model thật (fallback heuristic). */
   warning?: string | null

@@ -52,6 +52,7 @@ def meta() -> schemas.MetaOut:
         model_version=info["model_version"],
         model_name=info["model_name"],
         explainability=info["explainability"],
+        n_features=info.get("n_features", 0),
         bands=[schemas.BandRange(band=b, min=lo, max=hi) for b, lo, hi in risk.BANDS],
         warning=info.get("warning"),
     )

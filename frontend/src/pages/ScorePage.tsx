@@ -61,12 +61,13 @@ export function ScorePage() {
     mutationFn: (features: Record<string, string | number | null>) => api.score({ features }),
   })
 
+  const expectedCount = meta?.n_features ?? 0
+
   const amountNum = Number(amount)
   const amountValid = amount !== '' && Number.isFinite(amountNum) && amountNum >= 0
 
-  function submit() {
-    if (!amountValid) return
-    mutation.mutate({
+  function buildFeatures(): Record<string, string | number | null> {
+    return {
       TransactionAmt: amountNum,
       // log1p(amount) — đúng theo định nghĩa `log_transaction_amount` trong
       // DATA_DICTIONARY.md, tính được chắc chắn nên gửi luôn.
@@ -75,7 +76,15 @@ export function ScorePage() {
       has_identity: hasIdentity ? 1 : 0,
       has_device_info: hasDeviceInfo ? 1 : 0,
       prior_card_transaction_count: Number(priorCardCount) || 0,
-    })
+    }
+  }
+
+  // Đếm từ chính payload, không đếm tay — sửa form là con số tự đúng theo.
+  const providedCount = Object.keys(buildFeatures()).length
+
+  function submit() {
+    if (!amountValid) return
+    mutation.mutate(buildFeatures())
   }
 
   const result: ScoreResponse | undefined = mutation.data
@@ -176,11 +185,24 @@ export function ScorePage() {
             {mutation.isPending ? 'Đang chấm điểm…' : 'Chấm điểm'}
           </button>
 
-          <p className="field__hint" style={{ marginTop: 'var(--space-3)' }}>
-            Các feature không nhập ở đây (missingness, lịch sử email/thiết bị…) được backend
-            điền giá trị mặc định, nên điểm mang tính tham khảo — không nhất thiết trùng khớp
-            với điểm chấm theo lô từ dữ liệu đầy đủ.
-          </p>
+          <div className="callout callout--warn" style={{ marginTop: 'var(--space-4)' }}>
+            <strong>
+              Form này cung cấp <span className="num">{providedCount}</span>
+              {expectedCount > 0 && (
+                <>
+                  /<span className="num">{expectedCount}</span>
+                </>
+              )}{' '}
+              feature model cần.
+            </strong>
+            <p>
+              Phần còn lại (các biến đếm C1–C14, D1–D15, lịch sử email/thiết bị, missingness)
+              được điền giá trị mặc định. Hệ quả thực tế: với số tiền lớn, điểm hay bị{' '}
+              <em>bão hoà</em> — 1.500 và 25.000 có thể ra cùng một điểm vì các nhánh cây tách
+              trên số tiền đều ở ngưỡng thấp. Muốn điểm chuẩn thì chấm theo lô từ dữ liệu đầy
+              đủ (màn <strong>Nhập CSV</strong>).
+            </p>
+          </div>
         </section>
 
         <section className="card">
