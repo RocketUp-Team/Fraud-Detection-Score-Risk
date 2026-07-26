@@ -1140,6 +1140,12 @@ textarea:focus {
     grid-template-columns: repeat(12, minmax(0, 1fr));
   }
 
+  /* Mặc định card chiếm cả hàng. Không có dòng này thì card nào chưa khai báo
+     span sẽ rơi vào 1/12 chiều rộng và bị bóp thành một sợi. */
+  .grid--detail > * {
+    grid-column: span 12;
+  }
+
   .card--score {
     grid-column: span 4;
   }
@@ -1155,12 +1161,34 @@ textarea:focus {
   .card--features {
     grid-column: span 7;
   }
+
+  /* Chấm điểm thử: form hẹp, kết quả rộng hơn */
+  .card--score-form {
+    grid-column: span 5;
+  }
+
+  .card--score-result {
+    grid-column: span 7;
+  }
+
+  /* Nạp dữ liệu: 3 card ngang nhau */
+  .card--load,
+  .card--csv,
+  .card--load-result {
+    grid-column: span 4;
+  }
 }
 
 /* 900–1100px: hai cột, SHAP xuống dòng riêng cho đủ rộng */
 @media (min-width: 760px) and (max-width: 1099px) {
   .grid--detail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card--shap,
+  .card--features,
+  .card--load-result {
+    grid-column: span 2;
   }
 
   .card--shap,
@@ -1988,4 +2016,69 @@ textarea:focus {
     width: auto;
     max-height: calc(100vh - 140px);
   }
+}
+
+/* ---------- Nạp dữ liệu: nút chọn nhanh + thanh tiến độ ---------- */
+
+.quick-picks {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.chat__chip.is-active {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent-dim);
+  font-weight: 600;
+}
+
+.progress {
+  margin: var(--space-4) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.progress--done {
+  border-color: var(--color-band-low);
+}
+
+.progress--error {
+  border-color: var(--color-destructive);
+}
+
+.progress__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-md);
+  margin-bottom: var(--space-2);
+}
+
+.progress__track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-muted);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-strong));
+  transition: width 400ms var(--ease-premium);
+}
+
+.progress--done .progress__bar {
+  background: var(--color-band-low);
+}
+
+.progress--error .progress__bar,
+.progress--cancelled .progress__bar {
+  background: var(--color-text-muted);
 }

@@ -4,7 +4,7 @@ Shape response theo `docs/API_CONTRACT.md`.
 """
 import csv
 import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -150,7 +150,7 @@ def submit_review(
     txn.review.label = payload.label
     txn.review.reviewer = payload.reviewer
     txn.review.note = payload.note
-    txn.review.updated_at = datetime.now(timezone.utc)
+    txn.review.updated_at = datetime.now(UTC)
 
     db.commit()
     db.refresh(txn)

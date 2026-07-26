@@ -106,7 +106,7 @@ export function ScorePage() {
       </header>
 
       <div className="grid grid--detail">
-        <section className="card">
+        <section className="card card--score-form">
           <h2>Thông tin giao dịch</h2>
 
           <div className="field">
@@ -218,7 +218,7 @@ export function ScorePage() {
           </div>
         </section>
 
-        <section className="card">
+        <section className="card card--score-result">
           <h2>Kết quả</h2>
 
           {mutation.isError && (

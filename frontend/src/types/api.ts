@@ -71,6 +71,34 @@ export type Stats = {
   high_risk_amount: number
 }
 
+/** Bộ dữ liệu trong `model_ready/` mà backend có thể nạp. */
+export type Dataset = {
+  name: string
+  rows: number
+  /** false = model đã học trên bộ này, hoặc phân bố bị méo */
+  recommended: boolean
+  note: string
+}
+
+export type LoadRequest = {
+  dataset: string
+  limit: number
+  reset: boolean
+}
+
+export type JobStatus = 'running' | 'done' | 'error' | 'cancelled'
+
+export type Job = {
+  id: string
+  status: JobStatus
+  processed: number
+  total: number
+  percent: number
+  error: string | null
+  started_at: string
+  finished_at: string | null
+}
+
 export type TransactionListParams = {
   risk_band?: RiskBand
   decision?: Decision

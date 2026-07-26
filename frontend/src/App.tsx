@@ -22,7 +22,7 @@ const NAV_MAIN = [
 // Tách nhóm: 2 mục dưới đây là nơi model thật sự được gọi để chấm điểm.
 const NAV_MODEL = [
   { to: '/score', label: 'Chấm điểm thử', icon: 'calculator' as const },
-  { to: '/import', label: 'Nhập CSV', icon: 'upload' as const },
+  { to: '/import', label: 'Nạp dữ liệu', icon: 'upload' as const },
 ]
 
 function Sidebar({

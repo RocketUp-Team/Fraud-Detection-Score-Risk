@@ -1,15 +1,24 @@
 """Bảng DB. Dùng JSON generic (không JSONB) để chạy được cả Postgres và
 SQLite — SQLite là đường chạy nhanh khi không có Docker (xem config.py)."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Index, Integer, Numeric, String
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Transaction(Base):

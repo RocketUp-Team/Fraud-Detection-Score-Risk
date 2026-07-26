@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import config, risk, schemas
 from .db import Base, engine
-from .routers import transactions
+from .routers import data, transactions
 from .scoring import scorer
 from .service import score_features
 
@@ -38,6 +38,7 @@ app.add_middleware(
 )
 
 app.include_router(transactions.router)
+app.include_router(data.router)
 
 
 @app.get("/health")

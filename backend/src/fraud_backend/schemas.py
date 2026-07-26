@@ -109,6 +109,32 @@ class ScoreResponse(BaseModel):
     scored_at: datetime
 
 
+class DatasetOut(BaseModel):
+    name: str
+    rows: int
+    recommended: bool
+    note: str
+
+
+class LoadRequest(BaseModel):
+    dataset: str = "holdout"
+    # Chặn trên để một cú bấm nhầm không nạp cả nửa triệu dòng.
+    limit: int = Field(default=5000, ge=1, le=100_000)
+    # Xoá dữ liệu cũ trước khi nạp; mặc định là ghi thêm/ghi đè theo id.
+    reset: bool = False
+
+
+class JobOut(BaseModel):
+    id: str
+    status: Literal["running", "done", "error", "cancelled"]
+    processed: int
+    total: int
+    percent: int
+    error: str | None = None
+    started_at: datetime
+    finished_at: datetime | None = None
+
+
 class ImportError_(BaseModel):
     row: int
     error: str

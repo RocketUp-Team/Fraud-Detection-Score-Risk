@@ -5,7 +5,10 @@
  * (hữu ích lúc demo/offline). Mặc định gọi API thật ở VITE_API_URL.
  */
 import type {
+  Dataset,
   ImportResponse,
+  Job,
+  LoadRequest,
   Meta,
   Paginated,
   ReviewRequest,
@@ -116,6 +119,43 @@ export const api = {
     // `as unknown as` vì TS suy JSON ra `string` chứ không phải union literal.
     if (USE_MOCKS) return Promise.resolve(mockMeta as unknown as Meta)
     return request<Meta>('/meta')
+  },
+
+  listDatasets(): Promise<Dataset[]> {
+    if (USE_MOCKS) {
+      return Promise.resolve([
+        {
+          name: 'holdout',
+          rows: 89092,
+          recommended: true,
+          note: 'Chế độ mock — cần backend thật để nạp.',
+        },
+      ])
+    }
+    return request<Dataset[]>('/datasets')
+  },
+
+  startLoad(payload: LoadRequest): Promise<Job> {
+    if (USE_MOCKS) {
+      return Promise.reject(
+        new ApiError(0, 'Đang chạy chế độ mock — cần backend thật để nạp dữ liệu.'),
+      )
+    }
+    return request<Job>('/data/load', { method: 'POST', body: JSON.stringify(payload) })
+  },
+
+  getJob(jobId: string): Promise<Job> {
+    return request<Job>(`/jobs/${jobId}`)
+  },
+
+  /** Job đang chạy (nếu có) — để nối lại thanh tiến độ sau khi F5. */
+  getActiveJob(): Promise<Job | null> {
+    if (USE_MOCKS) return Promise.resolve(null)
+    return request<Job | null>('/jobs/active/current')
+  },
+
+  cancelJob(jobId: string): Promise<Job> {
+    return request<Job>(`/jobs/${jobId}/cancel`, { method: 'POST' })
   },
 
   stats(): Promise<Stats> {

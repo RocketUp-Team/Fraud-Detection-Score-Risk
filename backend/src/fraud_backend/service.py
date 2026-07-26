@@ -1,6 +1,6 @@
 """Logic nghiệp vụ: chấm điểm + ghi DB, dùng chung cho endpoint import,
 seed script và (một phần) /score."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -31,7 +31,7 @@ def score_features(features: dict) -> dict:
         "decision": decision,
         "shap_top5": result.get("shap"),
         "model_version": scorer.info["model_version"],
-        "scored_at": datetime.now(timezone.utc),
+        "scored_at": datetime.now(UTC),
     }
 
 

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 
+import { DataLoader } from '../components/DataLoader'
 import { Icon } from '../components/Icon'
 import { api } from '../lib/api'
 import type { ImportResponse } from '../types/api'
@@ -47,18 +48,19 @@ export function ImportPage() {
     <section>
       <header className="page-head">
         <div>
-          <h1>Nhập CSV theo lô</h1>
+          <h1>Nạp dữ liệu</h1>
           <p>
-            Mỗi dòng sẽ được model chấm điểm rồi lưu vào cơ sở dữ liệu. File cần cột{' '}
-            <code>TransactionID</code>; các cột feature theo{' '}
-            <code>DATA_DICTIONARY.md</code>. Dòng nào lỗi sẽ bị bỏ qua và báo lại bên dưới.
+            Hai cách: nạp sẵn N giao dịch từ bộ IEEE-CIS đã tiền xử lý, hoặc tải lên file CSV
+            của riêng bạn. Cách nào thì mỗi dòng cũng được model chấm điểm rồi lưu vào DB.
           </p>
         </div>
       </header>
 
       <div className="grid grid--detail">
-        <section className="card">
-          <h2>Chọn file</h2>
+        <DataLoader />
+
+        <section className="card card--csv">
+          <h2>Tải lên CSV của bạn</h2>
 
           {/* Vùng kéo-thả: bấm hoặc kéo file vào đều được, không chỉ dựa vào drag */}
           <div
@@ -133,7 +135,7 @@ export function ImportPage() {
           </p>
         </section>
 
-        <section className="card">
+        <section className="card card--load-result">
           <h2>Kết quả nhập</h2>
 
           {mutation.isError && (

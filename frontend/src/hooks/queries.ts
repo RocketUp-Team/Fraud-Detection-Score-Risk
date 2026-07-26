@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
-import type { ReviewRequest, TransactionListParams } from '../types/api'
+import type { Job, LoadRequest, ReviewRequest, TransactionListParams } from '../types/api'
 
 export function useMeta() {
   return useQuery({
@@ -45,4 +45,41 @@ export function useSubmitReview(id: number) {
       queryClient.invalidateQueries({ queryKey: ['stats'] })
     },
   })
+}
+
+export function useDatasets() {
+  return useQuery({
+    queryKey: ['datasets'],
+    queryFn: () => api.listDatasets(),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+/**
+ * Theo dõi job nạp dữ liệu. Poll 1s trong lúc chạy rồi tự dừng khi xong — không
+ * poll mãi mãi khi job đã kết thúc.
+ */
+export function useJob(jobId: string | null) {
+  return useQuery({
+    queryKey: ['job', jobId],
+    queryFn: () => api.getJob(jobId as string),
+    enabled: jobId !== null,
+    refetchInterval: (query) => {
+      const job = query.state.data as Job | undefined
+      return job && job.status === 'running' ? 1000 : false
+    },
+  })
+}
+
+/** Job đang chạy lúc mở trang — để F5 giữa lúc nạp vẫn thấy tiến độ. */
+export function useActiveJob() {
+  return useQuery({ queryKey: ['job', 'active'], queryFn: () => api.getActiveJob() })
+}
+
+export function useStartLoad() {
+  return useMutation({ mutationFn: (payload: LoadRequest) => api.startLoad(payload) })
+}
+
+export function useCancelJob() {
+  return useMutation({ mutationFn: (jobId: string) => api.cancelJob(jobId) })
 }

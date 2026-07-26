@@ -16,17 +16,12 @@ import argparse
 import logging
 import math
 import random
-from pathlib import Path
 
-from . import config
+from . import config, datasets
 from .db import Base, SessionLocal, engine
 from .service import split_features, upsert_scored_transaction
 
 log = logging.getLogger("seed")
-
-# seed.py -> fraud_backend -> src -> backend -> repo root
-REPO_ROOT = Path(__file__).resolve().parents[3]
-MODEL_READY_DIR = REPO_ROOT / "data" / "processed" / "ieee_cis_fraud_risk" / "model_ready"
 
 CATEGORICAL_CHOICES = {
     "ProductCD": ["W", "C", "R", "H", "S"],
@@ -39,48 +34,31 @@ CATEGORICAL_CHOICES = {
 
 
 def _rows_from_parquet(limit: int) -> list[dict] | None:
-    if not MODEL_READY_DIR.exists():
+    """Đọc từ bộ đã cấu hình. Logic đọc nằm ở `datasets.py` để endpoint nạp dữ
+    liệu từ giao diện dùng chung, không có hai bản đọc parquet lệch nhau."""
+    if not datasets.MODEL_READY_DIR.exists():
         return None
-    try:
-        import pandas as pd
-    except ImportError:
-        log.warning("Không có pandas — bỏ qua parquet.")
-        return None
-
-    # Đọc đúng bộ đã cấu hình. Trước đây rglob toàn bộ model_ready rồi lấy file
-    # nào xếp trước — nghĩa là tuỳ thứ tự tên thư mục, có thể rơi vào train_*
-    # (đã undersample, tỉ lệ gian lận cao giả tạo).
-    dataset_dir = MODEL_READY_DIR / config.SEED_DATASET
-    if not dataset_dir.exists():
+    names = [d["name"] for d in datasets.available()]
+    if config.SEED_DATASET not in names:
         log.warning(
-            "Không có bộ %s trong %s — có %s",
+            "Không có bộ %s trong %s — đang có %s",
             config.SEED_DATASET,
-            MODEL_READY_DIR,
-            [p.name for p in MODEL_READY_DIR.iterdir() if p.is_dir()],
+            datasets.MODEL_READY_DIR,
+            names or "(chưa chạy preprocessing)",
         )
         return None
-
-    parquets = sorted(dataset_dir.rglob("*.parquet"))
-    if not parquets:
+    try:
+        return datasets.read_rows(config.SEED_DATASET, limit)
+    except (FileNotFoundError, ImportError) as exc:
+        log.warning("Không đọc được parquet (%s)", exc)
         return None
-
-    frames, total = [], 0
-    for path in parquets:
-        df = pd.read_parquet(path)
-        frames.append(df)
-        total += len(df)
-        if total >= limit:
-            break
-    df = pd.concat(frames).head(limit)
-    log.info("Đọc %d dòng từ %s", len(df), dataset_dir)
-    return df.to_dict(orient="records")
 
 
 def _synthetic_rows(limit: int) -> list[dict]:
     log.warning(
         "Chưa có parquet ở %s — sinh %d dòng DEMO theo feature contract. "
         "Chạy preprocessing của An để có dữ liệu thật.",
-        MODEL_READY_DIR,
+        datasets.MODEL_READY_DIR,
         limit,
     )
     rng = random.Random(42)  # cố định seed -> seed lại cho cùng dữ liệu
