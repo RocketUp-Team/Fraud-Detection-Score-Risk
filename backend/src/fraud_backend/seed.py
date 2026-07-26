@@ -1,11 +1,16 @@
 """Seed DB để frontend có dữ liệu thật xem ngay.
 
-    uv run python -m fraud_backend.seed --limit 300
+    uv run python -m fraud_backend.seed --reset             # dùng SEED_LIMIT
+    uv run python -m fraud_backend.seed --limit 20000       # ghi đè
+    SEED_DATASET=validation uv run python -m fraud_backend.seed
 
-Ưu tiên parquet `model_ready` của An (`data/processed/ieee_cis_fraud_risk/`).
-Nếu chưa có (chưa chạy preprocessing, hoặc parquet bị gitignore trên máy
-khác) thì sinh dữ liệu demo theo đúng feature contract trong
-DATA_DICTIONARY.md, để không ai bị chặn — nhưng in cảnh báo rõ ràng.
+Số lượng và bộ dữ liệu đều cấu hình được (`SEED_LIMIT`, `SEED_DATASET` trong
+config.py) — không có con số nào là bắt buộc.
+
+Đọc parquet `model_ready` của An (`data/processed/ieee_cis_fraud_risk/`). Nếu
+chưa có (chưa chạy preprocessing, hoặc parquet bị gitignore trên máy khác) thì
+sinh dữ liệu demo theo đúng feature contract trong DATA_DICTIONARY.md, để không
+ai bị chặn — nhưng in cảnh báo rõ ràng.
 """
 import argparse
 import logging
@@ -13,6 +18,7 @@ import math
 import random
 from pathlib import Path
 
+from . import config
 from .db import Base, SessionLocal, engine
 from .service import split_features, upsert_scored_transaction
 
@@ -41,7 +47,20 @@ def _rows_from_parquet(limit: int) -> list[dict] | None:
         log.warning("Không có pandas — bỏ qua parquet.")
         return None
 
-    parquets = sorted(MODEL_READY_DIR.rglob("*.parquet"))
+    # Đọc đúng bộ đã cấu hình. Trước đây rglob toàn bộ model_ready rồi lấy file
+    # nào xếp trước — nghĩa là tuỳ thứ tự tên thư mục, có thể rơi vào train_*
+    # (đã undersample, tỉ lệ gian lận cao giả tạo).
+    dataset_dir = MODEL_READY_DIR / config.SEED_DATASET
+    if not dataset_dir.exists():
+        log.warning(
+            "Không có bộ %s trong %s — có %s",
+            config.SEED_DATASET,
+            MODEL_READY_DIR,
+            [p.name for p in MODEL_READY_DIR.iterdir() if p.is_dir()],
+        )
+        return None
+
+    parquets = sorted(dataset_dir.rglob("*.parquet"))
     if not parquets:
         return None
 
@@ -53,7 +72,7 @@ def _rows_from_parquet(limit: int) -> list[dict] | None:
         if total >= limit:
             break
     df = pd.concat(frames).head(limit)
-    log.info("Đọc %d dòng từ %s", len(df), MODEL_READY_DIR)
+    log.info("Đọc %d dòng từ %s", len(df), dataset_dir)
     return df.to_dict(orient="records")
 
 
@@ -94,7 +113,8 @@ def _synthetic_rows(limit: int) -> list[dict]:
     return rows
 
 
-def seed(limit: int = 300, reset: bool = False) -> int:
+def seed(limit: int | None = None, reset: bool = False) -> int:
+    limit = limit if limit is not None else config.SEED_LIMIT
     if reset:
         Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
@@ -118,7 +138,12 @@ def seed(limit: int = 300, reset: bool = False) -> int:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser(description="Seed DB cho demo risk scoring")
-    parser.add_argument("--limit", type=int, default=300, help="số giao dịch (mặc định 300)")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=config.SEED_LIMIT,
+        help=f"số giao dịch (mặc định {config.SEED_LIMIT}, đổi bằng biến SEED_LIMIT)",
+    )
     parser.add_argument("--reset", action="store_true", help="drop bảng trước khi seed")
     args = parser.parse_args()
     seed(limit=args.limit, reset=args.reset)

@@ -37,6 +37,22 @@ Schema tạo bằng `Base.metadata.create_all` lúc startup, **không dùng Alem
 | `DATABASE_URL` | `sqlite:///./fraud_demo.db` | Chuỗi kết nối SQLAlchemy |
 | `CORS_ORIGINS` | `http://localhost:5173,…` | Origin được phép, phân tách bằng dấu phẩy |
 | `MAX_IMPORT_ROWS` | `5000` | Chặn upload nhầm file CSV 600MB |
+| `SEED_LIMIT` | `5000` | Số giao dịch `seed.py` nạp (`--limit` thắng biến này) |
+| `SEED_DATASET` | `holdout` | Bộ trong `model_ready/` dùng để seed |
+
+### Seed bao nhiêu dòng?
+
+Không có con số bắt buộc — đây chỉ là lượng dữ liệu có sẵn để xem và demo.
+
+| Số dòng | Ca gian lận (~3,5%) | Dùng khi |
+|---|---|---|
+| 300 | ~7 | Chạy thử cho nhanh. **Quá ít để trích recall/precision** — lệch 1 ca là recall nhảy 14 điểm |
+| 5000 (mặc định) | ~155 | Demo. Số liệu đã ổn định |
+| 89.092 (toàn holdout) | 3.105 | Đánh giá đầy đủ. Chấm lâu và DB phình |
+
+Luôn seed từ **`holdout`**: đây là tập model chưa từng thấy và giữ phân bố tự
+nhiên. Các bộ `train_*` đã bị undersample nên tỉ lệ gian lận cao giả tạo, seed
+từ đó thì dashboard trông như cả sàn đang bị gian lận.
 
 ## Endpoints
 
