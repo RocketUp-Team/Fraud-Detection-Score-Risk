@@ -1029,11 +1029,48 @@ textarea:focus {
 
 /* ---------- Cards / grid ---------- */
 
+/* Trang chi tiết: grid 12 cột với span rõ ràng thay vì auto-fit.
+   auto-fit chia 3 cột đều nhau nên card SHAP bị bó lại, tên feature bị cắt và
+   bảng số bên trong tràn ra ngoài. Điểm số cần ít chỗ, SHAP cần nhiều. */
 .grid--detail {
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: 1fr;
   align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .grid--detail {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .card--score {
+    grid-column: span 4;
+  }
+
+  .card--shap {
+    grid-column: span 8;
+  }
+
+  .card--review {
+    grid-column: span 5;
+  }
+
+  .card--features {
+    grid-column: span 7;
+  }
+}
+
+/* 900–1100px: hai cột, SHAP xuống dòng riêng cho đủ rộng */
+@media (min-width: 760px) and (max-width: 1099px) {
+  .grid--detail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card--shap,
+  .card--features {
+    grid-column: span 2;
+  }
 }
 
 .card {
@@ -1191,9 +1228,9 @@ textarea:focus {
 }
 
 .bullet__legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: var(--space-1) var(--space-3);
   margin-top: var(--space-3);
   font-size: var(--text-cap);
   color: var(--color-text-muted);
@@ -1257,18 +1294,23 @@ textarea:focus {
 
 .shap__row {
   display: grid;
-  grid-template-columns: minmax(120px, 1.1fr) 2fr auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 2fr) auto;
   align-items: center;
   gap: var(--space-3);
   font-size: var(--text-md);
 }
 
+/* Tên feature dài (prior_card_avg_amount) được ngắt trong ô, không cắt cụt */
 .shap__feature {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.shap__cell-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
 }
 
 .shap__track {

@@ -29,7 +29,7 @@ export function ReviewPanel({ txn }: { txn: TransactionDetail }) {
   }
 
   return (
-    <section className="card">
+    <section className="card card--review">
       <h2>Rà soát thủ công</h2>
 
       {txn.review ? (

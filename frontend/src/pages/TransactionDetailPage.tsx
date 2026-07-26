@@ -50,7 +50,7 @@ export function TransactionDetailPage() {
       </header>
 
       <div className="grid grid--detail">
-        <section className="card">
+        <section className="card card--score">
           <h2>Điểm rủi ro</h2>
           <ScoreBullet score={txn.risk_score} band={txn.risk_band} bands={meta?.bands} />
           <dl className="kv">
@@ -71,7 +71,7 @@ export function TransactionDetailPage() {
           </dl>
         </section>
 
-        <section className="card">
+        <section className="card card--shap">
           <h2>Vì sao điểm này? — SHAP top 5</h2>
           {txn.shap_top5 ? (
             <ShapChart items={txn.shap_top5} />
@@ -82,7 +82,7 @@ export function TransactionDetailPage() {
 
         <ReviewPanel txn={txn} />
 
-        <section className="card card--wide">
+        <section className="card card--features">
           <h2>
             Feature đã dùng để chấm điểm <span className="muted">({features.length} cột)</span>
           </h2>

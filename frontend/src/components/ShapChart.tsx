@@ -51,24 +51,29 @@ export function ShapChart({ items }: { items: ShapContribution[] }) {
 
       <details className="shap__data">
         <summary>Xem dạng bảng số</summary>
-        <table className="table table--compact">
-          <thead>
-            <tr>
-              <th scope="col">Feature</th>
-              <th scope="col">SHAP value</th>
-              <th scope="col">Hướng tác động</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.feature}>
-                <td>{item.feature}</td>
-                <td className="num">{formatSigned(item.shap_value)}</td>
-                <td>{item.shap_value >= 0 ? 'Tăng rủi ro gian lận' : 'Giảm rủi ro gian lận'}</td>
+        {/* Bọc overflow: bảng 3 cột từng bị cắt mất cột "Hướng tác động" */}
+        <div className="table-wrap">
+          <table className="table table--compact">
+            <thead>
+              <tr>
+                <th scope="col">Feature</th>
+                <th scope="col" className="ta-right">
+                  SHAP
+                </th>
+                <th scope="col">Hướng tác động</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.feature}>
+                  <td className="shap__cell-name">{item.feature}</td>
+                  <td className="num ta-right">{formatSigned(item.shap_value)}</td>
+                  <td>{item.shap_value >= 0 ? 'Tăng rủi ro' : 'Giảm rủi ro'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </details>
     </div>
   )
