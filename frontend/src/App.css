@@ -1043,6 +1043,16 @@ textarea:focus {
   text-align: right;
 }
 
+/* Cột STT: hẹp, chữ mờ — là số đếm để tham chiếu khi nói chuyện, không phải
+   dữ liệu nghiệp vụ nên không cần hút mắt. */
+.col-idx {
+  width: 1%;
+  text-align: right;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  padding-inline-end: var(--space-2);
+}
+
 /* ---------- Badges / chips ---------- */
 
 .badge {

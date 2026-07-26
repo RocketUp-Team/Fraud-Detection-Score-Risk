@@ -56,7 +56,10 @@ export function ReviewQueuePage() {
         />
       ) : (
         <>
-          <TransactionTable items={data.items} />
+          <TransactionTable
+            items={data.items}
+            startIndex={(data.page - 1) * data.page_size}
+          />
           <Pagination
             page={data.page}
             pageSize={data.page_size}

@@ -8,8 +8,17 @@ import { DecisionBadge, ReviewStatusBadge } from './StatusBadge'
 /**
  * Bảng giao dịch, dùng chung cho màn danh sách và màn rà soát.
  * Bọc trong overflow-x: auto để không làm vỡ layout trên mobile.
+ *
+ * `startIndex` là số dòng đã đi qua ở các trang trước, để STT chạy liên tục
+ * (trang 2 bắt đầu từ 21) thay vì reset về 1 mỗi trang.
  */
-export function TransactionTable({ items }: { items: Transaction[] }) {
+export function TransactionTable({
+  items,
+  startIndex = 0,
+}: {
+  items: Transaction[]
+  startIndex?: number
+}) {
   return (
     <div className="table-wrap">
       <table className="table">
@@ -18,6 +27,9 @@ export function TransactionTable({ items }: { items: Transaction[] }) {
         </caption>
         <thead>
           <tr>
+            <th scope="col" className="col-idx">
+              STT
+            </th>
             <th scope="col">Mã giao dịch</th>
             <th scope="col" className="ta-right">
               Số tiền
@@ -35,8 +47,9 @@ export function TransactionTable({ items }: { items: Transaction[] }) {
           </tr>
         </thead>
         <tbody>
-          {items.map((txn) => (
+          {items.map((txn, i) => (
             <tr key={txn.transaction_id}>
+              <td className="num col-idx">{startIndex + i + 1}</td>
               <td className="num">{txn.transaction_id}</td>
               <td className="num ta-right">{formatAmount(txn.amount)}</td>
               <td className="num ta-right">{formatProbability(txn.fraud_probability)}</td>
