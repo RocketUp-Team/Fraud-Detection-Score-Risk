@@ -815,7 +815,9 @@ input[aria-invalid='true'] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 168px;
   padding: var(--space-5) var(--space-4);
   border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-lg);
@@ -934,8 +936,13 @@ textarea:focus {
   transform: scale(0.97);
 }
 
+/* Disabled phải trông TRƠ, không phải nút vàng bị mờ đi — gradient gold ở
+   opacity 0.5 ra màu ô liu, đọc như lỗi màu chứ không như "chưa bấm được". */
 .btn:disabled {
-  opacity: 0.5;
+  background: var(--color-muted);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+  box-shadow: none;
   cursor: not-allowed;
 }
 
@@ -1132,7 +1139,7 @@ textarea:focus {
   display: grid;
   gap: var(--space-3);
   grid-template-columns: 1fr;
-  align-items: start;
+  align-items: stretch;
 }
 
 @media (min-width: 1100px) {
@@ -1171,11 +1178,15 @@ textarea:focus {
     grid-column: span 7;
   }
 
-  /* Nạp dữ liệu: 3 card ngang nhau */
+  /* Nạp dữ liệu: hai cách nạp là hai lựa chọn ngang hàng nên chia đều; kết quả
+     xuống hàng riêng chiếm cả chiều rộng để bảng lỗi đủ chỗ. */
   .card--load,
-  .card--csv,
+  .card--csv {
+    grid-column: span 6;
+  }
+
   .card--load-result {
-    grid-column: span 4;
+    grid-column: span 12;
   }
 }
 
@@ -1200,6 +1211,8 @@ textarea:focus {
 .card {
   position: relative;
   min-width: 0;
+  /* Hai card cùng hàng cao bằng nhau, không lệch nhau như bậc thang */
+  height: 100%;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -2081,4 +2094,22 @@ textarea:focus {
 .progress--error .progress__bar,
 .progress--cancelled .progress__bar {
   background: var(--color-text-muted);
+}
+
+/* Dòng dẫn ngay dưới tiêu đề card, và chú thích cuối card đẩy xuống đáy để hai
+   card cạnh nhau có chân thẳng hàng. */
+.card__lead {
+  margin-top: calc(var(--space-2) * -1);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-md);
+}
+
+.card--load {
+  display: flex;
+  flex-direction: column;
+}
+
+.card__foot-note {
+  margin-top: auto;
+  padding-top: var(--space-3);
 }

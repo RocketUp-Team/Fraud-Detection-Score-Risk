@@ -56,9 +56,8 @@ export function DataLoader() {
   return (
     <section className="card card--load">
       <h2>Nạp dữ liệu từ bộ IEEE-CIS</h2>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Chọn số giao dịch cần nạp. Mỗi dòng được model chấm điểm rồi lưu vào DB, chạy nền nên
-        bạn có thể rời trang.
+      <p className="muted card__lead">
+        Chạy nền — bạn có thể rời trang, tiến độ vẫn giữ.
       </p>
 
       <div className="field">
@@ -195,8 +194,8 @@ export function DataLoader() {
         )}
       </div>
 
-      <p className="field__hint" style={{ marginTop: 'var(--space-3)' }}>
-        Tốc độ chấm khoảng 225 giao dịch/giây — 5.000 dòng mất ~25 giây, 50.000 dòng ~4 phút.
+      <p className="field__hint card__foot-note">
+        ~225 giao dịch/giây: 5.000 dòng ≈ 25 giây, 50.000 dòng ≈ 4 phút.
       </p>
     </section>
   )

@@ -50,8 +50,7 @@ export function ImportPage() {
         <div>
           <h1>Nạp dữ liệu</h1>
           <p>
-            Hai cách: nạp sẵn N giao dịch từ bộ IEEE-CIS đã tiền xử lý, hoặc tải lên file CSV
-            của riêng bạn. Cách nào thì mỗi dòng cũng được model chấm điểm rồi lưu vào DB.
+            Mỗi dòng được model chấm điểm rồi lưu vào DB. Chọn một trong hai cách dưới đây.
           </p>
         </div>
       </header>
@@ -129,12 +128,11 @@ export function ImportPage() {
           </div>
 
           <p className="field__hint" style={{ marginTop: 'var(--space-3)' }}>
-            Giới hạn 5000 dòng mỗi lần (đổi bằng biến môi trường{' '}
-            <code>MAX_IMPORT_ROWS</code> ở backend) — để tránh upload nhầm file thô 600MB của
-            IEEE-CIS.
+            Cần cột <code>TransactionID</code>. Tối đa 5.000 dòng mỗi lần.
           </p>
         </section>
 
+        {(result || mutation.isError) && (
         <section className="card card--load-result">
           <h2>Kết quả nhập</h2>
 
@@ -142,10 +140,6 @@ export function ImportPage() {
             <p className="callout callout--error" role="alert">
               Nhập thất bại: {(mutation.error as Error).message}
             </p>
-          )}
-
-          {!result && !mutation.isError && (
-            <p className="muted">Chưa nhập file nào trong phiên này.</p>
           )}
 
           {result && (
@@ -199,6 +193,7 @@ export function ImportPage() {
             </>
           )}
         </section>
+        )}
       </div>
     </section>
   )
