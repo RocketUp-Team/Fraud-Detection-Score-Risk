@@ -681,6 +681,13 @@
   color: var(--color-destructive);
 }
 
+/* Nhắc nhở, không phải lỗi — giá trị vẫn gửi được */
+.field__warn {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-band-medium);
+}
+
 input[aria-invalid='true'] {
   border-color: var(--color-destructive);
 }

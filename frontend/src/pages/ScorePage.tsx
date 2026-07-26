@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 
 import { Icon } from '../components/Icon'
 import { ScoreBullet } from '../components/ScoreBullet'
@@ -65,6 +66,9 @@ export function ScorePage() {
 
   const amountNum = Number(amount)
   const amountValid = amount !== '' && Number.isFinite(amountNum) && amountNum >= 0
+  // Mã giao dịch IEEE-CIS là số 7 chữ số (2987xxx) nên rất dễ bị dán vào đây.
+  // Không chặn — chỉ nhắc, vì biết đâu có giao dịch lớn thật.
+  const amountSuspiciouslyLarge = amountValid && amountNum >= 100_000
 
   function buildFeatures(): Record<string, string | number | null> {
     return {
@@ -122,6 +126,15 @@ export function ScorePage() {
             {!amountValid && (
               <p className="field__error" id="s-amount-err">
                 Nhập một số ≥ 0.
+              </p>
+            )}
+            {amountSuspiciouslyLarge && (
+              <p className="field__warn">
+                Đây là <strong>số tiền</strong>, không phải mã giao dịch.{' '}
+                <span className="num">{amountNum.toLocaleString('vi-VN')}</span> USD là lớn bất
+                thường — nếu bạn đang muốn xem một giao dịch đã có, dùng ô tìm kiếm ở màn{' '}
+                <Link to="/transactions">Giao dịch</Link> hoặc gõ{' '}
+                <code>giao dịch {amount}</code> trong trợ lý.
               </p>
             )}
           </div>
