@@ -155,3 +155,9 @@ class ImportResponse(BaseModel):
     imported: int
     failed: int
     errors: list[ImportError_]
+    # Độ khớp cột giữa file và model. CSV thô của Kaggle chỉ có 28/53 cột — 25
+    # cột còn lại do pipeline Spark sinh ra, thiếu thì bị điền mặc định và điểm
+    # lệch, nên phải nói ra thay vì để người dùng tưởng điểm là chuẩn.
+    matched_features: int = 0
+    expected_features: int = 0
+    missing_features: list[str] = []

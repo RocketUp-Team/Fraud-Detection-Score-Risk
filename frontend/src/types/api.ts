@@ -148,6 +148,10 @@ export type ImportResponse = {
   imported: number
   failed: number
   errors: { row: number; error: string }[]
+  /** Số cột file khớp với cái model cần — CSV thô Kaggle chỉ khớp 28/53. */
+  matched_features: number
+  expected_features: number
+  missing_features: string[]
 }
 
 /** Nhãn tiếng Việt + màu semantic token cho từng band (dùng ở RiskBadge). */

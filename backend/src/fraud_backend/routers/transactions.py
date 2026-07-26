@@ -4,17 +4,21 @@ Shape response theo `docs/API_CONTRACT.md`.
 """
 import csv
 import io
+import logging
 from datetime import UTC, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from .. import config, risk, schemas
 from ..db import get_db
 from ..models import Review, Transaction
+from ..scoring import scorer
 from ..service import split_features, upsert_scored_transaction
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -122,6 +126,41 @@ def stats(db: Session = Depends(get_db)) -> schemas.StatsOut:
     )
 
 
+@router.get("/import/template")
+def import_template(rows: int = Query(default=20, ge=1, le=500)) -> Response:
+    """CSV mẫu: đúng header model cần + vài dòng dữ liệu thật để sửa lại.
+
+    Có endpoint này vì CSV thô của Kaggle chỉ khớp 28/53 cột — người dùng tự
+    dựng file gần như chắc chắn sẽ thiếu cột mà không biết.
+    """
+    expected = scorer.feature_columns()
+    if not expected:
+        raise HTTPException(
+            status_code=409,
+            detail="Model chưa nạp được nên không biết file mẫu cần cột nào.",
+        )
+
+    columns = ["TransactionID", *expected]
+    buffer = io.StringIO()
+    # utf-8-sig ở phía đọc, nên ghi BOM để Excel mở không lỗi tiếng Việt.
+    writer = csv.DictWriter(buffer, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+
+    try:
+        from .. import datasets
+
+        for row in datasets.read_rows("holdout", rows):
+            writer.writerow({c: row.get(c, "") for c in columns})
+    except Exception as exc:  # noqa: BLE001 — thiếu parquet thì vẫn trả header
+        log.warning("Không đọc được dòng mẫu (%s) — trả file chỉ có header.", exc)
+
+    return Response(
+        content="\ufeff" + buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="mau-nhap-giao-dich.csv"'},
+    )
+
+
 def _get_or_404(db: Session, transaction_id: int) -> Transaction:
     txn = db.get(Transaction, transaction_id)
     if txn is None:
@@ -186,6 +225,12 @@ def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if reader.fieldnames is None or "TransactionID" not in reader.fieldnames:
         raise HTTPException(status_code=422, detail="CSV thiếu cột TransactionID")
 
+    # Độ khớp cột: model cần gì, file có gì. Tính từ header nên không tốn thêm
+    # lần đọc nào.
+    expected = scorer.feature_columns()
+    header = set(reader.fieldnames)
+    missing = [c for c in expected if c not in header]
+
     imported = 0
     errors: list[schemas.ImportError_] = []
 
@@ -212,4 +257,11 @@ def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
             errors.append(schemas.ImportError_(row=line_no, error=str(exc)))
 
     db.commit()
-    return schemas.ImportResponse(imported=imported, failed=len(errors), errors=errors[:50])
+    return schemas.ImportResponse(
+        imported=imported,
+        failed=len(errors),
+        errors=errors[:50],
+        matched_features=len(expected) - len(missing),
+        expected_features=len(expected),
+        missing_features=missing[:60],
+    )

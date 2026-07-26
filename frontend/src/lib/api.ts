@@ -191,6 +191,11 @@ export const api = {
     return request<ScoreResponse>('/score', { method: 'POST', body: JSON.stringify(payload) })
   },
 
+  /** URL tải CSV mẫu — để `<a download>` gọi trực tiếp, không qua fetch. */
+  importTemplateUrl(rows = 20): string {
+    return `${BASE_URL}/transactions/import/template?rows=${rows}`
+  },
+
   importCsv(file: File): Promise<ImportResponse> {
     if (USE_MOCKS) {
       return Promise.resolve({
@@ -202,6 +207,9 @@ export const api = {
             error: 'Đang chạy chế độ mock (VITE_USE_MOCKS=true) — cần backend thật để nhập CSV.',
           },
         ],
+        matched_features: 0,
+        expected_features: 0,
+        missing_features: [],
       })
     }
     const form = new FormData()

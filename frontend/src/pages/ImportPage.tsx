@@ -127,7 +127,21 @@ export function ImportPage() {
             )}
           </div>
 
-          <p className="field__hint" style={{ marginTop: 'var(--space-3)' }}>
+          <div className="callout callout--warn">
+            <strong>File phải là dữ liệu ĐÃ tiền xử lý.</strong>
+            <p>
+              CSV thô của Kaggle chỉ khớp <span className="num">28</span>/
+              <span className="num">53</span> cột model cần — 25 cột còn lại do pipeline Spark
+              sinh ra. Thiếu thì bị điền giá trị mặc định và điểm sẽ lệch. Tải file mẫu để có
+              đúng header.
+            </p>
+            <a className="btn btn--secondary" href={api.importTemplateUrl(20)} download>
+              <Icon name="file" size={18} />
+              Tải file mẫu (53 cột + 20 dòng thật)
+            </a>
+          </div>
+
+          <p className="field__hint">
             Cần cột <code>TransactionID</code>. Tối đa 5.000 dòng mỗi lần.
           </p>
         </section>
@@ -153,7 +167,32 @@ export function ImportPage() {
                   <p className="tile__label">Dòng lỗi</p>
                   <p className="tile__value num">{result.failed}</p>
                 </article>
+                {result.expected_features > 0 && (
+                  <article
+                    className={`tile${
+                      result.missing_features.length > 0 ? ' tile--accent' : ''
+                    }`}
+                  >
+                    <p className="tile__label">Cột khớp model</p>
+                    <p className="tile__value num">
+                      {result.matched_features}
+                      <span className="tile__unit">/{result.expected_features}</span>
+                    </p>
+                  </article>
+                )}
               </div>
+
+              {result.missing_features.length > 0 && (
+                <div className="callout callout--warn">
+                  <strong>
+                    Thiếu {result.missing_features.length} cột — những dòng vừa nhập được điền
+                    giá trị mặc định cho các cột đó, nên điểm mang tính tham khảo.
+                  </strong>
+                  <p className="num" style={{ fontSize: 'var(--text-sm)' }}>
+                    {result.missing_features.join(', ')}
+                  </p>
+                </div>
+              )}
 
               {result.imported > 0 && (
                 <div className="callout callout--ok done-actions" role="status">

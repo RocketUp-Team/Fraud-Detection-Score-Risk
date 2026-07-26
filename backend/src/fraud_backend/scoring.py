@@ -42,6 +42,10 @@ class _HeuristicScorer:
             "warning": "fraud_model chưa dùng được — điểm dưới đây KHÔNG phải của model thật.",
         }
 
+    def feature_columns(self) -> list[str]:
+        """Fallback không có model nên không có danh sách cột nào."""
+        return []
+
     def score(self, features: dict) -> dict:
         amt = features.get("TransactionAmt") or 0.0
         try:
@@ -82,6 +86,14 @@ class Scorer:
         if not self._info:
             self.load()
         return self._info
+
+    def feature_columns(self) -> list[str]:
+        """Cột feature model mong đợi. Rỗng khi đang chạy fallback heuristic —
+        caller phải xử lý được trường hợp đó (vd bỏ phần báo độ khớp)."""
+        if self._impl is None:
+            self.load()
+        getter = getattr(self._impl, "feature_columns", None)
+        return list(getter()) if callable(getter) else []
 
     def score(self, features: dict) -> dict:
         """-> {"proba": float, "shap": [...] | None}"""
