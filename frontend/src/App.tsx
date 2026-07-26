@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
 
+import rocketLogo from './assets/rocket.jpeg'
 import { ChatDock } from './components/ChatDock'
 import { Icon } from './components/Icon'
 import { ThemeSwitch } from './components/ThemeSwitch'
@@ -89,8 +90,21 @@ function Sidebar({
         </div>
 
         <p className="credit">
-          <span className="credit__label">Created by</span>
-          <span className="credit__name">Rocket Team</span>
+          {/* alt rỗng: logo chỉ nhắc lại tên đã có ở dòng chữ bên cạnh, để alt
+              thì screen reader đọc tên team hai lần. width/height đặt sẵn để
+              không gây layout shift lúc ảnh tải. */}
+          <img
+            className="credit__logo"
+            src={rocketLogo}
+            alt=""
+            width={36}
+            height={36}
+            loading="lazy"
+          />
+          <span className="credit__text">
+            <span className="credit__label">Created by</span>
+            <span className="credit__name">Rocket Team</span>
+          </span>
         </p>
       </div>
     </>

@@ -196,9 +196,32 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-border);
   display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Logo team. Ảnh có nền navy sẵn nên chỉ cần bo góc + viền mảnh là khớp cả
+   light và dark, không cần xử lý nền theo theme. */
+.credit__logo {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  object-fit: cover;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.credit:hover .credit__logo {
+  transform: scale(1.06) rotate(-2deg);
+}
+
+.credit__text {
+  display: flex;
   flex-direction: column;
   gap: 1px;
-  text-align: center;
+  min-width: 0;
 }
 
 .credit__label {
@@ -237,33 +260,19 @@
   padding-top: var(--space-2);
 }
 
-.shell--rail .credit__label {
+/* Rail 64px không đủ cho chữ — logo tự làm mark, phần chữ ẩn khỏi mắt nhưng
+   vẫn trong DOM nên screen reader vẫn đọc "Created by Rocket Team". */
+.shell--rail .credit {
+  justify-content: center;
+}
+
+.shell--rail .credit__text {
   position: absolute;
   width: 1px;
   height: 1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-}
-
-/* 64px không đủ cho "Rocket Team" nên rail hiện viết tắt. Tên đầy đủ vẫn nằm
-   trong DOM (chỉ ẩn khỏi mắt) nên screen reader vẫn đọc đúng. */
-.shell--rail .credit__name {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-}
-
-.shell--rail .credit::after {
-  content: 'RT';
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--color-accent);
 }
 
 /* ---------- Sidebar ở chế độ thu gọn (rail) ----------
