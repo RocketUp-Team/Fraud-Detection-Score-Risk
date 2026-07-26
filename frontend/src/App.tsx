@@ -87,6 +87,11 @@ function Sidebar({
             {meta ? (meta.explainability ? 'có giải thích SHAP' : 'không có SHAP') : 'đang tải…'}
           </p>
         </div>
+
+        <p className="credit">
+          <span className="credit__label">Created by</span>
+          <span className="credit__name">Rocket Team</span>
+        </p>
       </div>
     </>
   )
