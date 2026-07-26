@@ -10,14 +10,14 @@ Bản trình bày trực quan (HTML, có Gantt chart): [`risk-scoring-plan.html`
 
 ---
 
-## 0. Trạng thái tiến độ (cập nhật 25/07 — Ngày 4)
+## 0. Trạng thái tiến độ (cập nhật 26/07 — Ngày 5)
 
 | Người | Trạng thái |
 |---|---|
 | **An** | Xong. Pipeline Spark preprocessing đã chạy + verify (`ready_for_downstream_training`), bàn giao `model_ready/{train_weighted,validation,holdout,...}` + docs contract (`HANDOVER_TO_QUAN.md`, `DATA_DICTIONARY.md`). |
 | **Quân** | Xong Ngày 1–4, bàn giao sớm 1 ngày. Đã train trên feature contract thật của An (không còn dùng feature giả): baseline → so sánh LightGBM/XGBoost/CatBoost → tuning + SHAP. Model cuối: **LightGBM**, validation ROC-AUC 0.888/PR-AUC 0.482, holdout (đánh giá 1 lần) ROC-AUC 0.868/PR-AUC 0.430 — vượt Decision Tree demo của An (holdout PR-AUC 0.298). Module `score(features) -> {proba, shap}` đã đóng gói, đang push nhánh `quan/real-features` + mở PR cho Trung. |
-| **Trung** | Chưa bắt đầu tích hợp thật — `backend/` mới có FastAPI stub (mock). |
-| **Long** | Chưa bắt đầu — `frontend/` mới có Vite scaffold (mock). |
+| **Trung** | Xong Ngày 1–5 (làm trên nhánh `tamthaitu_fullstack`). Hợp đồng API chốt tại `docs/API_CONTRACT.md`. Tầng DB SQLAlchemy (`transactions` + `reviews`), tích hợp `fraud_model.score()` thật với warm-up lúc startup, endpoints list/detail/review/`/score`/import CSV, `/meta`, CORS, seed script, test pytest. Có fallback heuristic báo rõ khi model chưa load được để API không sập. |
+| **Long** | Xong Ngày 1–5 (cùng nhánh). Dashboard React + TS: design system từ skill `ui-ux-pro-max` (style Data-Dense Dashboard, token light/dark), màn danh sách + filter theo band (state trong URL), màn chi tiết (bullet chart điểm + SHAP top-5 diverging bar + bảng feature), màn hàng chờ rà soát + form duyệt/từ chối/gắn nhãn. Xử lý cả case `shap_top5: null`. `tsc` + `oxlint` + `vite build` pass. |
 
 ---
 

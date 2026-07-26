@@ -46,6 +46,40 @@ def _get_explainer(model, model_name: str):
     return _explainer
 
 
+def model_info() -> dict:
+    """Metadata model đang phục vụ, cho backend trả về `GET /meta` và gắn
+    `model_version` vào từng bản ghi đã chấm điểm.
+
+    `explainability` = False khi đang chạy fallback baseline (không có SHAP),
+    để frontend biết mà hiển thị đúng thay vì tưởng model lỗi.
+    """
+    artifact = _load_artifact()
+    model_name = artifact.get("model_name", "baseline_logreg")
+    return {
+        "model_name": model_name,
+        "model_version": artifact.get("model_version", model_name),
+        "explainability": model_name in config.TREE_MODEL_NAMES,
+        "n_features": len(artifact["feature_columns"]),
+    }
+
+
+def feature_columns() -> list[str]:
+    """Danh sách cột feature model mong đợi, đúng thứ tự lúc train.
+
+    Backend cần để (1) sinh file CSV mẫu có đúng header, (2) báo cho người dùng
+    file họ upload khớp bao nhiêu cột trong tổng số.
+    """
+    return list(_load_artifact()["feature_columns"])
+
+
+def warm_up() -> dict:
+    """Load model + explainer sẵn lúc startup để request đầu tiên không phải
+    chịu chi phí load joblib/SHAP. Trả về `model_info()`."""
+    artifact = _load_artifact()
+    _get_explainer(artifact["model"], artifact.get("model_name", "baseline_logreg"))
+    return model_info()
+
+
 def score(features: dict) -> dict:
     """features: dict tên_cột -> giá trị thô cho 1 giao dịch (cột categorical
     như `ProductCD`/`card4`... nhận giá trị string gốc, vd "W"/"visa").
@@ -60,7 +94,14 @@ def score(features: dict) -> dict:
     mappings = artifact.get("category_mappings", {})
 
     encoded = encode_categoricals_pandas(features, mappings)
-    row = pd.DataFrame([{col: encoded.get(col, -999) for col in columns}], columns=columns)
+    # Cột THIẾU và cột CÓ nhưng giá trị None đều phải thành -999. Chỉ dùng
+    # `.get(col, -999)` là không đủ: giá trị None vẫn đi qua, làm cột đó thành
+    # dtype object và LightGBM báo "pandas dtypes must be int, float or bool".
+    # Gặp ngay khi nhập CSV có ô trống — dữ liệu thật lúc nào cũng có ô trống.
+    row = pd.DataFrame(
+        [{col: (-999 if encoded.get(col) is None else encoded.get(col)) for col in columns}],
+        columns=columns,
+    )
     proba = float(model.predict_proba(row)[0, 1])
 
     explainer = _get_explainer(model, model_name)

@@ -1,0 +1,49 @@
+{
+  "transaction_id": 2987055,
+  "amount": 4899.0,
+  "fraud_probability": 0.8712,
+  "risk_score": 87,
+  "risk_band": "critical",
+  "decision": "reject",
+  "scored_at": "2026-07-26T08:47:30Z",
+  "model_version": "lightgbm-2026-07-25",
+  "review_status": "rejected",
+  "features": {
+    "TransactionAmt": 4899.0,
+    "log_transaction_amount": 8.4968,
+    "amount_band": "very_high",
+    "ProductCD": "C",
+    "card4": "visa",
+    "card6": "credit",
+    "DeviceType": "mobile",
+    "device_family": "android",
+    "M4": "__MISSING__",
+    "has_identity": 1,
+    "has_device_info": 1,
+    "has_p_email": 1,
+    "has_r_email": 0,
+    "selected_missing_count": 14,
+    "selected_missing_ratio": 0.3182,
+    "identity_missing_count": 9,
+    "prior_card_transaction_count": 1,
+    "prior_card_amount_sum": 4899.0,
+    "prior_email_transaction_count": 0,
+    "prior_email_amount_sum": 0.0,
+    "prior_device_transaction_count": 2,
+    "prior_device_amount_sum": 9748.0
+  },
+  "shap_top5": [
+    { "feature": "prior_card_transaction_count", "shap_value": 1.842 },
+    { "feature": "log_transaction_amount", "shap_value": 1.317 },
+    { "feature": "ProductCD", "shap_value": 0.964 },
+    { "feature": "has_r_email", "shap_value": 0.511 },
+    { "feature": "prior_device_amount_sum", "shap_value": -0.348 }
+  ],
+  "review": {
+    "status": "rejected",
+    "label": "fraud",
+    "reviewer": "long",
+    "note": "Thẻ mới, không có email người nhận, thiết bị đã có 2 giao dịch giá trị lớn.",
+    "updated_at": "2026-07-26T09:05:44Z"
+  }
+}

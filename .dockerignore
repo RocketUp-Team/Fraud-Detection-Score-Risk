@@ -1,0 +1,19 @@
+# Build context của backend là repo root (xem backend/Dockerfile) — không gửi
+# dữ liệu thô/parquet hàng trăm MB và git history vào daemon.
+.git
+.github
+data/
+docs/
+design-system/
+ui-ux-pro-max-skill/
+frontend/node_modules
+frontend/dist
+model/data
+model/catboost_info
+**/__pycache__
+**/.venv
+**/*.pyc
+**/.pytest_cache
+**/.ipynb_checkpoints
+*.ipynb
+.DS_Store

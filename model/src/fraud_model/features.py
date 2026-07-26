@@ -10,16 +10,19 @@ StringIndexer PHẢI fit trên `train_weighted`/`train_balanced` rồi áp dụn
 HANDOVER_TO_QUAN.md. `extract_category_mappings()` xuất mapping đó ra dict
 Python thuần để `score.py` encode 1 giao dịch lúc serving mà không cần khởi
 động Spark.
+
+PySpark chỉ được import bên trong từng hàm cần Spark (lazy), không ở
+top-level: backend của Trung import `score.py` → `features.py` khi serving, và
+đường serving (`encode_categoricals_pandas`) không cần Spark. Import
+top-level sẽ buộc backend cài cả PySpark (~300MB) chỉ để chấm 1 giao dịch.
 """
-from pyspark.ml import Pipeline
-from pyspark.sql import DataFrame
-
-from pyspark.ml.feature import StringIndexer
-
 from . import config
 
 
-def fit_categorical_indexer(train_df: DataFrame):
+def fit_categorical_indexer(train_df):
+    from pyspark.ml import Pipeline
+    from pyspark.ml.feature import StringIndexer
+
     cols = [c for c in config.CATEGORICAL_COLS if c in train_df.columns]
     indexers = [
         StringIndexer(inputCol=c, outputCol=f"{c}__idx", handleInvalid="keep") for c in cols
@@ -27,7 +30,7 @@ def fit_categorical_indexer(train_df: DataFrame):
     return Pipeline(stages=indexers).fit(train_df)
 
 
-def apply_categorical_indexer(indexer_model, df: DataFrame) -> DataFrame:
+def apply_categorical_indexer(indexer_model, df):
     df = indexer_model.transform(df)
     for stage in indexer_model.stages:
         col = stage.getInputCol()
@@ -57,7 +60,7 @@ def encode_categoricals_pandas(row: dict, mappings: dict) -> dict:
     return encoded
 
 
-def to_pandas_xy(df: DataFrame, weight_col: str = config.WEIGHT_COL):
+def to_pandas_xy(df, weight_col: str = config.WEIGHT_COL):
     """Convert Spark DataFrame sang pandas (X, y, sample_weight) — điểm
     chuyển giao duy nhất giữa xử lý phân tán (Spark) và train model in-memory
     (sklearn/LightGBM/XGBoost/CatBoost). `sample_weight` là None nếu dataset

@@ -19,6 +19,10 @@ model/catboost_info/
 node_modules/
 dist/
 build/
+.vite/
+
+# SQLite dev DB của backend (khi chạy không có Postgres)
+*.db
 
 # Env
 .env
@@ -26,6 +30,9 @@ build/
 
 # OS
 .DS_Store
+
+# Skill/plugin clone dùng local, không track trong repo này
+ui-ux-pro-max-skill/
 
 # Docker
 *.log

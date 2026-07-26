@@ -109,3 +109,15 @@ def test_score_raises_file_not_found_when_no_artifact_available(tmp_path, monkey
 
     with pytest.raises(FileNotFoundError):
         score_module.score({"TransactionAmt": 10.0})
+
+
+def test_score_chap_nhan_feature_None():
+    """Feature có mặt nhưng giá trị None phải được coi như thiếu (-999).
+
+    CSV thật luôn có ô trống; nếu None đi vào DataFrame thì cột thành dtype
+    object và LightGBM từ chối cả dòng.
+    """
+    from fraud_model.score import score
+
+    result = score({"TransactionAmt": 100.0, "D2": None, "dist1": None, "card4": None})
+    assert 0.0 <= result["proba"] <= 1.0
