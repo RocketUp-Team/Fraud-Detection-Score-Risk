@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
+import { useJob } from '../hooks/queries'
 import { HELP_TEXT, parseIntent, runImport, runIntent, type AgentResult } from '../lib/chatAgent'
-import { formatProbability, formatSigned } from '../lib/format'
+import { formatAmount, formatProbability, formatSigned } from '../lib/format'
 import { RISK_BAND_LABEL } from '../types/api'
 import { Icon } from './Icon'
 import { RiskBadge } from './RiskBadge'
@@ -23,7 +24,13 @@ type Message = {
 
 let messageId = 0
 
-const SUGGESTIONS = ['chấm điểm 4899 visa credit mobile', 'tổng quan', 'nhập csv']
+const SUGGESTIONS = [
+  'chấm điểm 4899 visa credit mobile',
+  '5 ca cao nhất',
+  'nạp đủ 5 mức 10',
+  'tổng quan',
+  'tải file mẫu',
+]
 
 function ResultCard({ result }: { result: AgentResult }) {
   if (result.type === 'score') {
@@ -80,6 +87,74 @@ function ResultCard({ result }: { result: AgentResult }) {
     )
   }
 
+  if (result.type === 'transactions') {
+    return (
+      <div className="chat__card">
+        <ul className="chat__list">
+          {result.result.map((t) => (
+            <li key={t.transaction_id}>
+              <Link to={`/transactions/${t.transaction_id}`} className="num">
+                {t.transaction_id}
+              </Link>
+              <RiskBadge band={t.risk_band} score={t.risk_score} />
+              <span className="num muted">{formatAmount(t.amount)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  if (result.type === 'datasets') {
+    return (
+      <div className="chat__card">
+        <ul className="chat__list">
+          {result.result.map((d) => (
+            <li key={d.name}>
+              <span>
+                {d.recommended ? '★ ' : ''}
+                {d.name}
+              </span>
+              <span className="num muted">{d.rows.toLocaleString('vi-VN')} dòng</span>
+              <span className="num muted">
+                {d.fraud_rate !== null ? `${(d.fraud_rate * 100).toFixed(2)}%` : '—'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  if (result.type === 'stats') {
+    const s = result.result
+    return (
+      <div className="chat__card">
+        <ul className="chat__list">
+          {s.by_band.map((b) => (
+            <li key={b.band}>
+              <span>{RISK_BAND_LABEL[b.band]}</span>
+              <span className="num">{b.count.toLocaleString('vi-VN')}</span>
+              <span className="num muted">{((b.count / s.total) * 100).toFixed(1)}%</span>
+            </li>
+          ))}
+        </ul>
+        <Link to="/transactions">Mở dashboard</Link>
+      </div>
+    )
+  }
+
+  if (result.type === 'download') {
+    return (
+      <div className="chat__card">
+        <a className="btn btn--secondary btn--sm" href={result.url} download>
+          <Icon name="file" size={16} />
+          Tải file mẫu
+        </a>
+      </div>
+    )
+  }
+
   if (result.type === 'transaction') {
     const t = result.result
     return (
@@ -96,14 +171,38 @@ function ResultCard({ result }: { result: AgentResult }) {
   return null
 }
 
+/** Tiến độ job nạp dữ liệu, poll ngay trong khung chat. */
+function JobProgress({ jobId }: { jobId: string }) {
+  const { data: job } = useJob(jobId)
+  if (!job) return null
+  return (
+    <div className={`chat__card progress progress--${job.status}`}>
+      <div className="progress__head">
+        <span>
+          {job.status === 'running' ? 'Đang chấm…' : job.status === 'done' ? 'Xong' : job.status}
+        </span>
+        <span className="num">
+          {job.processed.toLocaleString('vi-VN')} / {job.total.toLocaleString('vi-VN')}
+        </span>
+      </div>
+      <div className="progress__track">
+        <span className="progress__bar" style={{ width: `${job.percent}%` }} />
+      </div>
+      {job.status === 'done' && <Link to="/transactions">Xem danh sách</Link>}
+    </div>
+  )
+}
+
 export function ChatDock() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([
     { id: messageId++, from: 'bot', text: HELP_TEXT },
   ])
+  const [jobId, setJobId] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const logRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -142,6 +241,12 @@ export function ChatDock() {
     }
     const result = await runIntent(intent)
     push({ from: 'bot', text: result.text, result })
+
+    // Điều hướng thì đi luôn, không bắt người dùng bấm thêm một lần nữa.
+    if (result.type === 'navigate') navigate(result.to)
+    // Nạp dữ liệu chạy nền -> theo dõi tiến độ ngay trong chat, và làm mới
+    // danh sách/KPI khi xong.
+    if (result.type === 'job') setJobId(result.result.id)
     setBusy(false)
   }
 
@@ -202,6 +307,7 @@ export function ChatDock() {
                 {msg.result && <ResultCard result={msg.result} />}
               </div>
             ))}
+            {jobId && <JobProgress jobId={jobId} />}
             {busy && (
               <p className="chat__typing" aria-hidden="true">
                 đang xử lý…

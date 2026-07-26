@@ -111,11 +111,22 @@ trong UI ghi rõ "hiểu lệnh theo cú pháp, không phải AI".
 
 | Gõ | Việc |
 |---|---|
-| `chấm điểm 4899 visa credit mobile android` | `POST /score`, hiện band + SHAP |
+| `chấm điểm 4899 visa credit mobile` | `POST /score`, hiện band + SHAP |
+| `nạp 5000` | nạp mẫu ngẫu nhiên, có thanh tiến độ ngay trong chat |
+| `nạp đủ 5 mức 10` | 10 ca mỗi mức = 50 giao dịch |
+| `nạp 2000 dòng đầu` | plan `head` |
 | `nhập csv` + gắn file | `POST /transactions/import` |
+| `tải file mẫu` | CSV 53 cột đúng header |
+| `5 ca cao nhất` · `3 ca nghiêm trọng nhất` | top N, lọc theo band |
 | `giao dịch 2987055` | tra cứu |
-| `tổng quan` | `GET /transactions/stats` |
+| `duyệt 2987055` · `từ chối 2987055` | ghi review, `reviewer: "trợ lý"` |
+| `tổng quan` · `bộ dữ liệu` | số liệu + danh sách bộ parquet |
+| `mở hàng chờ` · `mở màn nạp dữ liệu` | điều hướng, chuyển trang luôn |
 | `giúp` | liệt kê lệnh |
+
+Nạp dữ liệu qua chat **luôn dùng `reset: false`** — ghi thêm, không xoá. Xoá dữ
+liệu là việc nguy hiểm, không để một câu chat làm được; muốn xoá thì vào màn Nạp
+dữ liệu và tick ô có ghi rõ số giao dịch sẽ mất.
 
 Có bỏ dấu trước khi so khớp nên `cham diem` cũng chạy; số tiền nhận cả `4899`,
 `4.899,50`, `4,899.50`.

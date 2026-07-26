@@ -2285,3 +2285,38 @@ textarea:focus {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Danh sách kết quả trong chat (top N, bộ dữ liệu, phân bố band) */
+.chat__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.chat__list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+/* Cột đầu co giãn, các cột số đẩy sang phải và không co */
+.chat__list li > :first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat__list li > :not(:first-child) {
+  flex-shrink: 0;
+}
+
+/* Thanh tiến độ trong chat hẹp hơn ngoài trang */
+.chat__card.progress {
+  padding: var(--space-2) var(--space-3);
+}
