@@ -70,7 +70,18 @@ Thiếu mount này thì màn "Nạp dữ liệu" báo *"Chưa có dữ liệu đ
 > `docker context use colima`.
 
 Khởi động: PostgreSQL (`5432`), backend FastAPI (`8000`, docs ở `/docs`),
-frontend dashboard (`5173`). `model/` không phải service riêng — nó là module
+frontend dashboard (`5173`).
+
+| Cổng | Dịch vụ | Đăng nhập |
+|---|---|---|
+| 5173 | Dashboard | — |
+| 8000 | API (`/docs` là Swagger) | — |
+| 5432 | PostgreSQL | user/pass/db đều là `fraud` |
+| 8081 | Adminer — xem DB, bật bằng `--profile tools` | như trên |
+
+Xem database: `docker compose --profile tools up -d adminer` rồi mở
+**http://localhost:8081/?pgsql=db&username=fraud&db=fraud** (mật khẩu `fraud`).
+Chi tiết ở [`backend/README.md`](./backend/README.md) mục 3. `model/` không phải service riêng — nó là module
 Python (`fraud_model.score.score()`) mà backend import trực tiếp, không gọi
 qua network.
 

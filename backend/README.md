@@ -140,6 +140,63 @@ phân bố gốc ≤ 0,5 điểm %.
 Tốc độ đo thực tế: **~125 giao dịch/giây** khi có ghi DB (225/giây nếu chỉ chấm
 không ghi).
 
+### Xem database bằng giao diện
+
+Docker Desktop quản container/volume/image nhưng **không có trình xem DB**. Bật
+Adminer khi cần:
+
+```bash
+docker compose --profile tools up -d adminer
+```
+
+Mở thẳng link này (đã điền sẵn driver + user, chỉ còn nhập mật khẩu):
+
+**http://localhost:8081/?pgsql=db&username=fraud&db=fraud**
+
+Thông tin đăng nhập — cả ba đều là `fraud`:
+
+| Trường | Giá trị |
+|---|---|
+| System | PostgreSQL |
+| Server | `db` (trong Docker) hoặc `localhost` (từ máy) |
+| Username | `fraud` |
+| **Password** | **`fraud`** |
+| Database | `fraud` |
+
+Đặt trong [`../docker-compose.yml`](../docker-compose.yml): `POSTGRES_USER` /
+`POSTGRES_PASSWORD` / `POSTGRES_DB`.
+
+> Vào `http://localhost:8081` trần sẽ báo *Connection refused* vì Adminer mặc
+> định chọn MySQL. Đổi dropdown **System** sang PostgreSQL, hoặc dùng link trên.
+
+> **Mật khẩu này nằm công khai trong repo.** Chấp nhận được vì DB chỉ chạy local
+> và dữ liệu là bộ IEEE-CIS công khai. Đừng bê nguyên cách này lên môi trường
+> thật — lúc đó phải đưa vào biến môi trường không commit hoặc secret manager,
+> và đổi mật khẩu.
+
+Chạy trong profile `tools` nên `docker compose up` thường ngày không khởi động
+nó. Cổng 8081 vì 8080 đã dành cho Spark UI.
+
+Cách khác không cần thêm container:
+
+```bash
+docker compose exec db psql -U fraud -d fraud
+```
+
+Hoặc nối TablePlus/DBeaver vào `localhost:5432` với cùng thông tin ở bảng trên.
+
+### Dữ liệu mất khi nào
+
+| Lệnh | Container | Dữ liệu trong DB |
+|---|---|---|
+| `docker compose stop` | dừng | còn |
+| `docker compose down` | xoá | **còn** — volume không bị đụng |
+| `docker compose down -v` | xoá | **mất sạch** |
+
+Dữ liệu Postgres nằm trong volume `..._db_data` (~51MB với 3.000 giao dịch),
+không nằm trong thư mục repo. Chạy local không Docker thì dùng SQLite
+`fraud_demo.db` — **hai nơi lưu khác nhau, không dùng chung dữ liệu**.
+
 ---
 
 ## 4. Endpoints
