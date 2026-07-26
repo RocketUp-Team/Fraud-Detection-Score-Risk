@@ -1,3 +1,4 @@
+import { describeFeature } from '../lib/featureDocs'
 import { formatSigned } from '../lib/format'
 import type { ShapContribution } from '../types/api'
 
@@ -29,8 +30,13 @@ export function ShapChart({ items }: { items: ShapContribution[] }) {
           const width = (Math.abs(item.shap_value) / maxAbs) * 50
           return (
             <li key={item.feature} className="shap__row">
-              <span className="shap__feature" title={item.feature}>
-                {item.feature}
+              <span className="shap__feature-cell">
+                <span className="shap__feature">{item.feature}</span>
+                {describeFeature(item.feature).label && (
+                  <span className="shap__feature-note">
+                    {describeFeature(item.feature).label}
+                  </span>
+                )}
               </span>
               <span className="shap__track">
                 <span className="shap__zero" aria-hidden="true" />
@@ -57,6 +63,7 @@ export function ShapChart({ items }: { items: ShapContribution[] }) {
             <thead>
               <tr>
                 <th scope="col">Feature</th>
+                <th scope="col">Ý nghĩa</th>
                 <th scope="col" className="ta-right">
                   SHAP
                 </th>
@@ -67,6 +74,7 @@ export function ShapChart({ items }: { items: ShapContribution[] }) {
               {items.map((item) => (
                 <tr key={item.feature}>
                   <td className="shap__cell-name">{item.feature}</td>
+                  <td className="feature-note">{describeFeature(item.feature).label || '—'}</td>
                   <td className="num ta-right">{formatSigned(item.shap_value)}</td>
                   <td>{item.shap_value >= 0 ? 'Tăng rủi ro' : 'Giảm rủi ro'}</td>
                 </tr>

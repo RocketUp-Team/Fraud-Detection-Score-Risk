@@ -8,6 +8,7 @@ import { ScoreBullet } from '../components/ScoreBullet'
 import { ShapChart, ShapUnavailable } from '../components/ShapChart'
 import { DecisionBadge } from '../components/StatusBadge'
 import { useMeta, useTransaction } from '../hooks/queries'
+import { GROUP_LABEL, groupFeatures } from '../lib/featureDocs'
 import { formatAmount, formatDateTime, formatFeatureValue, formatProbability } from '../lib/format'
 
 export function TransactionDetailPage() {
@@ -22,7 +23,8 @@ export function TransactionDetailPage() {
   if (isError) return <ErrorState error={error} onRetry={() => refetch()} />
   if (isPending) return <TableSkeleton rows={6} cols={4} />
 
-  const features = Object.entries(txn.features)
+  const featureGroups = groupFeatures(Object.entries(txn.features))
+  const featureCount = Object.keys(txn.features).length
 
   return (
     <section>
@@ -84,26 +86,43 @@ export function TransactionDetailPage() {
 
         <section className="card card--features">
           <h2>
-            Feature đã dùng để chấm điểm <span className="muted">({features.length} cột)</span>
+            Feature đã dùng để chấm điểm <span className="muted">({featureCount} cột)</span>
           </h2>
+          <p className="card__lead muted">
+            Gom theo nhóm và giải nghĩa để đọc được khi trình bày. Nhóm ẩn danh chỉ có nghĩa ở
+            mức nhóm — Vesta không công bố nghĩa từng cột.
+          </p>
           {/* 53 dòng: giới hạn chiều cao và cuộn trong khung, nếu không card này
               dài gấp 4 lần card rà soát bên cạnh và để lại một khoảng trống lớn. */}
           <div className="table-wrap table-wrap--scroll">
-            <table className="table table--compact">
+            <table className="table table--compact table--features">
               <thead>
                 <tr>
                   <th scope="col">Feature</th>
-                  <th scope="col">Giá trị</th>
+                  <th scope="col">Ý nghĩa</th>
+                  <th scope="col" className="ta-right">
+                    Giá trị
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {features.map(([key, value]) => (
-                  <tr key={key}>
-                    <td>{key}</td>
-                    <td className="num">{formatFeatureValue(value)}</td>
+              {featureGroups.map(({ group, items }) => (
+                <tbody key={group}>
+                  <tr className="row-group">
+                    {/* Tiêu đề nhóm: th trong tbody + scope="rowgroup" để screen
+                        reader hiểu đây là nhãn cho cả nhóm dòng bên dưới. */}
+                    <th scope="rowgroup" colSpan={3}>
+                      {GROUP_LABEL[group]} <span className="muted">({items.length})</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
+                  {items.map(({ name, value, label }) => (
+                    <tr key={name}>
+                      <td className="num feature-name">{name}</td>
+                      <td className="feature-note">{label || '—'}</td>
+                      <td className="num ta-right">{formatFeatureValue(value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              ))}
             </table>
           </div>
         </section>
