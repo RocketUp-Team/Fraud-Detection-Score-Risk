@@ -86,7 +86,9 @@ export function TransactionDetailPage() {
           <h2>
             Feature đã dùng để chấm điểm <span className="muted">({features.length} cột)</span>
           </h2>
-          <div className="table-wrap">
+          {/* 53 dòng: giới hạn chiều cao và cuộn trong khung, nếu không card này
+              dài gấp 4 lần card rà soát bên cạnh và để lại một khoảng trống lớn. */}
+          <div className="table-wrap table-wrap--scroll">
             <table className="table table--compact">
               <thead>
                 <tr>

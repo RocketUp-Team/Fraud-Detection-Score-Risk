@@ -16,12 +16,13 @@ COPY model/pyproject.toml model/README.md ./model/
 COPY model/src ./model/src
 
 WORKDIR /app/backend
-# Không dùng --frozen: uv.lock chưa có sqlalchemy/psycopg/fraud-model, để uv
-# tự resolve. Chạy `uv lock` ở backend/ rồi bật lại --frozen cho build tái lập.
-RUN uv sync --no-install-project
+# --frozen: build phải dùng đúng phiên bản trong uv.lock, không resolve lại.
+# `uv lock --check` phải pass trước khi build, nếu không lệnh này sẽ báo lỗi
+# ngay thay vì âm thầm cài phiên bản khác với môi trường dev.
+RUN uv sync --frozen --no-install-project
 
 COPY backend ./
-RUN uv sync
+RUN uv sync --frozen
 
 # Model artifact (final_model.joblib) — score() load lúc startup.
 COPY model/artifacts /app/model/artifacts

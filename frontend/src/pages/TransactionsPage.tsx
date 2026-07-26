@@ -29,7 +29,10 @@ export function TransactionsPage() {
     decision: (params.get('decision') as Decision) || undefined,
     review_status: (params.get('review_status') as ReviewStatus) || undefined,
     search: params.get('search') || undefined,
-    sort: (params.get('sort') as TransactionListParams['sort']) || '-risk_score',
+    // Mặc định mới nhất trước, KHÔNG phải điểm cao nhất trước: sort theo điểm
+    // làm cả trang đầu chỉ có ca 100 điểm, người xem tưởng mọi giao dịch đều
+    // gian lận. Muốn xem ca nặng nhất thì đã có màn Hàng chờ rà soát.
+    sort: (params.get('sort') as TransactionListParams['sort']) || '-scored_at',
     page: Number(params.get('page') || 1),
     page_size: PAGE_SIZE,
   }
@@ -136,13 +139,13 @@ export function TransactionsPage() {
           <label htmlFor="f-sort">Sắp xếp</label>
           <select
             id="f-sort"
-            value={params.get('sort') ?? '-risk_score'}
+            value={params.get('sort') ?? '-scored_at'}
             onChange={(e) => update('sort', e.target.value)}
           >
-            <option value="-risk_score">Điểm rủi ro cao → thấp</option>
-            <option value="risk_score">Điểm rủi ro thấp → cao</option>
             <option value="-scored_at">Chấm mới nhất</option>
             <option value="scored_at">Chấm cũ nhất</option>
+            <option value="-risk_score">Điểm rủi ro cao → thấp</option>
+            <option value="risk_score">Điểm rủi ro thấp → cao</option>
           </select>
         </div>
 

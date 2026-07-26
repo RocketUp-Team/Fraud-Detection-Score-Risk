@@ -16,7 +16,7 @@ import './App.css'
 
 const NAV_MAIN = [
   { to: '/transactions', label: 'Giao dịch', icon: 'transactions' as const },
-  { to: '/review', label: 'Hàng chờ rà soát', icon: 'review' as const },
+  { to: '/review', label: 'Hàng chờ', icon: 'review' as const },
 ]
 
 // Tách nhóm: 2 mục dưới đây là nơi model thật sự được gọi để chấm điểm.

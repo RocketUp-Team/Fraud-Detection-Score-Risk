@@ -2204,3 +2204,17 @@ textarea:focus {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
+
+/* Bảng dài cuộn trong khung: giữ cho hai card cùng hàng không lệch chiều cao */
+.table-wrap--scroll {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+/* Nhãn menu không bị đẩy xuống dòng khi có badge số bên cạnh */
+.sidebar__label {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
