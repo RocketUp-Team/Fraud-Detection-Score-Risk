@@ -169,10 +169,12 @@ export function ChatDock() {
         className="chat-fab"
         aria-expanded={open}
         aria-controls="chat-panel"
+        title={open ? 'Đóng trợ lý' : 'Mở trợ lý chấm điểm'}
         onClick={() => setOpen((v) => !v)}
       >
         <Icon name={open ? 'close' : 'spark'} size={20} />
-        <span>{open ? 'Đóng trợ lý' : 'Trợ lý'}</span>
+        {/* Nhãn ẩn khỏi mắt để nút gọn, nhưng vẫn là tên đọc được của nút */}
+        <span className="sr-only">{open ? 'Đóng trợ lý' : 'Mở trợ lý chấm điểm'}</span>
       </button>
 
       {open && (

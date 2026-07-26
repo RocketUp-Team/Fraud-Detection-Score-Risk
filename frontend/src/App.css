@@ -386,7 +386,8 @@
   max-width: 1520px;
   margin: 0 auto;
   min-width: 0;
-  padding: var(--space-5) var(--space-4) var(--space-6);
+  /* Đáy chừa chỗ cho nút trợ lý nổi, nếu không nó đè lên phân trang */
+  padding: var(--space-5) var(--space-4) calc(var(--space-5) + var(--fab-safe));
 }
 
 /* Stagger vào nội dung — motion 4/10, back/expo.out, chỉ 1 lần lúc mount */
@@ -1458,16 +1459,18 @@ textarea:focus {
 
 /* ---------- Chat dock (trợ lý) ---------- */
 
+/* Nút tròn chỉ icon: chiếm ít diện tích nhất có thể ở góc màn hình. Nhãn text
+   vẫn nằm trong DOM dạng sr-only + title nên vẫn có tên đọc được. */
 .chat-fab {
   position: fixed;
-  right: var(--space-5);
-  bottom: var(--space-5);
+  right: var(--space-4);
+  bottom: var(--space-4);
   z-index: 45;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 48px;
-  padding: var(--space-2) var(--space-5);
+  display: grid;
+  place-items: center;
+  width: var(--fab-size);
+  height: var(--fab-size);
+  padding: 0;
   border: 1px solid var(--color-accent-line);
   border-radius: 999px;
   background: linear-gradient(180deg, var(--color-accent-strong), var(--color-accent));
@@ -1487,8 +1490,8 @@ textarea:focus {
 
 .chat {
   position: fixed;
-  right: var(--space-5);
-  bottom: calc(var(--space-5) + 60px);
+  right: var(--space-4);
+  bottom: calc(var(--space-4) + var(--fab-size) + var(--space-2));
   z-index: 46;
   display: flex;
   flex-direction: column;
@@ -1836,7 +1839,7 @@ textarea:focus {
   .chat {
     right: var(--space-3);
     left: var(--space-3);
-    bottom: calc(var(--space-3) + 58px);
+    bottom: calc(var(--space-3) + var(--fab-size) + var(--space-2));
     width: auto;
     max-height: calc(100vh - 140px);
   }
