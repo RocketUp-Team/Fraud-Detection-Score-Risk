@@ -7,9 +7,8 @@ và người dùng không thấy gì đang xảy ra.
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from .. import datasets, schemas
-from ..db import Base, engine
 from ..jobs import registry
-from ..loader import run_load
+from ..loader import run_coverage_load, run_load
 
 router = APIRouter(tags=["data"])
 
@@ -53,16 +52,22 @@ def start_load(payload: schemas.LoadRequest, background: BackgroundTasks) -> sch
     # Xin nhiều hơn số dòng thật thì cắt xuống, không báo lỗi.
     limit = min(payload.limit, total_rows)
 
+    # Chế độ coverage: tổng đã biết trước = 5 band × per_band.
+    expected = payload.per_band * 5 if payload.mode == "coverage" else limit
+
     try:
-        job = registry.start(total=limit)
+        job = registry.start(total=expected)
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    if payload.reset:
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-
-    background.add_task(run_load, job.id, payload.dataset, limit)
+    # `reset` thực hiện BÊN TRONG job, sau khi đọc parquet xong — xoá ở đây thì
+    # dữ liệu cũ mất ngay cả khi job sau đó lỗi hoặc bị huỷ.
+    if payload.mode == "coverage":
+        background.add_task(
+            run_coverage_load, job.id, payload.dataset, payload.per_band, payload.reset
+        )
+    else:
+        background.add_task(run_load, job.id, payload.dataset, limit, payload.reset)
     return _job_out(job)
 
 

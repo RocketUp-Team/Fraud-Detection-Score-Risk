@@ -122,6 +122,10 @@ class LoadRequest(BaseModel):
     limit: int = Field(default=5000, ge=1, le=100_000)
     # Xoá dữ liệu cũ trước khi nạp; mặc định là ghi thêm/ghi đè theo id.
     reset: bool = False
+    # `head`: N dòng đầu, giữ nguyên phân bố thật (~3% gian lận).
+    # `coverage`: bộ nhỏ có đủ 5 mức rủi ro, mỗi mức `per_band` ca.
+    mode: Literal["head", "coverage"] = "head"
+    per_band: int = Field(default=20, ge=1, le=500)
 
 
 class JobOut(BaseModel):

@@ -156,10 +156,21 @@ export function ImportPage() {
               </div>
 
               {result.imported > 0 && (
-                <p className="callout callout--ok" role="status">
-                  Đã chấm điểm và lưu {result.imported} giao dịch.{' '}
-                  <Link to="/transactions">Xem trong danh sách</Link>
-                </p>
+                <div className="callout callout--ok done-actions" role="status">
+                  <strong>
+                    Đã chấm điểm và lưu {result.imported.toLocaleString('vi-VN')} giao dịch.
+                  </strong>
+                  <div className="done-actions__row">
+                    <Link className="btn btn--primary" to="/transactions">
+                      <Icon name="transactions" size={18} />
+                      Xem danh sách giao dịch
+                    </Link>
+                    <Link className="btn btn--secondary" to="/review">
+                      <Icon name="review" size={18} />
+                      Vào hàng chờ rà soát
+                    </Link>
+                  </div>
+                </div>
               )}
 
               {result.errors.length > 0 && (

@@ -80,10 +80,15 @@ export type Dataset = {
   note: string
 }
 
+export type LoadMode = 'head' | 'coverage'
+
 export type LoadRequest = {
   dataset: string
   limit: number
   reset: boolean
+  /** `head`: N dòng đầu (giữ phân bố thật). `coverage`: đủ 5 mức rủi ro. */
+  mode: LoadMode
+  per_band: number
 }
 
 export type JobStatus = 'running' | 'done' | 'error' | 'cancelled'

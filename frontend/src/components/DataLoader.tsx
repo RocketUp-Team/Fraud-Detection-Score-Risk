@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 
 import {
   useActiveJob,
@@ -8,6 +9,8 @@ import {
   useJob,
   useStartLoad,
 } from '../hooks/queries'
+import { useStats } from '../hooks/queries'
+import type { LoadMode } from '../types/api'
 import { Icon } from './Icon'
 
 /**
@@ -18,14 +21,33 @@ import { Icon } from './Icon'
  * thời gian đó thì proxy cắt và người dùng không thấy gì đang chạy.
  */
 const QUICK_PICKS = [500, 5_000, 50_000]
+const PERCENT_PICKS = [1, 10, 20]
+const PER_BAND_PICKS = [10, 20, 50]
+
+/** Hai plan nạp, khác nhau ở mục đích chứ không chỉ ở số lượng. */
+const PLANS: { mode: LoadMode; title: string; desc: string }[] = [
+  {
+    mode: 'coverage',
+    title: 'Đủ 5 mức rủi ro',
+    desc: 'Bộ nhỏ có đủ ca Thấp → Nghiêm trọng để đi hết các trường hợp khi trình bày.',
+  },
+  {
+    mode: 'head',
+    title: 'N giao dịch liên tiếp',
+    desc: 'Giữ nguyên phân bố thật (~3% gian lận). Dùng khi cần số liệu đại diện.',
+  },
+]
 
 export function DataLoader() {
   const queryClient = useQueryClient()
   const { data: datasets, isPending: datasetsPending } = useDatasets()
   const { data: activeJob } = useActiveJob()
+  const { data: stats } = useStats()
 
   const [dataset, setDataset] = useState('holdout')
+  const [mode, setMode] = useState<LoadMode>('coverage')
   const [limit, setLimit] = useState('5000')
+  const [perBand, setPerBand] = useState('20')
   const [reset, setReset] = useState(true)
   const [jobId, setJobId] = useState<string | null>(null)
 
@@ -48,10 +70,15 @@ export function DataLoader() {
 
   const selected = datasets?.find((d) => d.name === dataset)
   const limitNum = Number(limit)
+  const perBandNum = Number(perBand)
   const limitValid = Number.isInteger(limitNum) && limitNum >= 1 && limitNum <= 100_000
+  const perBandValid = Number.isInteger(perBandNum) && perBandNum >= 1 && perBandNum <= 500
+  const inputValid = mode === 'coverage' ? perBandValid : limitValid
   const running = job?.status === 'running'
   // Xin nhiều hơn số dòng có thật thì backend tự cắt — nói trước cho người dùng biết.
-  const willBeCapped = Boolean(selected && limitValid && limitNum > selected.rows)
+  const willBeCapped = Boolean(
+    mode === 'head' && selected && limitValid && limitNum > selected.rows,
+  )
 
   return (
     <section className="card card--load">
@@ -80,49 +107,112 @@ export function DataLoader() {
         )}
       </div>
 
-      <div className="field">
-        <label htmlFor="dl-limit">Số giao dịch</label>
-        <input
-          id="dl-limit"
-          type="number"
-          min={1}
-          max={100000}
-          step={100}
-          value={limit}
-          disabled={running}
-          aria-invalid={!limitValid}
-          onChange={(e) => setLimit(e.target.value)}
-        />
-        {!limitValid && <p className="field__error">Nhập số từ 1 đến 100.000.</p>}
-        {willBeCapped && selected && (
-          <p className="field__warn">
-            Bộ này chỉ có {selected.rows.toLocaleString('vi-VN')} dòng — sẽ nạp tối đa bằng đó.
-          </p>
-        )}
-        <div className="quick-picks">
-          {QUICK_PICKS.map((n) => (
-            <button
-              key={n}
-              type="button"
-              className={`chat__chip${Number(limit) === n ? ' is-active' : ''}`}
+      <fieldset className="plans">
+        <legend className="field__legend">Plan nạp</legend>
+        {PLANS.map((plan) => (
+          <label key={plan.mode} className={`plan${mode === plan.mode ? ' is-active' : ''}`}>
+            <input
+              type="radio"
+              name="load-mode"
+              value={plan.mode}
+              checked={mode === plan.mode}
               disabled={running}
-              onClick={() => setLimit(String(n))}
-            >
-              {n.toLocaleString('vi-VN')}
-            </button>
-          ))}
-          {selected && (
-            <button
-              type="button"
-              className="chat__chip"
-              disabled={running}
-              onClick={() => setLimit(String(Math.min(selected.rows, 100_000)))}
-            >
-              tối đa
-            </button>
+              onChange={() => setMode(plan.mode)}
+            />
+            <span>
+              <strong>{plan.title}</strong>
+              <span className="plan__desc">{plan.desc}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      {mode === 'coverage' ? (
+        <div className="field">
+          <label htmlFor="dl-perband">Số ca mỗi mức</label>
+          <input
+            id="dl-perband"
+            type="number"
+            min={1}
+            max={500}
+            value={perBand}
+            disabled={running}
+            aria-invalid={!perBandValid}
+            onChange={(e) => setPerBand(e.target.value)}
+          />
+          {!perBandValid && <p className="field__error">Nhập số từ 1 đến 500.</p>}
+          {perBandValid && (
+            <p className="field__hint">
+              Tổng <span className="num">{perBandNum * 5}</span> giao dịch — 5 mức ×{' '}
+              <span className="num">{perBandNum}</span>. Model chấm lần lượt và chỉ giữ ca thuộc
+              mức còn thiếu.
+            </p>
           )}
+          <div className="quick-picks">
+            {PER_BAND_PICKS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`chat__chip${perBandNum === n ? ' is-active' : ''}`}
+                disabled={running}
+                onClick={() => setPerBand(String(n))}
+              >
+                {n}/mức
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="field">
+          <label htmlFor="dl-limit">Số giao dịch</label>
+          <input
+            id="dl-limit"
+            type="number"
+            min={1}
+            max={100000}
+            step={100}
+            value={limit}
+            disabled={running}
+            aria-invalid={!limitValid}
+            onChange={(e) => setLimit(e.target.value)}
+          />
+          {!limitValid && <p className="field__error">Nhập số từ 1 đến 100.000.</p>}
+          {willBeCapped && selected && (
+            <p className="field__warn">
+              Bộ này chỉ có {selected.rows.toLocaleString('vi-VN')} dòng — sẽ nạp tối đa bằng đó.
+            </p>
+          )}
+          <div className="quick-picks">
+            {QUICK_PICKS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`chat__chip${limitNum === n ? ' is-active' : ''}`}
+                disabled={running}
+                onClick={() => setLimit(String(n))}
+              >
+                {n.toLocaleString('vi-VN')}
+              </button>
+            ))}
+            {selected &&
+              PERCENT_PICKS.map((pct) => {
+                const n = Math.min(100_000, Math.round((selected.rows * pct) / 100))
+                return (
+                  <button
+                    key={`pct-${pct}`}
+                    type="button"
+                    className={`chat__chip${limitNum === n ? ' is-active' : ''}`}
+                    disabled={running}
+                    title={`${pct}% của ${selected.rows.toLocaleString('vi-VN')} dòng = ${n.toLocaleString('vi-VN')}`}
+                    onClick={() => setLimit(String(n))}
+                  >
+                    {pct}%
+                  </button>
+                )
+              })}
+          </div>
+        </div>
+      )}
 
       <label className="check">
         <input
@@ -131,7 +221,16 @@ export function DataLoader() {
           disabled={running}
           onChange={(e) => setReset(e.target.checked)}
         />
-        Xoá dữ liệu cũ trước khi nạp
+        Xoá{' '}
+        {stats && stats.total > 0 ? (
+          <>
+            toàn bộ <span className="num">{stats.total.toLocaleString('vi-VN')}</span> giao dịch
+            hiện có
+          </>
+        ) : (
+          'dữ liệu cũ'
+        )}{' '}
+        trước khi nạp
       </label>
 
       {start.isError && (
@@ -167,14 +266,34 @@ export function DataLoader() {
         </div>
       )}
 
+      {/* Nạp xong thì phải có đường đi tiếp — không thì người dùng đứng lại ở
+          đây không biết dữ liệu vừa nạp nằm đâu. */}
+      {job && job.status !== 'running' && job.processed > 0 && (
+        <div className="callout callout--ok done-actions" role="status">
+          <strong>
+            Đã chấm điểm và lưu {job.processed.toLocaleString('vi-VN')} giao dịch.
+          </strong>
+          <div className="done-actions__row">
+            <Link className="btn btn--primary" to="/transactions">
+              <Icon name="transactions" size={18} />
+              Xem danh sách giao dịch
+            </Link>
+            <Link className="btn btn--secondary" to="/review">
+              <Icon name="review" size={18} />
+              Vào hàng chờ rà soát
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="review__actions">
         <button
           type="button"
           className="btn btn--primary"
-          disabled={!limitValid || running || start.isPending}
+          disabled={!inputValid || running || start.isPending}
           onClick={() =>
             start.mutate(
-              { dataset, limit: limitNum, reset },
+              { dataset, limit: limitNum, reset, mode, per_band: perBandNum },
               { onSuccess: (j) => setJobId(j.id) },
             )
           }
@@ -195,7 +314,7 @@ export function DataLoader() {
       </div>
 
       <p className="field__hint card__foot-note">
-        ~225 giao dịch/giây: 5.000 dòng ≈ 25 giây, 50.000 dòng ≈ 4 phút.
+        Đo thực tế ~125 giao dịch/giây khi có ghi DB: 5.000 dòng ≈ 40 giây, 50.000 ≈ 7 phút.
       </p>
     </section>
   )
