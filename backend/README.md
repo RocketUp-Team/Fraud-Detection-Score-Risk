@@ -149,12 +149,30 @@ Adminer khi cần:
 docker compose --profile tools up -d adminer
 ```
 
-Mở thẳng link này (đã có sẵn driver + user, chỉ cần nhập mật khẩu `fraud`):
+Mở thẳng link này (đã điền sẵn driver + user, chỉ còn nhập mật khẩu):
 
 **http://localhost:8081/?pgsql=db&username=fraud&db=fraud**
 
+Thông tin đăng nhập — cả ba đều là `fraud`:
+
+| Trường | Giá trị |
+|---|---|
+| System | PostgreSQL |
+| Server | `db` (trong Docker) hoặc `localhost` (từ máy) |
+| Username | `fraud` |
+| **Password** | **`fraud`** |
+| Database | `fraud` |
+
+Đặt trong [`../docker-compose.yml`](../docker-compose.yml): `POSTGRES_USER` /
+`POSTGRES_PASSWORD` / `POSTGRES_DB`.
+
 > Vào `http://localhost:8081` trần sẽ báo *Connection refused* vì Adminer mặc
 > định chọn MySQL. Đổi dropdown **System** sang PostgreSQL, hoặc dùng link trên.
+
+> **Mật khẩu này nằm công khai trong repo.** Chấp nhận được vì DB chỉ chạy local
+> và dữ liệu là bộ IEEE-CIS công khai. Đừng bê nguyên cách này lên môi trường
+> thật — lúc đó phải đưa vào biến môi trường không commit hoặc secret manager,
+> và đổi mật khẩu.
 
 Chạy trong profile `tools` nên `docker compose up` thường ngày không khởi động
 nó. Cổng 8081 vì 8080 đã dành cho Spark UI.
@@ -165,7 +183,7 @@ Cách khác không cần thêm container:
 docker compose exec db psql -U fraud -d fraud
 ```
 
-Hoặc nối TablePlus/DBeaver vào `localhost:5432`, user/pass/db đều là `fraud`.
+Hoặc nối TablePlus/DBeaver vào `localhost:5432` với cùng thông tin ở bảng trên.
 
 ### Dữ liệu mất khi nào
 
