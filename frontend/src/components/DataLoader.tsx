@@ -24,22 +24,28 @@ const QUICK_PICKS = [500, 5_000, 50_000]
 const PERCENT_PICKS = [1, 10, 20]
 const PER_BAND_PICKS = [10, 20, 50]
 
-/** Hai plan nạp, khác nhau ở mục đích chứ không chỉ ở số lượng. */
-const PLANS: { mode: LoadMode; title: string; desc: string }[] = [
+/**
+ * Ba plan nạp. `short` hiện trên thẻ chọn, `long` chỉ hiện cho plan ĐANG chọn —
+ * ba đoạn mô tả dài xếp dọc làm card cao gấp rưỡi card bên cạnh.
+ */
+const PLANS: { mode: LoadMode; title: string; short: string; long: string }[] = [
   {
     mode: 'coverage',
-    title: 'Đủ 5 mức rủi ro',
-    desc: 'Bộ nhỏ có đủ ca Thấp → Nghiêm trọng để đi hết các trường hợp khi trình bày.',
+    title: 'Đủ 5 mức',
+    short: 'Thấp → Nghiêm trọng',
+    long: 'Bộ nhỏ có đủ ca ở cả 5 mức để đi hết các trường hợp khi trình bày. Model chấm lần lượt và chỉ giữ ca thuộc mức còn thiếu.',
   },
   {
     mode: 'sample',
-    title: 'Mẫu ngẫu nhiên N dòng',
-    desc: 'Rải đều toàn bộ dữ liệu nên tỉ lệ gian lận sát thực tế nhất. Có seed để nạp lại ra đúng mẫu cũ.',
+    title: 'Mẫu ngẫu nhiên',
+    short: 'Sát thực tế nhất',
+    long: 'Rải đều toàn bộ dữ liệu nên tỉ lệ gian lận sát thực tế. Có seed nên nạp lại ra đúng mẫu cũ.',
   },
   {
     mode: 'head',
     title: 'N dòng đầu',
-    desc: 'Nhanh nhất, nhưng là một khối liền trong 1–2 file part nên không đại diện cho cả bộ.',
+    short: 'Nhanh, không đại diện',
+    long: 'Nhanh nhất, nhưng là một khối liền trong 1–2 file part nên không đại diện cho cả bộ.',
   },
 ]
 
@@ -89,10 +95,6 @@ export function DataLoader() {
   return (
     <section className="card card--load">
       <h2>Nạp dữ liệu từ bộ IEEE-CIS</h2>
-      <p className="muted card__lead">
-        Chạy nền — bạn có thể rời trang, tiến độ vẫn giữ.
-      </p>
-
       <div className="field">
         <label htmlFor="dl-dataset">Bộ dữ liệu</label>
         <select
@@ -116,22 +118,25 @@ export function DataLoader() {
 
       <fieldset className="plans">
         <legend className="field__legend">Plan nạp</legend>
-        {PLANS.map((plan) => (
-          <label key={plan.mode} className={`plan${mode === plan.mode ? ' is-active' : ''}`}>
-            <input
-              type="radio"
-              name="load-mode"
-              value={plan.mode}
-              checked={mode === plan.mode}
-              disabled={running}
-              onChange={() => setMode(plan.mode)}
-            />
-            <span>
-              <strong>{plan.title}</strong>
-              <span className="plan__desc">{plan.desc}</span>
-            </span>
-          </label>
-        ))}
+        <div className="plans__row">
+          {PLANS.map((plan) => (
+            <label key={plan.mode} className={`plan${mode === plan.mode ? ' is-active' : ''}`}>
+              <input
+                type="radio"
+                name="load-mode"
+                value={plan.mode}
+                checked={mode === plan.mode}
+                disabled={running}
+                onChange={() => setMode(plan.mode)}
+              />
+              <span className="plan__text">
+                <strong>{plan.title}</strong>
+                <span className="plan__desc">{plan.short}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="plans__note">{PLANS.find((p) => p.mode === mode)?.long}</p>
       </fieldset>
 
       {mode === 'coverage' ? (
@@ -150,9 +155,8 @@ export function DataLoader() {
           {!perBandValid && <p className="field__error">Nhập số từ 1 đến 500.</p>}
           {perBandValid && (
             <p className="field__hint">
-              Tổng <span className="num">{perBandNum * 5}</span> giao dịch — 5 mức ×{' '}
-              <span className="num">{perBandNum}</span>. Model chấm lần lượt và chỉ giữ ca thuộc
-              mức còn thiếu.
+              Tổng <span className="num">{perBandNum * 5}</span> giao dịch (5 mức ×{' '}
+              <span className="num">{perBandNum}</span>)
             </p>
           )}
           <div className="quick-picks">
@@ -342,7 +346,7 @@ export function DataLoader() {
       </div>
 
       <p className="field__hint card__foot-note">
-        Đo thực tế ~125 giao dịch/giây khi có ghi DB: 5.000 dòng ≈ 40 giây, 50.000 ≈ 7 phút.
+        ~125 giao dịch/giây · chạy nền, rời trang vẫn giữ tiến độ
       </p>
     </section>
   )

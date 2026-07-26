@@ -102,6 +102,14 @@ export function ImportPage() {
             </p>
           )}
 
+          <p className="field__hint">
+            Cần dữ liệu <strong>đã tiền xử lý</strong> — CSV thô Kaggle chỉ khớp 28/53 cột. Cần
+            cột <code>TransactionID</code>, tối đa 5.000 dòng.{' '}
+            <a href={api.importTemplateUrl(20)} download>
+              Tải file mẫu
+            </a>
+          </p>
+
           <div className="review__actions">
             <button
               type="button"
@@ -127,23 +135,6 @@ export function ImportPage() {
             )}
           </div>
 
-          <div className="callout callout--warn">
-            <strong>File phải là dữ liệu ĐÃ tiền xử lý.</strong>
-            <p>
-              CSV thô của Kaggle chỉ khớp <span className="num">28</span>/
-              <span className="num">53</span> cột model cần — 25 cột còn lại do pipeline Spark
-              sinh ra. Thiếu thì bị điền giá trị mặc định và điểm sẽ lệch. Tải file mẫu để có
-              đúng header.
-            </p>
-            <a className="btn btn--secondary" href={api.importTemplateUrl(20)} download>
-              <Icon name="file" size={18} />
-              Tải file mẫu (53 cột + 20 dòng thật)
-            </a>
-          </div>
-
-          <p className="field__hint">
-            Cần cột <code>TransactionID</code>. Tối đa 5.000 dòng mỗi lần.
-          </p>
         </section>
 
         {(result || mutation.isError) && (

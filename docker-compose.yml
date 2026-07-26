@@ -38,6 +38,27 @@ services:
       db:
         condition: service_healthy
 
+  # Xem/sửa Postgres bằng giao diện web. Docker Desktop chỉ quản container và
+  # volume, không có trình xem DB — đây là chỗ bù vào.
+  # Chạy: docker compose --profile tools up -d adminer  ->  http://localhost:8081
+  # Không bật mặc định để buổi demo không phải chạy thêm container.
+  # Cổng 8081 chứ không phải 8080: 8080 đã dành cho Spark UI (profile training).
+  adminer:
+    image: adminer:5
+    environment:
+      # Chỉ ADMINER_DEFAULT_SERVER được image này dùng. Driver KHÔNG đặt được
+      # bằng env (đã thử ADMINER_DEFAULT_DRIVER, không ăn) — Adminer mặc định
+      # chọn MySQL nên bấm Login sẽ báo "Connection refused". Phải chọn
+      # PostgreSQL trong dropdown, hoặc mở thẳng URL có sẵn tham số:
+      #   http://localhost:8081/?pgsql=db&username=fraud&db=fraud
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["tools"]
+
   frontend:
     build:
       context: ./frontend

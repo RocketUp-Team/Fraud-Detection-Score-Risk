@@ -140,6 +140,45 @@ phân bố gốc ≤ 0,5 điểm %.
 Tốc độ đo thực tế: **~125 giao dịch/giây** khi có ghi DB (225/giây nếu chỉ chấm
 không ghi).
 
+### Xem database bằng giao diện
+
+Docker Desktop quản container/volume/image nhưng **không có trình xem DB**. Bật
+Adminer khi cần:
+
+```bash
+docker compose --profile tools up -d adminer
+```
+
+Mở thẳng link này (đã có sẵn driver + user, chỉ cần nhập mật khẩu `fraud`):
+
+**http://localhost:8081/?pgsql=db&username=fraud&db=fraud**
+
+> Vào `http://localhost:8081` trần sẽ báo *Connection refused* vì Adminer mặc
+> định chọn MySQL. Đổi dropdown **System** sang PostgreSQL, hoặc dùng link trên.
+
+Chạy trong profile `tools` nên `docker compose up` thường ngày không khởi động
+nó. Cổng 8081 vì 8080 đã dành cho Spark UI.
+
+Cách khác không cần thêm container:
+
+```bash
+docker compose exec db psql -U fraud -d fraud
+```
+
+Hoặc nối TablePlus/DBeaver vào `localhost:5432`, user/pass/db đều là `fraud`.
+
+### Dữ liệu mất khi nào
+
+| Lệnh | Container | Dữ liệu trong DB |
+|---|---|---|
+| `docker compose stop` | dừng | còn |
+| `docker compose down` | xoá | **còn** — volume không bị đụng |
+| `docker compose down -v` | xoá | **mất sạch** |
+
+Dữ liệu Postgres nằm trong volume `..._db_data` (~51MB với 3.000 giao dịch),
+không nằm trong thư mục repo. Chạy local không Docker thì dùng SQLite
+`fraud_demo.db` — **hai nơi lưu khác nhau, không dùng chung dữ liệu**.
+
 ---
 
 ## 4. Endpoints
