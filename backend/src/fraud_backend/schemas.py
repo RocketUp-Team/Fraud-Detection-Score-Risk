@@ -126,10 +126,13 @@ class LoadRequest(BaseModel):
     limit: int = Field(default=5000, ge=1, le=100_000)
     # Xoá dữ liệu cũ trước khi nạp; mặc định là ghi thêm/ghi đè theo id.
     reset: bool = False
-    # `head`: N dòng đầu, giữ nguyên phân bố thật (~3% gian lận).
+    # `head`: N dòng đầu — nhanh nhất nhưng là một khối liền, không đại diện.
+    # `sample`: N dòng ngẫu nhiên rải đều cả bộ, có seed nên tái lập được.
     # `coverage`: bộ nhỏ có đủ 5 mức rủi ro, mỗi mức `per_band` ca.
-    mode: Literal["head", "coverage"] = "head"
+    mode: Literal["head", "sample", "coverage"] = "head"
     per_band: int = Field(default=20, ge=1, le=500)
+    # Cố định để nạp lại ra đúng mẫu cũ; đổi seed để lấy mẫu khác.
+    seed: int = Field(default=42, ge=0)
 
 
 class JobOut(BaseModel):

@@ -158,3 +158,49 @@ def read_rows(dataset: str, limit: int) -> list[dict]:
     df = pd.concat(frames).head(limit)
     log.info("Đọc %d dòng từ %s", len(df), directory)
     return df.to_dict(orient="records")
+
+
+def read_random_rows(dataset: str, limit: int, seed: int = 42) -> list[dict]:
+    """Mẫu ngẫu nhiên `limit` dòng rải đều toàn bộ bộ dữ liệu.
+
+    Khác `read_rows` (lấy N dòng ĐẦU, tức một khối liền trong 1-2 file part nên
+    không đại diện): ở đây bốc chỉ số ngẫu nhiên trên toàn bộ rồi mới đọc.
+
+    `seed` cố định để nạp lại ra đúng mẫu cũ — demo cần tái lập được. Mỗi file
+    parquet chỉ mở một lần và đọc lần lượt, không nạp cả bộ vào RAM.
+    """
+    import random
+
+    import pandas as pd
+    import pyarrow.parquet as pq
+
+    directory = MODEL_READY_DIR / dataset
+    files = sorted(directory.rglob("*.parquet"))
+    if not files:
+        raise FileNotFoundError(f"Không có parquet nào trong {directory}")
+
+    # Số dòng từng file, đọc từ metadata nên không tốn gì.
+    counts = [pq.ParquetFile(f).metadata.num_rows for f in files]
+    total = sum(counts)
+    take = min(limit, total)
+
+    picked = sorted(random.Random(seed).sample(range(total), take))
+
+    frames = []
+    offset = 0
+    cursor = 0
+    for path, count in zip(files, counts, strict=True):
+        # Các chỉ số toàn cục thuộc file này -> đổi sang chỉ số trong file.
+        local = []
+        while cursor < len(picked) and picked[cursor] < offset + count:
+            local.append(picked[cursor] - offset)
+            cursor += 1
+        if local:
+            frames.append(pd.read_parquet(path).iloc[local])
+        offset += count
+
+    df = pd.concat(frames) if frames else pd.DataFrame()
+    log.info(
+        "Đọc mẫu ngẫu nhiên %d/%d dòng từ %s (seed=%d)", len(df), total, directory, seed
+    )
+    return df.to_dict(orient="records")

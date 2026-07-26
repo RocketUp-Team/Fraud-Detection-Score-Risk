@@ -8,7 +8,7 @@ import logging
 
 from sqlalchemy import delete
 
-from .datasets import read_rows
+from .datasets import read_random_rows, read_rows
 from .db import SessionLocal
 from .jobs import registry
 from .models import Transaction
@@ -21,12 +21,19 @@ log = logging.getLogger(__name__)
 COMMIT_EVERY = 250
 
 
-def run_load(job_id: str, dataset: str, limit: int, reset: bool = False) -> None:
+def run_load(
+    job_id: str,
+    dataset: str,
+    limit: int,
+    reset: bool = False,
+    sample: bool = False,
+    seed: int = 42,
+) -> None:
     processed = 0
     try:
         # Đọc parquet TRƯỚC khi xoá. Xoá trước rồi mới đọc là cách chắc chắn nhất
         # để mất dữ liệu cũ mà chẳng nạp được gì khi parquet lỗi.
-        rows = read_rows(dataset, limit)
+        rows = read_random_rows(dataset, limit, seed) if sample else read_rows(dataset, limit)
         with SessionLocal() as db:
             if reset:
                 db.execute(delete(Transaction))

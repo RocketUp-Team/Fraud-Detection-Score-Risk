@@ -85,7 +85,7 @@ export type Dataset = {
   model_trained_on: boolean
 }
 
-export type LoadMode = 'head' | 'coverage'
+export type LoadMode = 'head' | 'sample' | 'coverage'
 
 export type LoadRequest = {
   dataset: string
@@ -94,6 +94,8 @@ export type LoadRequest = {
   /** `head`: N dòng đầu (giữ phân bố thật). `coverage`: đủ 5 mức rủi ro. */
   mode: LoadMode
   per_band: number
+  /** Cố định để nạp lại ra đúng mẫu cũ (chỉ dùng cho mode `sample`). */
+  seed: number
 }
 
 export type JobStatus = 'running' | 'done' | 'error' | 'cancelled'

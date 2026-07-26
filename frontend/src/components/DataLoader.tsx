@@ -32,9 +32,14 @@ const PLANS: { mode: LoadMode; title: string; desc: string }[] = [
     desc: 'Bộ nhỏ có đủ ca Thấp → Nghiêm trọng để đi hết các trường hợp khi trình bày.',
   },
   {
+    mode: 'sample',
+    title: 'Mẫu ngẫu nhiên N dòng',
+    desc: 'Rải đều toàn bộ dữ liệu nên tỉ lệ gian lận sát thực tế nhất. Có seed để nạp lại ra đúng mẫu cũ.',
+  },
+  {
     mode: 'head',
-    title: 'N giao dịch liên tiếp',
-    desc: 'Giữ nguyên phân bố thật (~3% gian lận). Dùng khi cần số liệu đại diện.',
+    title: 'N dòng đầu',
+    desc: 'Nhanh nhất, nhưng là một khối liền trong 1–2 file part nên không đại diện cho cả bộ.',
   },
 ]
 
@@ -48,6 +53,7 @@ export function DataLoader() {
   const [mode, setMode] = useState<LoadMode>('coverage')
   const [limit, setLimit] = useState('5000')
   const [perBand, setPerBand] = useState('20')
+  const [seed, setSeed] = useState('42')
   const [reset, setReset] = useState(true)
   const [jobId, setJobId] = useState<string | null>(null)
 
@@ -212,6 +218,20 @@ export function DataLoader() {
                 )
               })}
           </div>
+
+          {mode === 'sample' && (
+            <p className="field__hint">
+              Seed <span className="num">{seed}</span> — cùng seed thì nạp lại ra đúng mẫu cũ.{' '}
+              <button
+                type="button"
+                className="btn btn--link"
+                disabled={running}
+                onClick={() => setSeed(String(Math.floor(Math.random() * 10000)))}
+              >
+                Đổi mẫu
+              </button>
+            </p>
+          )}
         </div>
       )}
 
@@ -294,7 +314,14 @@ export function DataLoader() {
           disabled={!inputValid || running || start.isPending}
           onClick={() =>
             start.mutate(
-              { dataset, limit: limitNum, reset, mode, per_band: perBandNum },
+              {
+                dataset,
+                limit: limitNum,
+                reset,
+                mode,
+                per_band: perBandNum,
+                seed: Number(seed) || 42,
+              },
               { onSuccess: (j) => setJobId(j.id) },
             )
           }

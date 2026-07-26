@@ -67,7 +67,15 @@ def start_load(payload: schemas.LoadRequest, background: BackgroundTasks) -> sch
             run_coverage_load, job.id, payload.dataset, payload.per_band, payload.reset
         )
     else:
-        background.add_task(run_load, job.id, payload.dataset, limit, payload.reset)
+        background.add_task(
+            run_load,
+            job.id,
+            payload.dataset,
+            limit,
+            payload.reset,
+            payload.mode == "sample",
+            payload.seed,
+        )
     return _job_out(job)
 
 
