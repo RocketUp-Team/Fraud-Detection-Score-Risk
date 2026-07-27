@@ -1,8 +1,11 @@
 from pathlib import Path
+import os
 
 MODEL_ROOT = Path(__file__).resolve().parents[2]
 REPO_ROOT = MODEL_ROOT.parent
 ARTIFACTS_DIR = MODEL_ROOT / "artifacts"
+V1_ARTIFACTS_DIR = ARTIFACTS_DIR / "v1"
+V2_ARTIFACTS_DIR = ARTIFACTS_DIR / "v2"
 
 # Fallback (dev/test khi chưa có pipeline thật của An, xem synthetic_data.py)
 RAW_DATA_DIR = MODEL_ROOT / "data" / "raw"
@@ -30,3 +33,46 @@ COMPARISON_RESULTS_PATH = ARTIFACTS_DIR / "model_comparison.json"
 FINAL_MODEL_PATH = ARTIFACTS_DIR / "final_model.joblib"
 
 TREE_MODEL_NAMES = {"lightgbm", "xgboost", "catboost"}
+
+SERVING_MODEL_VERSION = os.environ.get("FRAUD_MODEL_SERVING_VERSION", "v1")
+TRAINING_MODEL_VERSION = os.environ.get("FRAUD_MODEL_TRAINING_VERSION", "v2")
+
+
+def _artifact_dir_for(version: str) -> Path:
+    if version == "v1":
+        return V1_ARTIFACTS_DIR
+    if version == "v2":
+        return V2_ARTIFACTS_DIR
+    return ARTIFACTS_DIR / version
+
+
+def _artifact_paths_for(version: str) -> dict[str, Path]:
+    artifact_dir = _artifact_dir_for(version)
+    return {
+        "dir": artifact_dir,
+        "baseline": artifact_dir / f"baseline_logreg_{version}.joblib",
+        "comparison": artifact_dir / f"model_comparison_{version}.json",
+        "final": artifact_dir / f"final_model_{version}.joblib",
+        "metadata": artifact_dir / f"training_metadata_{version}.json",
+    }
+
+
+SERVING_ARTIFACT_PATHS = _artifact_paths_for(SERVING_MODEL_VERSION)
+TRAINING_ARTIFACT_PATHS = _artifact_paths_for(TRAINING_MODEL_VERSION)
+
+SERVING_ARTIFACTS_DIR = SERVING_ARTIFACT_PATHS["dir"]
+SERVING_BASELINE_MODEL_PATH = SERVING_ARTIFACT_PATHS["baseline"]
+SERVING_COMPARISON_RESULTS_PATH = SERVING_ARTIFACT_PATHS["comparison"]
+SERVING_FINAL_MODEL_PATH = SERVING_ARTIFACT_PATHS["final"]
+
+TRAINING_ARTIFACTS_DIR = TRAINING_ARTIFACT_PATHS["dir"]
+TRAINING_BASELINE_MODEL_PATH = TRAINING_ARTIFACT_PATHS["baseline"]
+TRAINING_COMPARISON_RESULTS_PATH = TRAINING_ARTIFACT_PATHS["comparison"]
+TRAINING_FINAL_MODEL_PATH = TRAINING_ARTIFACT_PATHS["final"]
+TRAINING_METADATA_PATH = TRAINING_ARTIFACT_PATHS["metadata"]
+
+# Legacy names kept for backward compatibility with old tests/scripts. These
+# now point to the CURRENT TRAINING target, not the currently served model.
+BASELINE_MODEL_PATH = TRAINING_BASELINE_MODEL_PATH
+COMPARISON_RESULTS_PATH = TRAINING_COMPARISON_RESULTS_PATH
+FINAL_MODEL_PATH = TRAINING_FINAL_MODEL_PATH

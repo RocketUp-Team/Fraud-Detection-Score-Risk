@@ -56,7 +56,8 @@ def _make_baseline_artifact(path):
 def test_score_returns_valid_probability_and_top5_shap_for_tree_model(tmp_path, monkeypatch):
     final_path = tmp_path / "final_model.joblib"
     _make_tree_artifact(final_path)
-    monkeypatch.setattr(config, "FINAL_MODEL_PATH", final_path)
+    monkeypatch.setattr(config, "SERVING_FINAL_MODEL_PATH", final_path)
+    monkeypatch.setattr(config, "SERVING_MODEL_VERSION", "v2")
 
     result = score_module.score(
         {"TransactionAmt": 50.0, "C1": 1.0, "C2": 2.0, "C3": 0.0, "C4": -1.0, "ProductCD": "w"}
@@ -73,7 +74,8 @@ def test_score_returns_valid_probability_and_top5_shap_for_tree_model(tmp_path, 
 def test_score_handles_unseen_categorical_value_without_crashing(tmp_path, monkeypatch):
     final_path = tmp_path / "final_model.joblib"
     _make_tree_artifact(final_path)
-    monkeypatch.setattr(config, "FINAL_MODEL_PATH", final_path)
+    monkeypatch.setattr(config, "SERVING_FINAL_MODEL_PATH", final_path)
+    monkeypatch.setattr(config, "SERVING_MODEL_VERSION", "v2")
 
     result = score_module.score({"TransactionAmt": 50.0, "ProductCD": "NEVER_SEEN_BEFORE"})
 
@@ -83,7 +85,8 @@ def test_score_handles_unseen_categorical_value_without_crashing(tmp_path, monke
 def test_score_defaults_missing_features_to_sentinel_value(tmp_path, monkeypatch):
     final_path = tmp_path / "final_model.joblib"
     _make_tree_artifact(final_path)
-    monkeypatch.setattr(config, "FINAL_MODEL_PATH", final_path)
+    monkeypatch.setattr(config, "SERVING_FINAL_MODEL_PATH", final_path)
+    monkeypatch.setattr(config, "SERVING_MODEL_VERSION", "v2")
 
     # Không truyền C1..C4/ProductCD — không được crash, phải tự dùng giá trị mặc định.
     result = score_module.score({"TransactionAmt": 50.0})
@@ -94,8 +97,9 @@ def test_score_defaults_missing_features_to_sentinel_value(tmp_path, monkeypatch
 def test_score_falls_back_to_baseline_when_final_model_missing(tmp_path, monkeypatch):
     baseline_path = tmp_path / "baseline_logreg.joblib"
     _make_baseline_artifact(baseline_path)
-    monkeypatch.setattr(config, "FINAL_MODEL_PATH", tmp_path / "missing_final.joblib")
-    monkeypatch.setattr(config, "BASELINE_MODEL_PATH", baseline_path)
+    monkeypatch.setattr(config, "SERVING_FINAL_MODEL_PATH", tmp_path / "missing_final.joblib")
+    monkeypatch.setattr(config, "SERVING_BASELINE_MODEL_PATH", baseline_path)
+    monkeypatch.setattr(config, "SERVING_MODEL_VERSION", "v2")
 
     result = score_module.score({"TransactionAmt": 20.0, "C1": 0.5})
 
@@ -104,8 +108,9 @@ def test_score_falls_back_to_baseline_when_final_model_missing(tmp_path, monkeyp
 
 
 def test_score_raises_file_not_found_when_no_artifact_available(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "FINAL_MODEL_PATH", tmp_path / "missing1.joblib")
-    monkeypatch.setattr(config, "BASELINE_MODEL_PATH", tmp_path / "missing2.joblib")
+    monkeypatch.setattr(config, "SERVING_FINAL_MODEL_PATH", tmp_path / "missing1.joblib")
+    monkeypatch.setattr(config, "SERVING_BASELINE_MODEL_PATH", tmp_path / "missing2.joblib")
+    monkeypatch.setattr(config, "SERVING_MODEL_VERSION", "v2")
 
     with pytest.raises(FileNotFoundError):
         score_module.score({"TransactionAmt": 10.0})

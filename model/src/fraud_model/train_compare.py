@@ -1,6 +1,7 @@
 """Ngày 3: so sánh Logistic Regression / LightGBM / XGBoost / CatBoost trên
 feature contract thật của An (Quân). Ghi kết quả ra
-`artifacts/model_comparison.json` để `tune_and_explain.py` (Ngày 4) đọc lại.
+`artifacts/<version>/model_comparison_<version>.json` để `tune_and_explain.py`
+(Ngày 4) đọc lại.
 
 Train trên `train_weighted` (sample_weight = cột `class_weight`), đánh giá
 trên `validation`. KHÔNG chạm `holdout` ở bước so sánh model — chỉ đánh giá
@@ -70,10 +71,18 @@ def main() -> dict:
     best_name = max(results, key=lambda n: results[n]["pr_auc"])
     print(f"[compare] best model by validation PR-AUC: {best_name}")
 
-    config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-    with open(config.COMPARISON_RESULTS_PATH, "w") as f:
-        json.dump({"results": results, "best_model": best_name}, f, indent=2)
-    print(f"[compare] saved -> {config.COMPARISON_RESULTS_PATH}")
+    config.TRAINING_ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    with open(config.TRAINING_COMPARISON_RESULTS_PATH, "w") as f:
+        json.dump(
+            {
+                "model_version": config.TRAINING_MODEL_VERSION,
+                "results": results,
+                "best_model": best_name,
+            },
+            f,
+            indent=2,
+        )
+    print(f"[compare] saved -> {config.TRAINING_COMPARISON_RESULTS_PATH}")
 
     return {"results": results, "best_model": best_name}
 

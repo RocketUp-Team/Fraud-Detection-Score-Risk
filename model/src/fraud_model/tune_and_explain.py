@@ -11,7 +11,7 @@ Nếu model tốt nhất không phải mô hình cây, dừng lại và dùng t�
 demo (docs/RISK_SCORING_PLAN.md mục 5, rủi ro "Đóng gói model trễ").
 
 Chạy:
-    uv run python -m fraud_model.train_compare   # trước, để có model_comparison.json
+    uv run python -m fraud_model.train_compare   # trước, để có model_comparison_<version>.json
     uv run python -m fraud_model.tune_and_explain
 """
 import itertools
@@ -57,12 +57,12 @@ MODEL_CLASSES = {
 
 
 def _load_best_model_name() -> str:
-    if not config.COMPARISON_RESULTS_PATH.exists():
+    if not config.TRAINING_COMPARISON_RESULTS_PATH.exists():
         raise FileNotFoundError(
-            f"Chưa có {config.COMPARISON_RESULTS_PATH}. Chạy "
+            f"Chưa có {config.TRAINING_COMPARISON_RESULTS_PATH}. Chạy "
             "`uv run python -m fraud_model.train_compare` trước."
         )
-    with open(config.COMPARISON_RESULTS_PATH) as f:
+    with open(config.TRAINING_COMPARISON_RESULTS_PATH) as f:
         return json.load(f)["best_model"]
 
 
@@ -125,11 +125,12 @@ def main() -> None:
     ]
     print(f"[tune] top-5 feature (SHAP trung bình |giá trị|): {top5_global_features}")
 
-    config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    config.TRAINING_ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(
         {
             "model": best_model,
             "model_name": best_name,
+            "model_version": config.TRAINING_MODEL_VERSION,
             "feature_columns": list(X_train.columns),
             "category_mappings": extract_category_mappings(indexer),
             "val_roc_auc": val_roc_auc,
@@ -138,9 +139,25 @@ def main() -> None:
             "holdout_pr_auc": holdout_pr_auc,
             "top5_global_features": top5_global_features,
         },
-        config.FINAL_MODEL_PATH,
+        config.TRAINING_FINAL_MODEL_PATH,
     )
-    print(f"[tune] saved -> {config.FINAL_MODEL_PATH}")
+    with open(config.TRAINING_METADATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "model_version": config.TRAINING_MODEL_VERSION,
+                "best_model": best_name,
+                "artifact_path": str(config.TRAINING_FINAL_MODEL_PATH),
+                "comparison_path": str(config.TRAINING_COMPARISON_RESULTS_PATH),
+                "validation_roc_auc": val_roc_auc,
+                "validation_pr_auc": best_pr_auc,
+                "holdout_roc_auc": holdout_roc_auc,
+                "holdout_pr_auc": holdout_pr_auc,
+                "feature_count": len(X_train.columns),
+            },
+            f,
+            indent=2,
+        )
+    print(f"[tune] saved -> {config.TRAINING_FINAL_MODEL_PATH}")
 
 
 if __name__ == "__main__":

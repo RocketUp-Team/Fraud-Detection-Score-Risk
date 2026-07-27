@@ -1,11 +1,11 @@
 """Module đóng gói cuối cùng để Trung gọi từ backend (bàn giao Ngày 5, xem
 docs/RISK_SCORING_PLAN.md mục 2 và 4).
 
-Ưu tiên dùng `artifacts/final_model.joblib` (từ `tune_and_explain.py`, có
-SHAP top-5 thật). Nếu chưa có — vd tuning trễ — dùng tạm
-`artifacts/baseline_logreg.joblib` (Logistic Regression, không có SHAP) để
-demo pipeline vẫn chạy được, đúng phương án dự phòng ở mục 5 ("Đóng gói
-model trễ").
+Mặc định serving dùng model hiện hành `v1`. Artifact cũ được gom logic dưới
+nhãn `v1`; các lần train mới nên ghi sang `v2` để không đè lên model đang
+phục vụ. `score()` ưu tiên model cuối của serving version hiện tại, rồi mới
+fallback sang baseline cùng version. Với `v1`, code còn hỗ trợ legacy root
+artifact để tương thích ngược.
 """
 import joblib
 import pandas as pd
@@ -17,20 +17,41 @@ _artifact = None
 _explainer = None
 
 
+def _candidate_paths(kind: str) -> list:
+    version = config.SERVING_MODEL_VERSION
+    if kind == "final":
+        primary = config.SERVING_FINAL_MODEL_PATH
+        legacy = config.ARTIFACTS_DIR / "final_model.joblib"
+    else:
+        primary = config.SERVING_BASELINE_MODEL_PATH
+        legacy = config.ARTIFACTS_DIR / "baseline_logreg.joblib"
+    if version == "v1":
+        return [primary, legacy]
+    return [primary]
+
+
 def _load_artifact() -> dict:
     global _artifact
     if _artifact is None:
-        if config.FINAL_MODEL_PATH.exists():
-            _artifact = joblib.load(config.FINAL_MODEL_PATH)
-        elif config.BASELINE_MODEL_PATH.exists():
-            print("[score] final_model.joblib chưa có — dùng tạm baseline (xem docs mục 5).")
-            _artifact = joblib.load(config.BASELINE_MODEL_PATH)
+        for candidate in _candidate_paths("final"):
+            if candidate.exists():
+                _artifact = joblib.load(candidate)
+                break
+        if _artifact is None:
+            baseline_candidates = _candidate_paths("baseline")
+            existing_baseline = next((p for p in baseline_candidates if p.exists()), None)
+            if existing_baseline is not None:
+                print("[score] final model chưa có — dùng tạm baseline cùng serving version.")
+                _artifact = joblib.load(existing_baseline)
+                _artifact.setdefault("model_name", "baseline_logreg")
+                _artifact.setdefault("model_version", config.SERVING_MODEL_VERSION)
+            else:
+                raise FileNotFoundError(
+                    "Chưa có model nào cho serving version hiện tại. Chạy training cho version đó trước."
+                )
+        if _artifact.get("model_version") is None:
+            _artifact["model_version"] = config.SERVING_MODEL_VERSION
             _artifact.setdefault("model_name", "baseline_logreg")
-        else:
-            raise FileNotFoundError(
-                "Chưa có model nào đã train. Chạy `uv run python -m fraud_model.train_baseline` "
-                "(hoặc train_compare + tune_and_explain) trước."
-            )
     return _artifact
 
 
@@ -58,8 +79,15 @@ def model_info() -> dict:
     return {
         "model_name": model_name,
         "model_version": artifact.get("model_version", model_name),
+        "processing_version": artifact.get("processing_version"),
+        "feature_schema_version": artifact.get("feature_schema_version"),
+        "threshold": artifact.get("threshold"),
+        "risk_band_policy_version": artifact.get("risk_band_policy_version"),
         "explainability": model_name in config.TREE_MODEL_NAMES,
         "n_features": len(artifact["feature_columns"]),
+        "required_features": artifact.get("required_features", artifact.get("feature_columns", [])),
+        "optional_features": artifact.get("optional_features", []),
+        "defaultable_features": artifact.get("defaultable_features", []),
     }
 
 
@@ -92,6 +120,21 @@ def score(features: dict) -> dict:
     columns = artifact["feature_columns"]
     model_name = artifact.get("model_name", "baseline_logreg")
     mappings = artifact.get("category_mappings", {})
+    required_features = set(artifact.get("required_features", columns))
+    defaultable_features = set(artifact.get("defaultable_features", []))
+    optional_features = set(artifact.get("optional_features", []))
+
+    missing_required = sorted(
+        feature
+        for feature in required_features
+        if feature not in features and feature not in defaultable_features and feature not in optional_features
+    )
+    if missing_required:
+        raise ValueError(
+            "Thiếu required features cho full-feature scoring: "
+            + ", ".join(missing_required[:10])
+            + ("..." if len(missing_required) > 10 else "")
+        )
 
     encoded = encode_categoricals_pandas(features, mappings)
     # Cột THIẾU và cột CÓ nhưng giá trị None đều phải thành -999. Chỉ dùng
@@ -115,4 +158,5 @@ def score(features: dict) -> dict:
         )
         shap_top5 = [{"feature": name, "shap_value": float(val)} for name, val in contributions[:5]]
 
-    return {"proba": proba, "shap": shap_top5}
+    scoring_mode = "full_feature" if len(set(features).intersection(columns)) >= len(columns) else "partial_demo"
+    return {"proba": proba, "shap": shap_top5, "scoring_mode": scoring_mode}

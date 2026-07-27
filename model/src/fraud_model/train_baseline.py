@@ -53,17 +53,20 @@ def main() -> None:
         f"n_train={len(X_train)}  n_val={len(X_val)}"
     )
 
-    config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    config.TRAINING_ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(
         {
             "model": model,
             "model_name": "baseline_logreg",
+            "model_version": config.TRAINING_MODEL_VERSION,
             "feature_columns": list(X_train.columns),
             "category_mappings": extract_category_mappings(indexer),
+            "validation_roc_auc": roc_auc,
+            "validation_pr_auc": pr_auc,
         },
-        config.BASELINE_MODEL_PATH,
+        config.TRAINING_BASELINE_MODEL_PATH,
     )
-    print(f"[baseline] saved -> {config.BASELINE_MODEL_PATH}")
+    print(f"[baseline] saved -> {config.TRAINING_BASELINE_MODEL_PATH}")
 
 
 if __name__ == "__main__":
