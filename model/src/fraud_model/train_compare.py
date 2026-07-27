@@ -22,7 +22,12 @@ from xgboost import XGBClassifier
 
 from . import config
 from .data import DatasetNotFoundError, load_train_weighted, load_validation
-from .features import apply_categorical_indexer, fit_categorical_indexer, to_pandas_xy
+from .features import (
+    align_feature_columns,
+    apply_categorical_indexer,
+    fit_categorical_indexer,
+    to_pandas_xy,
+)
 
 
 def _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val):
@@ -51,7 +56,7 @@ def main() -> dict:
 
     X_train, y_train, w_train = to_pandas_xy(train_df)
     X_val, y_val, _ = to_pandas_xy(val_df)
-    X_val = X_val.reindex(columns=X_train.columns, fill_value=-999)
+    X_val = align_feature_columns(X_val, list(X_train.columns))
 
     models = {
         "logreg": make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000)),

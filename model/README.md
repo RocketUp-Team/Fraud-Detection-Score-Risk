@@ -98,6 +98,22 @@ LightGBM tuned — validation ROC-AUC 0.888/PR-AUC 0.482, holdout (1 lần)
 ROC-AUC 0.868/PR-AUC 0.430. Vượt Decision Tree weighted của An (holdout
 PR-AUC 0.298, xem `HANDOVER_TO_QUAN.md`).
 
+**Báo cáo so sánh V1/V2**: xem
+[`../docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md`](../docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md).
+
+Kết quả final đã chạy của `v2`:
+
+| Metric | V1 | V2 |
+|---|---:|---:|
+| Validation ROC-AUC | 0.8877 | 0.8941 |
+| Validation PR-AUC | 0.4820 | 0.4925 |
+| Holdout ROC-AUC | 0.8684 | 0.8796 |
+| Holdout PR-AUC | 0.4298 | 0.4582 |
+
+V2 tốt hơn trên các metric offline hiện có nhưng vẫn là candidate model. V1
+tiếp tục là serving default cho đến khi hoàn tất threshold analysis và kiểm
+tra compatibility với downstream scoring.
+
 ## Kế hoạch retraining an toàn: chuẩn bị `v2`
 
 Nếu data pipeline của An đã thay đổi và cần retrain, không ghi đè artifact cũ.
@@ -140,6 +156,16 @@ docker compose --profile training run --rm model-training \
 `model/data` và `model/artifacts` để dữ liệu/kết quả không mất khi container
 dừng, và tự set `SPARK_MASTER_URL=spark://spark-master:7077` để dùng cluster
 thay vì `local[*]`. Xem Spark UI tại `http://localhost:8080` khi cluster chạy.
+
+Nếu image Spark cluster không resolve được trong Docker Registry, chạy local
+Spark trong Docker bằng script PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model_v2_full.ps1
+```
+
+Script mặc định dùng `model-training-local` với `SPARK_MASTER_URL=local[*]`,
+không ghi đè artifact V1. Các output V2 nằm trong `model/artifacts/v2/`.
 
 ## `score()` — module bàn giao cho Trung (Ngày 5)
 

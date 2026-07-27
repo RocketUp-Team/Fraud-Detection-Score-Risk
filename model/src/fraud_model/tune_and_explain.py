@@ -28,6 +28,7 @@ from xgboost import XGBClassifier
 from . import config
 from .data import DatasetNotFoundError, load_holdout, load_train_weighted, load_validation
 from .features import (
+    align_feature_columns,
     apply_categorical_indexer,
     extract_category_mappings,
     fit_categorical_indexer,
@@ -89,9 +90,9 @@ def main() -> None:
 
     X_train, y_train, w_train = to_pandas_xy(train_df)
     X_val, y_val, _ = to_pandas_xy(val_df)
-    X_val = X_val.reindex(columns=X_train.columns, fill_value=-999)
+    X_val = align_feature_columns(X_val, list(X_train.columns))
     X_holdout, y_holdout, _ = to_pandas_xy(holdout_df)
-    X_holdout = X_holdout.reindex(columns=X_train.columns, fill_value=-999)
+    X_holdout = align_feature_columns(X_holdout, list(X_train.columns))
 
     model_cls = MODEL_CLASSES[best_name]
     best_model, best_pr_auc, best_params = None, -1.0, None

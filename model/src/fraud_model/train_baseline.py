@@ -18,6 +18,7 @@ from sklearn.preprocessing import StandardScaler
 from . import config
 from .data import DatasetNotFoundError, load_train_weighted, load_validation
 from .features import (
+    align_feature_columns,
     apply_categorical_indexer,
     extract_category_mappings,
     fit_categorical_indexer,
@@ -39,7 +40,7 @@ def main() -> None:
 
     X_train, y_train, w_train = to_pandas_xy(train_df)
     X_val, y_val, _ = to_pandas_xy(val_df)
-    X_val = X_val.reindex(columns=X_train.columns, fill_value=-999)
+    X_val = align_feature_columns(X_val, list(X_train.columns))
 
     model = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
     model.fit(X_train, y_train, logisticregression__sample_weight=w_train)
