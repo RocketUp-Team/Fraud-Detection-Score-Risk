@@ -1,52 +1,74 @@
-"""Feature prep tạm thời cho baseline (Ngày 1-2), chạy phân tán bằng Spark.
+"""Feature prep dùng feature contract thật từ An (parquet `model_ready`,
+xem `data/ieee_cis/HANDOVER_TO_QUAN.md` và `DATA_DICTIONARY.md`).
 
-Chỉ dùng cột số (fillna) + StringIndexer cho cột danh mục, KHÔNG có
-aggregation theo card/email/device. Sẽ được thay bằng feature pipeline
-chính thức bàn giao từ An (Ngày 3, xem docs/RISK_SCORING_PLAN.md mục 2 và 3).
+Numeric imputation (median) và missing-category (`__MISSING__`) đã được An xử
+lý trong pipeline Spark, chỉ train trên chronological training rows. Ở đây
+chỉ còn việc encode 7 cột categorical (`config.CATEGORICAL_COLS`) thành số.
 
-`sklearn`/LightGBM/XGBoost/CatBoost không đọc trực tiếp Spark DataFrame —
-dùng `to_pandas_xy()` để convert sang pandas ngay trước bước train, sau khi
-Spark đã làm xong phần xử lý phân tán (fillna, encode).
+StringIndexer PHẢI fit trên `train_weighted`/`train_balanced` rồi áp dụng lại
+(không refit) cho validation/holdout — xem mục "Leakage precautions" trong
+HANDOVER_TO_QUAN.md. `extract_category_mappings()` xuất mapping đó ra dict
+Python thuần để `score.py` encode 1 giao dịch lúc serving mà không cần khởi
+động Spark.
+
+PySpark chỉ được import bên trong từng hàm cần Spark (lazy), không ở
+top-level: backend của Trung import `score.py` → `features.py` khi serving, và
+đường serving (`encode_categoricals_pandas`) không cần Spark. Import
+top-level sẽ buộc backend cài cả PySpark (~300MB) chỉ để chấm 1 giao dịch.
 """
-from pyspark.ml import Pipeline
-from pyspark.ml.feature import StringIndexer
-from pyspark.sql import DataFrame
-
 from . import config
 
-DROP_COLS = {config.ID_COL, config.TIME_COL}
-NUMERIC_TYPES = {"double", "integer", "long", "float", "short", "byte"}
 
+def fit_categorical_indexer(train_df):
+    from pyspark.ml import Pipeline
+    from pyspark.ml.feature import StringIndexer
 
-def prepare_baseline_features(df: DataFrame) -> DataFrame:
-    df = df.drop(*[c for c in DROP_COLS if c in df.columns])
-
-    feature_cols = [c for c in df.columns if c != config.TARGET_COL]
-    numeric_cols = [
-        f.name for f in df.schema.fields if f.name in feature_cols and f.dataType.typeName() in NUMERIC_TYPES
+    cols = [c for c in config.CATEGORICAL_COLS if c in train_df.columns]
+    indexers = [
+        StringIndexer(inputCol=c, outputCol=f"{c}__idx", handleInvalid="keep") for c in cols
     ]
-    categorical_cols = [c for c in feature_cols if c not in numeric_cols]
+    return Pipeline(stages=indexers).fit(train_df)
 
-    if numeric_cols:
-        df = df.fillna(-999, subset=numeric_cols)
 
-    if categorical_cols:
-        indexers = [
-            StringIndexer(inputCol=c, outputCol=f"{c}__idx", handleInvalid="keep")
-            for c in categorical_cols
-        ]
-        df = Pipeline(stages=indexers).fit(df).transform(df)
-        for c in categorical_cols:
-            df = df.drop(c).withColumnRenamed(f"{c}__idx", c)
-
+def apply_categorical_indexer(indexer_model, df):
+    df = indexer_model.transform(df)
+    for stage in indexer_model.stages:
+        col = stage.getInputCol()
+        idx_col = stage.getOutputCol()
+        if idx_col in df.columns:
+            df = df.drop(col).withColumnRenamed(idx_col, col)
     return df
 
 
-def to_pandas_xy(df: DataFrame):
-    """Convert Spark DataFrame đã feature-engineered sang pandas (X, y) —
-    điểm chuyển giao duy nhất giữa xử lý phân tán (Spark) và train model
-    in-memory (sklearn/LightGBM/XGBoost/CatBoost)."""
+def extract_category_mappings(indexer_model) -> dict:
+    """category value -> integer code, cho từng cột categorical đã fit."""
+    return {
+        stage.getInputCol(): {label: idx for idx, label in enumerate(stage.labels)}
+        for stage in indexer_model.stages
+    }
+
+
+def encode_categoricals_pandas(row: dict, mappings: dict) -> dict:
+    """Encode 1 giao dịch (dict tên_cột -> giá trị thô) bằng mapping đã fit
+    trên train — dùng lúc serving (score.py), không cần Spark. Giá trị chưa
+    từng thấy lúc train được gán code cuối cùng, khớp `handleInvalid="keep"`
+    của StringIndexer."""
+    encoded = dict(row)
+    for col, mapping in mappings.items():
+        if col in encoded:
+            encoded[col] = mapping.get(encoded[col], len(mapping))
+    return encoded
+
+
+def to_pandas_xy(df, weight_col: str = config.WEIGHT_COL):
+    """Convert Spark DataFrame sang pandas (X, y, sample_weight) — điểm
+    chuyển giao duy nhất giữa xử lý phân tán (Spark) và train model in-memory
+    (sklearn/LightGBM/XGBoost/CatBoost). `sample_weight` là None nếu dataset
+    không có cột `class_weight` (validation/holdout/train_original)."""
     pdf = df.toPandas()
     y = pdf[config.TARGET_COL] if config.TARGET_COL in pdf.columns else None
-    X = pdf.drop(columns=[config.TARGET_COL]) if config.TARGET_COL in pdf.columns else pdf
-    return X, y
+    sample_weight = pdf[weight_col] if weight_col in pdf.columns else None
+
+    drop_cols = {config.ID_COL, config.TIME_COL, config.TARGET_COL, weight_col}
+    X = pdf.drop(columns=[c for c in drop_cols if c in pdf.columns])
+    return X, y, sample_weight

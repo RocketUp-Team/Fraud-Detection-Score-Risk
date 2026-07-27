@@ -48,11 +48,64 @@ Trong lúc chờ bàn giao, mỗi phần phát triển độc lập với mock/s
 docker compose up --build
 ```
 
-Khởi động: PostgreSQL (`5432`), backend FastAPI stub (`8000`, `/health`,
-`/transactions` mock), frontend Vite stub (`5173`). `model/` chưa phải một
-service riêng — theo kế hoạch, nó được đóng gói thành module Python
-(`fraud_model.score.score()`) và Trung import trực tiếp vào backend ở
-Ngày 5, không gọi qua network.
+Rồi mở `http://localhost:5173` → **Nạp dữ liệu** để nạp giao dịch (hoặc dùng CLI:
+`docker compose exec backend uv run python -m fraud_backend.seed`).
+
+Đã chạy thử thật trên colima: 3 service lên, model LightGBM nạp trong container,
+nạp dữ liệu ghi vào Postgres, review lưu được, frontend phục vụ bundle đã build.
+
+**Parquet không nằm trong image** (411MB, và `.dockerignore` loại `data/`) mà
+mount lúc chạy. Mặc định lấy `./data/processed`. Nếu dữ liệu để chỗ khác — hoặc
+bạn dùng colima trên macOS, nơi `~/Documents` bị chặn bởi cơ chế bảo mật TCC:
+
+```bash
+DATA_PROCESSED_DIR=$HOME/du-lieu/processed docker compose up
+```
+
+Thiếu mount này thì màn "Nạp dữ liệu" báo *"Chưa có dữ liệu đã tiền xử lý"*.
+
+> **Nếu máy có cả Docker Desktop và colima**: cài Docker Desktop sẽ đổi context
+> mặc định sang `desktop-linux`, và `docker compose ps` sẽ báo rỗng dù container
+> đang chạy trên colima. Kiểm bằng `docker context ls`, đổi bằng
+> `docker context use colima`.
+
+Khởi động: PostgreSQL (`5432`), backend FastAPI (`8000`, docs ở `/docs`),
+frontend dashboard (`5173`).
+
+| Cổng | Dịch vụ | Đăng nhập |
+|---|---|---|
+| 5173 | Dashboard | — |
+| 8000 | API (`/docs` là Swagger) | — |
+| 5432 | PostgreSQL | user/pass/db đều là `fraud` |
+| 8081 | Adminer — xem DB, bật bằng `--profile tools` | như trên |
+
+Xem database: `docker compose --profile tools up -d adminer` rồi mở
+**http://localhost:8081/?pgsql=db&username=fraud&db=fraud** (mật khẩu `fraud`).
+Chi tiết ở [`backend/README.md`](./backend/README.md) mục 3. `model/` không phải service riêng — nó là module
+Python (`fraud_model.score.score()`) mà backend import trực tiếp, không gọi
+qua network.
+
+Build context của backend là **repo root** (không phải `./backend`) vì backend
+có path dependency tới `../model`.
+
+## Chạy không cần Docker
+
+Hai terminal:
+
+```bash
+# 1. Backend (Python ≥ 3.11 + uv)
+cd backend && uv sync
+uv run python -m fraud_backend.seed --limit 300   # SQLite, không cần Postgres
+uv run uvicorn fraud_backend.main:app --reload
+
+# 2. Frontend (Node ≥ 20.19)
+cd frontend && npm install && npm run dev         # http://localhost:5173
+```
+
+Frontend chạy được cả khi chưa có backend: `VITE_USE_MOCKS=true npm run dev`.
+
+Hợp đồng API dùng chung giữa hai phía: [`docs/API_CONTRACT.md`](./docs/API_CONTRACT.md).
+Design system của dashboard: [`design-system/risk-scoring-engine/MASTER.md`](./design-system/risk-scoring-engine/MASTER.md).
 
 ## Training model qua Spark cluster (profile riêng)
 

@@ -38,8 +38,15 @@
   "split_boundaries": {
     "q70_transaction_dt": 10432902.0,
     "q85_transaction_dt": 13136653.0
+    "q70_transaction_dt": 10432902.0,
+    "q85_transaction_dt": 13136653.0
   },
   "split_counts": {
+    "train": 412956,
+    "validation": 88490,
+    "holdout": 89094,
+    "q70_transaction_dt": 10432902.0,
+    "q85_transaction_dt": 13136653.0
     "train": 412956,
     "validation": 88490,
     "holdout": 89094,
@@ -53,6 +60,8 @@
     "legitimate_to_fraud_ratio": 27.579586700866283
   },
   "class_weights": {
+    "legitimate": 0.5182238463584935,
+    "fraud": 14.218289491805537
     "legitimate": 0.5182238463584935,
     "fraud": 14.218289491805537
   },

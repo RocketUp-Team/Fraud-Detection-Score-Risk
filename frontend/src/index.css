@@ -1,111 +1,334 @@
+/**
+ * Design tokens — sinh từ skill ui-ux-pro-max.
+ * Style: "Modern Dark (Cinema Mobile)" + palette Luxury/Premium
+ *   · dark là chế độ mặc định, light là chế độ đầy đủ (người dùng tự chọn)
+ *   · accent vàng gold, glassmorphism, nền tối sâu (KHÔNG dùng #000 thuần)
+ *   · density cao (dashboard) · motion 4/10 (expo.out easing)
+ * Nguồn: design-system/risk-scoring-engine/MASTER.md
+ *
+ * Cách chọn theme (xem src/lib/prefs.ts):
+ *   - `[data-theme="light"|"dark"]` trên <html> = người dùng chọn tay, thắng tất cả
+ *   - không có attribute = theo `prefers-color-scheme` của hệ thống
+ *
+ * Component KHÔNG hardcode hex — luôn dùng var(--color-*) / var(--space-*).
+ */
+
+/* ============ DARK (mặc định) ============ */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Nền tối phân lớp. Không #000: OLED smear + mất cảm giác chiều sâu */
+  --color-background: #0a0a0c;
+  --color-surface: #121216;
+  --color-surface-2: #1a1a20;
+  --color-surface-glass: rgb(18 18 22 / 0.72);
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --color-text: #f0eee9;
+  --color-text-muted: #9a958c;
+  --color-foreground: #faf8f4;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --color-border: #26262e;
+  --color-border-strong: #33333d;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+  /* Gold: dấu ấn premium. Sáng hơn #A16207 của palette gốc để đạt
+     contrast ≥ 4.5:1 trên nền tối (bản gốc chỉ đạt 3:1, và trên nền sáng). */
+  --color-accent: #e3b341;
+  --color-accent-strong: #f0c75e;
+  --color-accent-dim: rgb(227 179 65 / 0.14);
+  --color-accent-line: rgb(227 179 65 / 0.3);
+  --color-on-accent: #17140c;
+
+  --color-primary: #e3b341;
+  --color-on-primary: #17140c;
+  --color-secondary: #6f6a60;
+  --color-muted: #1a1a20;
+  --color-destructive: #f0666f;
+  --color-ring: #e3b341;
+
+  --color-band-low: #5fd68a;
+  --color-band-low-bg: rgb(95 214 138 / 0.12);
+  --color-band-guarded: #a9d94f;
+  --color-band-guarded-bg: rgb(169 217 79 / 0.12);
+  --color-band-medium: #e8c14a;
+  --color-band-medium-bg: rgb(232 193 74 / 0.12);
+  --color-band-high: #f2934a;
+  --color-band-high-bg: rgb(242 147 74 / 0.12);
+  --color-band-critical: #f0666f;
+  --color-band-critical-bg: rgb(240 102 111 / 0.12);
+
+  /* SHAP: dương = đẩy về fraud, âm = kéo về legit */
+  --color-shap-positive: #f0666f;
+  --color-shap-negative: #6ba7f5;
+
+  --glow-1: rgb(227 179 65 / 0.07);
+  --glow-2: rgb(107 167 245 / 0.05);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 18px 48px rgb(0 0 0 / 0.55);
+  --shadow-accent: 0 6px 18px rgb(227 179 65 / 0.18);
+  --hairline: inset 0 1px 0 rgb(255 255 255 / 0.04);
+
+  color-scheme: dark;
+
+  /* ---- Token không phụ thuộc theme ---- */
+  /* Density cao: thang spacing rút lại một bậc so với trước */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 10px;
+  --space-4: 14px;
+  --space-5: 18px;
+  --space-6: 24px;
+  --space-7: 36px;
+
+  --radius-sm: 4px;
+  --radius-md: 7px;
+  --radius-lg: 11px;
+  --radius-xl: 16px;
+
+  --sidebar-w: 232px;
+  --sidebar-rail-w: 64px;
+
+  /* Nút trợ lý nổi. `--fab-safe` là khoảng trống chừa ở đáy nội dung để nút
+     không bao giờ đè lên phần cuối trang (trước đây nó che nút phân trang). */
+  --fab-size: 46px;
+  --fab-safe: 62px;
+
+  /* Thang chữ — dùng biến để cả app gọn/giãn cùng lúc, không sửa rải rác */
+  --text-2xs: 0.625rem; /* 10px — huy hiệu nhỏ */
+  --text-xs: 0.6875rem; /* 11px — nhãn uppercase */
+  --text-cap: 0.75rem; /* 12px — caption, legend */
+  --text-sm: 0.8125rem; /* 13px — phụ đề, hint */
+  --text-md: 0.875rem; /* 14px — body của bảng/form */
+  --text-base: 0.9375rem; /* 15px — body chính */
+  --text-lg: 1.0625rem; /* 17px — H2 card */
+  --text-xl: 1.375rem; /* 22px — H1 trang */
+  --text-2xl: 1.75rem; /* 28px — số KPI lớn */
+  --text-3xl: 2.25rem; /* 36px — điểm rủi ro ở màn chi tiết */
+
+  /* Inter Tight cho tiêu đề (hẹp ngang), Inter cho UI (x-height cao nên đọc
+     tốt ở cỡ nhỏ), JetBrains Mono cho số liệu. Cả ba có subset vietnamese. */
+  --font-display: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Motion 4/10 — expo.out. "Premium" là mượt, không phải nhanh. */
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition: 240ms var(--ease-premium);
+  --transition-fast: 160ms var(--ease-premium);
+}
+
+/* ============ LIGHT ============
+   Khối token light xuất hiện 2 lần vì CSS không cho gộp media query vào
+   selector list: một lần cho lựa chọn tay, một lần cho hệ thống. Sửa thì
+   phải sửa cả hai. */
+
+:root[data-theme='light'] {
+  --color-background: #f7f6f3;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1efea;
+  --color-surface-glass: rgb(255 255 255 / 0.78);
+
+  --color-text: #1c1917;
+  --color-text-muted: #6b655c;
+  --color-foreground: #0c0a09;
+
+  --color-border: #ddd9d2;
+  --color-border-strong: #c9c4bb;
+
+  /* Trên nền sáng dùng gold đậm để chữ đạt contrast 4.5:1 */
+  --color-accent: #8a5a05;
+  --color-accent-strong: #6f4804;
+  --color-accent-dim: rgb(138 90 5 / 0.1);
+  --color-accent-line: rgb(138 90 5 / 0.28);
+  --color-on-accent: #ffffff;
+
+  --color-primary: #1c1917;
+  --color-on-primary: #ffffff;
+  --color-secondary: #78716c;
+  --color-muted: #f1efea;
+  --color-destructive: #c2262f;
+  --color-ring: #8a5a05;
+
+  --color-band-low: #16794a;
+  --color-band-low-bg: rgb(22 121 74 / 0.1);
+  --color-band-guarded: #4a7010;
+  --color-band-guarded-bg: rgb(74 112 16 / 0.1);
+  --color-band-medium: #8a6206;
+  --color-band-medium-bg: rgb(138 98 6 / 0.1);
+  --color-band-high: #a8460b;
+  --color-band-high-bg: rgb(168 70 11 / 0.1);
+  --color-band-critical: #b3202a;
+  --color-band-critical-bg: rgb(179 32 42 / 0.1);
+
+  --color-shap-positive: #b3202a;
+  --color-shap-negative: #1a4fa0;
+
+  --glow-1: rgb(138 90 5 / 0.05);
+  --glow-2: rgb(26 79 160 / 0.04);
+
+  --shadow-sm: 0 1px 2px rgb(28 25 23 / 0.06);
+  --shadow-md: 0 4px 16px rgb(28 25 23 / 0.08);
+  --shadow-lg: 0 18px 48px rgb(28 25 23 / 0.12);
+  --shadow-accent: 0 6px 18px rgb(138 90 5 / 0.16);
+  --hairline: inset 0 1px 0 rgb(255 255 255 / 0.6);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  /* Hệ thống sáng, và người dùng CHƯA chọn tối */
+  :root:not([data-theme='dark']) {
+    --color-background: #f7f6f3;
+    --color-surface: #ffffff;
+    --color-surface-2: #f1efea;
+    --color-surface-glass: rgb(255 255 255 / 0.78);
+
+    --color-text: #1c1917;
+    --color-text-muted: #6b655c;
+    --color-foreground: #0c0a09;
+
+    --color-border: #ddd9d2;
+    --color-border-strong: #c9c4bb;
+
+    --color-accent: #8a5a05;
+    --color-accent-strong: #6f4804;
+    --color-accent-dim: rgb(138 90 5 / 0.1);
+    --color-accent-line: rgb(138 90 5 / 0.28);
+    --color-on-accent: #ffffff;
+
+    --color-primary: #1c1917;
+    --color-on-primary: #ffffff;
+    --color-secondary: #78716c;
+    --color-muted: #f1efea;
+    --color-destructive: #c2262f;
+    --color-ring: #8a5a05;
+
+    --color-band-low: #16794a;
+    --color-band-low-bg: rgb(22 121 74 / 0.1);
+    --color-band-guarded: #4a7010;
+    --color-band-guarded-bg: rgb(74 112 16 / 0.1);
+    --color-band-medium: #8a6206;
+    --color-band-medium-bg: rgb(138 98 6 / 0.1);
+    --color-band-high: #a8460b;
+    --color-band-high-bg: rgb(168 70 11 / 0.1);
+    --color-band-critical: #b3202a;
+    --color-band-critical-bg: rgb(179 32 42 / 0.1);
+
+    --color-shap-positive: #b3202a;
+    --color-shap-negative: #1a4fa0;
+
+    --glow-1: rgb(138 90 5 / 0.05);
+    --glow-2: rgb(26 79 160 / 0.04);
+
+    --shadow-sm: 0 1px 2px rgb(28 25 23 / 0.06);
+    --shadow-md: 0 4px 16px rgb(28 25 23 / 0.08);
+    --shadow-lg: 0 18px 48px rgb(28 25 23 / 0.12);
+    --shadow-accent: 0 6px 18px rgb(138 90 5 / 0.16);
+    --hairline: inset 0 1px 0 rgb(255 255 255 / 0.6);
+
+    color-scheme: light;
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  /* Giữ 16px làm gốc rem (a11y), phần lớn UI dùng --text-* nhỏ hơn */
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  /* Đổi theme mượt, nhưng không animate màu chữ khi cuộn */
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+/* Ánh sáng môi trường: 2 vệt sáng rất mờ, tĩnh (không animate — tránh tốn
+   main thread và gây phân tán trên dashboard số liệu). */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, var(--glow-1), transparent 60%),
+    radial-gradient(50rem 34rem at 92% 4%, var(--glow-2), transparent 60%);
 }
 
 h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
+h2,
+h3 {
   margin: 0;
+  color: var(--color-foreground);
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+/* Inter Tight + tracking âm: tiêu đề chắc và hẹp ngang, đỡ chiếm chỗ */
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.018em;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+h3 {
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+/* Số liệu: mono + tabular để các cột số thẳng hàng, dễ so sánh */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--color-accent);
+}
+
+/* Focus ring luôn hiện — không bao giờ outline: none */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

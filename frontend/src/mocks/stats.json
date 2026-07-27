@@ -1,0 +1,13 @@
+{
+  "total": 348,
+  "pending_review": 96,
+  "by_band": [
+    { "band": "low", "count": 171 },
+    { "band": "guarded", "count": 74 },
+    { "band": "medium", "count": 52 },
+    { "band": "high", "count": 33 },
+    { "band": "critical", "count": 18 }
+  ],
+  "avg_risk_score": 28.4,
+  "high_risk_amount": 128450.75
+}

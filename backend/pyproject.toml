@@ -10,7 +10,22 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi[standard]>=0.139.2",
     "uvicorn>=0.51.0",
+    "sqlalchemy>=2.0.36",
+    # Driver Postgres (docker compose). SQLite dùng driver có sẵn của Python.
+    "psycopg[binary]>=3.2.3",
+    # Model của Quân — path dependency, gọi trực tiếp không qua network
+    # (docs/RISK_SCORING_PLAN.md mục 2).
+    "fraud-model",
 ]
+
+[tool.uv.sources]
+fraud-model = { path = "../model", editable = true }
+
+[tool.uv]
+# shap -> numba -> llvmlite. Với numpy rất mới mà `model/` pin, resolver tụt về
+# numba/llvmlite đời cũ (llvmlite 0.36 không có wheel cho Python 3.11 và build
+# from source thì fail). Ghim sàn để luôn lấy bản có wheel.
+constraint-dependencies = ["numba>=0.62", "llvmlite>=0.45"]
 
 [project.scripts]
 fraud-backend = "fraud_backend:main"
@@ -18,3 +33,20 @@ fraud-backend = "fraud_backend:main"
 [build-system]
 requires = ["uv_build>=0.11.17,<0.12.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.15.22",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint.per-file-ignores]
+# B008: `Depends()`/`File()` trong giá trị mặc định là đúng cách dùng của
+# FastAPI, không phải lỗi.
+"src/fraud_backend/routers/*.py" = ["B008"]

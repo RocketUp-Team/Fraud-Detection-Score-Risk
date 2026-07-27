@@ -1,13 +1,31 @@
+# Build context là REPO ROOT (không phải ./backend) vì backend có path
+# dependency tới ../model — xem docker-compose.yml.
 FROM python:3.11-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-COPY pyproject.toml uv.lock ./
+# libgomp1: LightGBM/XGBoost cần OpenMP runtime lúc predict.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy manifest của cả hai package trước để cache layer cài deps.
+COPY backend/pyproject.toml backend/uv.lock ./backend/
+COPY model/pyproject.toml model/README.md ./model/
+COPY model/src ./model/src
+
+WORKDIR /app/backend
+# --frozen: build phải dùng đúng phiên bản trong uv.lock, không resolve lại.
+# `uv lock --check` phải pass trước khi build, nếu không lệnh này sẽ báo lỗi
+# ngay thay vì âm thầm cài phiên bản khác với môi trường dev.
 RUN uv sync --frozen --no-install-project
 
-COPY . .
+COPY backend ./
 RUN uv sync --frozen
+
+# Model artifact (final_model.joblib) — score() load lúc startup.
+COPY model/artifacts /app/model/artifacts
 
 EXPOSE 8000
 CMD ["uv", "run", "uvicorn", "fraud_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
