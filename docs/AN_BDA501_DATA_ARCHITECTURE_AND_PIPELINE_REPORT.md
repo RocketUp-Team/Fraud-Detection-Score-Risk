@@ -869,6 +869,17 @@ train_df = spark.read.parquet(
 )
 ```
 
+Ví dụ PyArrow/Pandas:
+
+```python
+from pathlib import Path
+import pyarrow.dataset as ds
+
+root = Path("data/processed/ieee_cis_fraud_risk/model_ready/train_weighted")
+table = ds.dataset(root, format="parquet").to_table()
+pdf = table.to_pandas()
+```
+
 Nếu dùng weighted training:
 
 - feature columns lấy từ `artifacts/preprocessing/feature_order.json`
@@ -877,7 +888,7 @@ Nếu dùng weighted training:
 
 Điều này cho thấy phần việc của An thực sự đã biến raw CSV thành downstream-ready Parquet thay vì chỉ tạo một tập script preprocessing rời rạc.
 
-## 27. Decision Tree Baseline for BDA501
+## 27. MLlib Decision Tree Demonstration
 
 Decision Tree trong pipeline không được xem là final model của project, mà là baseline để:
 
@@ -895,7 +906,7 @@ Theo `reports/decision_tree_metrics.json`:
 
 Kết quả này cho thấy model-ready variants thực sự tạo khác biệt hành vi học máy; đặc biệt weighted variant cải thiện mạnh recall và PR-AUC so với baseline distribution.
 
-## 28. BDA501 Requirement Mapping
+## 28. Mapping to BDA501
 
 Phần việc của An đáp ứng trực tiếp các yêu cầu BDA501 sau:
 
@@ -911,7 +922,39 @@ Phần việc của An đáp ứng trực tiếp các yêu cầu BDA501 sau:
 | Output artifacts | Parquet + schema + reports + manifest | Đạt |
 | Handover readiness | model-ready contract + verifier pass | Đạt |
 
-## 29. Conclusion
+## 29. An’s Contributions
+
+Chỉ xét trong phạm vi Data Processing and EDA, phần việc của An có thể tóm tắt như sau:
+
+| Work Item | Method | Deliverable | Outcome |
+| --- | --- | --- | --- |
+| Raw-data discovery | candidate-path resolution + required-file checks | source discovery logic + dataset inventory | xác định đúng 4 file IEEE-CIS và chứng minh quy mô dữ liệu |
+| Typed Spark ingestion | explicit schema + Spark CSV reader | raw typed DataFrames | tránh infer-schema drift |
+| Schema normalization | normalize identity headers | normalized train/test identity schema | đồng bộ `id-01 -> id_01` |
+| Join and curated layer | left join by `TransactionID` + join audit | `curated/train_joined`, `curated/test_joined`, `join_audit.csv` | giữ nguyên transaction grain |
+| Data quality audit | key checks + invalid-field summaries | `data_quality_summary.csv`, `duplicate_summary.csv`, `invalid_records_summary.csv` | mô tả chất lượng dữ liệu trước modeling |
+| Distributed EDA | Spark SQL, groupBy, agg, Window | `reports/eda/*`, `reports/figures/*` | trích insight định lượng từ dữ liệu thật |
+| Missing-value strategy | train-only medians + category policy + missing indicators | `numeric_medians.json`, `category_policy.json`, `missingness_*` reports | giảm leakage và giữ missingness như signal |
+| Outlier transformation | train-only quantiles/IQR + capped/flag features | `outlier_thresholds.json`, `numeric_outlier_profile.csv` | chuẩn hóa amount anomalies mà không drop blind |
+| Chronological split | `TransactionDT`-based 70/15/15 split | `splits/*`, `split_summary.csv` | bảo toàn temporal order |
+| Feature engineering | time, amount, missingness, entity, historical aggregates | `feature_catalog.csv`, `feature_store/*`, `feature_order.json` | tạo feature set model-ready có thể tái sử dụng |
+| Imbalance handling | original/weighted/balanced train variants | `model_ready/train_*`, `imbalance_comparison.csv` | hỗ trợ downstream training strategy |
+| Handover contract | Parquet export + schema/version artifacts + docs | `model_ready/*`, `MODEL_READY_DATA_CONTRACT.md`, `HANDOVER_PROCESSED_DATA.md` | downstream model team không phải preprocess lại |
+
+## 30. Limitations
+
+Các giới hạn hiện tại của phần data pipeline là giới hạn gắn với dữ liệu và batch processing, không phải với backend hay serving:
+
+- Pipeline làm việc trên static historical dataset; không có cơ chế online feature generation.
+- `TransactionDT` chỉ là relative time, không phải calendar timestamp thực; các time features vì vậy là proxy theo thứ tự thời gian.
+- Nhiều feature `C*`, `D*`, `M*`, `V*` là anonymized, nên khó diễn giải business semantics sâu.
+- Một số cột identity có extreme missingness; pipeline giữ lại logic missing-aware nhưng không thể khôi phục business meaning bị thiếu.
+- Device, email và entity aggregates là batch historical lookups; repository hiện tại không có real-time feature store.
+- Output hiện tối ưu cho downstream batch model training, không nhằm sinh full-feature raw-online inference tại thời gian thực.
+- Artifact hiện không cung cấp một bảng tổng hợp before-vs-after missingness cho từng split sau transform; report chỉ khẳng định các số có evidence trực tiếp.
+- Phần data hiện sử dụng static batch processing.
+
+## 31. Conclusion
 
 Từ góc độ Data Processing and EDA, phần việc của An đã xây dựng được một kiến trúc dữ liệu khá hoàn chỉnh cho IEEE-CIS Fraud Detection. Pipeline không dừng ở mức “đọc CSV và làm vài biểu đồ”, mà đã tổ chức thành một flow có:
 
