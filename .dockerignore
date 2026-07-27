@@ -3,6 +3,9 @@
 .git
 .github
 data/
+!data/ieee_cis/
+!data/ieee_cis/pipeline/
+!data/ieee_cis/pipeline/ieee_cis_preprocess.py
 docs/
 design-system/
 ui-ux-pro-max-skill/
@@ -16,4 +19,5 @@ model/catboost_info
 **/.pytest_cache
 **/.ipynb_checkpoints
 *.ipynb
+!ieee_cis_fraud_risk_data_pipeline.ipynb
 .DS_Store

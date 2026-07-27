@@ -29,8 +29,11 @@ def score_features(features: dict) -> dict:
         "risk_score": score,
         "risk_band": band,
         "decision": decision,
+        "scoring_mode": result.get("scoring_mode", "partial_demo"),
         "shap_top5": result.get("shap"),
         "model_version": scorer.info["model_version"],
+        "processing_version": scorer.info.get("processing_version"),
+        "feature_schema_version": scorer.info.get("feature_schema_version"),
         "scored_at": datetime.now(UTC),
     }
 

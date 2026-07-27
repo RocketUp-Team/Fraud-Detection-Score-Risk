@@ -64,10 +64,15 @@ class BandRange(BaseModel):
 class MetaOut(BaseModel):
     model_version: str
     model_name: str
+    processing_version: str | None = None
+    feature_schema_version: str | None = None
     explainability: bool
     # Số feature model mong đợi. Frontend dùng để nói rõ "đã cung cấp 9/53",
     # vì chấm ad-hoc chỉ điền được một phần, phần còn lại là giá trị mặc định.
     n_features: int
+    required_features: list[str] = []
+    optional_features: list[str] = []
+    defaultable_features: list[str] = []
     bands: list[BandRange]
     # Chỉ có khi model thật chưa dùng được (xem scoring._HeuristicScorer).
     warning: str | None = None
@@ -104,8 +109,11 @@ class ScoreResponse(BaseModel):
     risk_score: int
     risk_band: RiskBand
     decision: Decision
+    scoring_mode: Literal["full_feature", "partial_demo"]
     shap_top5: list[ShapContribution] | None
     model_version: str
+    processing_version: str | None = None
+    feature_schema_version: str | None = None
     scored_at: datetime
 
 
