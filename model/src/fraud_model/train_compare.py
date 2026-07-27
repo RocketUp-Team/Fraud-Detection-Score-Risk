@@ -1,6 +1,7 @@
 """Ngày 3: so sánh Logistic Regression / LightGBM / XGBoost / CatBoost trên
 feature contract thật của An (Quân). Ghi kết quả ra
-`artifacts/model_comparison.json` để `tune_and_explain.py` (Ngày 4) đọc lại.
+`artifacts/<version>/model_comparison_<version>.json` để `tune_and_explain.py`
+(Ngày 4) đọc lại.
 
 Train trên `train_weighted` (sample_weight = cột `class_weight`), đánh giá
 trên `validation`. KHÔNG chạm `holdout` ở bước so sánh model — chỉ đánh giá
@@ -21,7 +22,12 @@ from xgboost import XGBClassifier
 
 from . import config
 from .data import DatasetNotFoundError, load_train_weighted, load_validation
-from .features import apply_categorical_indexer, fit_categorical_indexer, to_pandas_xy
+from .features import (
+    align_feature_columns,
+    apply_categorical_indexer,
+    fit_categorical_indexer,
+    to_pandas_xy,
+)
 
 
 def _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val):
@@ -50,7 +56,7 @@ def main() -> dict:
 
     X_train, y_train, w_train = to_pandas_xy(train_df)
     X_val, y_val, _ = to_pandas_xy(val_df)
-    X_val = X_val.reindex(columns=X_train.columns, fill_value=-999)
+    X_val = align_feature_columns(X_val, list(X_train.columns))
 
     models = {
         "logreg": make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000)),
@@ -70,10 +76,18 @@ def main() -> dict:
     best_name = max(results, key=lambda n: results[n]["pr_auc"])
     print(f"[compare] best model by validation PR-AUC: {best_name}")
 
-    config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-    with open(config.COMPARISON_RESULTS_PATH, "w") as f:
-        json.dump({"results": results, "best_model": best_name}, f, indent=2)
-    print(f"[compare] saved -> {config.COMPARISON_RESULTS_PATH}")
+    config.TRAINING_ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    with open(config.TRAINING_COMPARISON_RESULTS_PATH, "w") as f:
+        json.dump(
+            {
+                "model_version": config.TRAINING_MODEL_VERSION,
+                "results": results,
+                "best_model": best_name,
+            },
+            f,
+            indent=2,
+        )
+    print(f"[compare] saved -> {config.TRAINING_COMPARISON_RESULTS_PATH}")
 
     return {"results": results, "best_model": best_name}
 

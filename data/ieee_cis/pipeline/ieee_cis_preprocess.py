@@ -10,15 +10,20 @@ import logging
 import os
 import platform
 import re
+import shutil
 import sys
 import time
+from datetime import datetime, timezone
 from functools import reduce
 from pathlib import Path
 from typing import Iterable
 
-import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import pandas as pd
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 try:
     from IPython.display import Markdown, display
@@ -42,6 +47,17 @@ except ModuleNotFoundError as exc:
         "PySpark is not installed in the active environment. Install the requirements or run the supplied Docker image."
     ) from exc
 
+from pipeline.contract_utils import (
+    FEATURE_SCHEMA_VERSION,
+    PIPELINE_VERSION,
+    PROCESSING_VERSION,
+    atomic_write_json,
+    atomic_write_text,
+    schema_hash,
+    sha256_file,
+    utc_now_iso,
+)
+
 SEED = int(os.getenv("PIPELINE_SEED", "42"))
 np.random.seed(SEED)
 
@@ -57,6 +73,12 @@ REQUIRED_FILES = [
     "test_identity.csv",
 ]
 OPTIONAL_FILES = ["sample_submission.csv"]
+RAW_SCHEMA_ARTIFACTS = {
+    "train_transaction": "raw_train_transaction_schema.json",
+    "train_identity": "raw_train_identity_schema.json",
+    "test_transaction": "raw_test_transaction_schema.json",
+    "test_identity": "raw_test_identity_schema.json",
+}
 
 
 def _existing_path(value: str | None) -> Path | None:
@@ -83,13 +105,11 @@ def contains_required_files(directory: Path) -> bool:
     return directory.is_dir() and all((directory / name).is_file() for name in REQUIRED_FILES)
 
 
-def resolve_raw_data_dir(project_root: Path) -> Path:
+def candidate_raw_data_dirs(project_root: Path) -> list[Path]:
     candidates: list[Path] = []
     env_raw = os.getenv("IEEE_CIS_DATA_DIR")
     if env_raw:
         candidates.append(Path(env_raw).expanduser())
-    if os.name == "nt":
-        candidates.append(WINDOWS_RAW_DATA_DIR)
     candidates.extend([
         project_root / "data" / "data" / "ieee-fraud-detection",
         project_root / "data" / "ieee-fraud-detection",
@@ -97,6 +117,20 @@ def resolve_raw_data_dir(project_root: Path) -> Path:
         project_root / "data" / "raw",
         Path("/app/data/raw"),
     ])
+    if os.name == "nt":
+        candidates.append(WINDOWS_RAW_DATA_DIR)
+    deduped: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        candidate_str = str(candidate)
+        if candidate_str not in seen:
+            deduped.append(candidate)
+            seen.add(candidate_str)
+    return deduped
+
+
+def resolve_raw_data_dir(project_root: Path) -> Path:
+    candidates = candidate_raw_data_dirs(project_root)
     for candidate in candidates:
         candidate = candidate.resolve()
         if contains_required_files(candidate):
@@ -117,13 +151,35 @@ PROJECT_ROOT = resolve_project_root()
 RAW_DATA_DIR = resolve_raw_data_dir(PROJECT_ROOT)
 OUTPUT_DIR = resolve_output_dir(PROJECT_ROOT)
 REPORTS_DIR = OUTPUT_DIR / "reports"
+EDA_REPORTS_DIR = REPORTS_DIR / "eda"
 FIGURES_DIR = REPORTS_DIR / "figures"
 FEATURE_STORE_DIR = OUTPUT_DIR / "feature_store"
 MODEL_READY_DIR = OUTPUT_DIR / "model_ready"
-MODEL_DIR = OUTPUT_DIR / "artifacts" / "decision_tree_demo"
+CURATED_DIR = OUTPUT_DIR / "curated"
+SPLITS_DIR = OUTPUT_DIR / "splits"
+ARTIFACTS_DIR = OUTPUT_DIR / "artifacts"
+PREPROCESSING_ARTIFACTS_DIR = ARTIFACTS_DIR / "preprocessing"
+SCHEMA_ARTIFACTS_DIR = ARTIFACTS_DIR / "schema"
+MODEL_DIR = ARTIFACTS_DIR / "demo_model"
 DEMO_DIR = OUTPUT_DIR / "demo"
+QUARANTINE_DIR = OUTPUT_DIR / "quarantine"
 SPARK_LOCAL_DIR = OUTPUT_DIR / "spark-local"
-for directory in [REPORTS_DIR, FIGURES_DIR, FEATURE_STORE_DIR, MODEL_READY_DIR, MODEL_DIR.parent, DEMO_DIR, SPARK_LOCAL_DIR]:
+for directory in [
+    REPORTS_DIR,
+    EDA_REPORTS_DIR,
+    FIGURES_DIR,
+    FEATURE_STORE_DIR,
+    CURATED_DIR,
+    SPLITS_DIR,
+    MODEL_READY_DIR,
+    ARTIFACTS_DIR,
+    PREPROCESSING_ARTIFACTS_DIR,
+    SCHEMA_ARTIFACTS_DIR,
+    MODEL_DIR,
+    DEMO_DIR,
+    QUARANTINE_DIR,
+    SPARK_LOCAL_DIR,
+]:
     directory.mkdir(parents=True, exist_ok=True)
 
 RUN_FULL_PROFILE = os.getenv("RUN_FULL_PROFILE", "true").lower() in {"1", "true", "yes"}
@@ -204,9 +260,11 @@ def read_csv_header(path: Path) -> list[str]:
 def validate_source_files(raw_dir: Path) -> dict[str, Path]:
     missing = [name for name in REQUIRED_FILES if not (raw_dir / name).is_file()]
     if missing:
+        checked = "\n".join(f"  - {candidate.resolve()}" for candidate in candidate_raw_data_dirs(PROJECT_ROOT))
         expected = "\n".join(f"  - {raw_dir / name}" for name in REQUIRED_FILES)
         raise FileNotFoundError(
             f"Missing IEEE-CIS files: {missing}\nExpected files:\n{expected}\n"
+            f"Checked candidate directories:\n{checked}\n"
             "For Docker, run from the project root so ./data/data/ieee-fraud-detection is mounted to /app/data/raw."
         )
     result = {Path(name).stem: raw_dir / name for name in REQUIRED_FILES}
@@ -217,15 +275,39 @@ def validate_source_files(raw_dir: Path) -> dict[str, Path]:
 
 
 def write_json(payload: dict, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    atomic_write_json(payload, path)
+
+
+def schema_to_records(schema: T.StructType) -> list[dict[str, str]]:
+    return [{"name": field.name, "type": field.dataType.simpleString(), "nullable": field.nullable} for field in schema.fields]
+
+
+def write_schema_artifact(name: str, schema: T.StructType) -> None:
+    records = schema_to_records(schema)
+    write_json(
+        {
+            "schema_name": name,
+            "schema_version": FEATURE_SCHEMA_VERSION,
+            "generated_at": utc_now_iso(),
+            "columns": records,
+            "schema_hash": schema_hash(records),
+        },
+        SCHEMA_ARTIFACTS_DIR / RAW_SCHEMA_ARTIFACTS[name],
+    )
 
 
 def write_single_csv(df: DataFrame, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if os.name == "nt":
         # Reports are deliberately small; avoid Hadoop permission operations.
-        df.toPandas().to_csv(path, index=False)
+        if path.exists():
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        df.toPandas().to_csv(tmp_path, index=False)
+        tmp_path.replace(path)
         return
     df.coalesce(1).write.mode("overwrite").option("header", True).csv(spark_path(path))
 
@@ -353,7 +435,11 @@ inventory_pdf = pd.DataFrame([
     {
         "filename": path.name,
         "path": str(path),
+        "size_bytes": int(path.stat().st_size),
         "size_mb": round(path.stat().st_size / 1024**2, 2),
+        "modified_time": datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).isoformat(),
+        "checksum_sha256": sha256_file(path),
+        "schema_version": FEATURE_SCHEMA_VERSION,
     }
     for path in source_paths.values()
 ])
@@ -361,16 +447,32 @@ print(inventory_pdf.to_string(index=False))
 print(f"Total source size: {inventory_pdf['size_mb'].sum():,.2f} MB")
 assert inventory_pdf.loc[inventory_pdf["filename"].isin(REQUIRED_FILES), "size_mb"].sum() >= 500, "The required IEEE-CIS files must total at least 500 MB."
 inventory_pdf.to_csv(REPORTS_DIR / "source_inventory.csv", index=False)
+inventory_pdf.to_csv(REPORTS_DIR / "dataset_inventory.csv", index=False)
 
 train_tx_schema = build_transaction_schema(read_csv_header(source_paths["train_transaction"]))
 test_tx_schema = build_transaction_schema(read_csv_header(source_paths["test_transaction"]))
 train_id_schema = build_identity_schema(normalize_identity_columns(read_csv_header(source_paths["train_identity"])))
 test_id_schema = build_identity_schema(normalize_identity_columns(read_csv_header(source_paths["test_identity"])))
+write_schema_artifact("train_transaction", train_tx_schema)
+write_schema_artifact("test_transaction", test_tx_schema)
+write_schema_artifact("train_identity", train_id_schema)
+write_schema_artifact("test_identity", test_id_schema)
 
 train_transaction = read_with_schema(source_paths["train_transaction"], train_tx_schema)
 test_transaction = read_with_schema(source_paths["test_transaction"], test_tx_schema)
 train_identity = read_with_schema(source_paths["train_identity"], train_id_schema)
 test_identity = read_with_schema(source_paths["test_identity"], test_id_schema)
+
+for dataset_name, df in [
+    ("train_transaction", train_transaction),
+    ("test_transaction", test_transaction),
+    ("train_identity", train_identity),
+    ("test_identity", test_identity),
+]:
+    row_count = df.count()
+    column_count = len(df.columns)
+    inventory_pdf.loc[inventory_pdf["filename"] == f"{dataset_name}.csv", "row_count"] = row_count
+    inventory_pdf.loc[inventory_pdf["filename"] == f"{dataset_name}.csv", "column_count"] = column_count
 
 key_audit_rows = [
     audit_key(train_transaction, "train_transaction"),
@@ -387,6 +489,7 @@ test_merged, test_join_audit = left_join_with_identity(test_transaction, test_id
 join_audit = spark.createDataFrame(pd.DataFrame([train_join_audit, test_join_audit]))
 join_audit.show(truncate=False)
 assert join_audit.filter(F.col("status") == "fail").count() == 0, "Transaction-identity join changed the transaction grain."
+write_single_csv(join_audit, REPORTS_DIR / "join_audit.csv")
 
 # The joined IEEE-CIS tables are very wide. Keep them on disk instead of
 # filling the JVM heap with columnar cache blocks.
@@ -396,6 +499,7 @@ train_rows = train_merged.count()
 test_rows = test_merged.count()
 print("Merged train rows/columns:", train_rows, len(train_merged.columns))
 print("Merged test rows/columns:", test_rows, len(test_merged.columns))
+inventory_pdf.to_csv(REPORTS_DIR / "dataset_inventory.csv", index=False)
 
 def profile_dataframe(df: DataFrame, dataset_name: str, full_profile: bool = True) -> DataFrame:
     row_count = df.count()
@@ -456,6 +560,69 @@ imbalance_summary = {
 }
 print(json.dumps(imbalance_summary, indent=2))
 
+data_quality_rows = [
+    {
+        "stage": "raw_train_transaction",
+        "metric": "rows",
+        "value": train_transaction.count(),
+    },
+    {
+        "stage": "raw_train_identity",
+        "metric": "rows",
+        "value": train_identity.count(),
+    },
+    {
+        "stage": "raw_test_transaction",
+        "metric": "rows",
+        "value": test_transaction.count(),
+    },
+    {
+        "stage": "raw_test_identity",
+        "metric": "rows",
+        "value": test_identity.count(),
+    },
+    {
+        "stage": "joined_train",
+        "metric": "identity_coverage_ratio",
+        "value": float(train_join_audit["matched_identity_rows"] / max(train_join_audit["joined_rows_after"], 1)),
+    },
+    {
+        "stage": "joined_test",
+        "metric": "identity_coverage_ratio",
+        "value": float(test_join_audit["matched_identity_rows"] / max(test_join_audit["joined_rows_after"], 1)),
+    },
+]
+duplicate_summary_pdf = pd.DataFrame([
+    {
+        "dataset": row["dataset"],
+        "duplicate_transaction_ids": row["duplicate_transaction_ids"],
+        "null_transaction_ids": row["null_transaction_ids"],
+    }
+    for row in key_audit_rows
+])
+invalid_records_pdf = pd.DataFrame([
+    {
+        "dataset": "train_transaction",
+        "metric": "null_transaction_amount",
+        "value": train_transaction.filter(F.col("TransactionAmt").isNull()).count(),
+    },
+    {
+        "dataset": "test_transaction",
+        "metric": "null_transaction_amount",
+        "value": test_transaction.filter(F.col("TransactionAmt").isNull()).count(),
+    },
+    {
+        "dataset": "train_transaction",
+        "metric": "empty_productcd",
+        "value": train_transaction.filter(F.trim(F.coalesce(F.col("ProductCD"), F.lit(""))) == "").count(),
+    },
+    {
+        "dataset": "test_transaction",
+        "metric": "empty_productcd",
+        "value": test_transaction.filter(F.trim(F.coalesce(F.col("ProductCD"), F.lit(""))) == "").count(),
+    },
+])
+
 write_parquet(data_profile, REPORTS_DIR / "data_profile_parquet")
 write_single_csv(data_profile.orderBy(F.desc("null_pct")), REPORTS_DIR / "data_profile_csv")
 write_single_csv(data_profile.orderBy(F.desc("null_pct")), REPORTS_DIR / "missingness_profile_csv")
@@ -466,6 +633,9 @@ write_single_csv(join_audit, REPORTS_DIR / "join_audit.csv")
 write_single_csv(class_distribution, REPORTS_DIR / "class_distribution_csv")
 write_single_csv(class_distribution, REPORTS_DIR / "class_distribution.csv")
 write_json(imbalance_summary, REPORTS_DIR / "imbalance_summary.json")
+pd.DataFrame(data_quality_rows).to_csv(REPORTS_DIR / "data_quality_summary.csv", index=False)
+duplicate_summary_pdf.to_csv(REPORTS_DIR / "duplicate_summary.csv", index=False)
+invalid_records_pdf.to_csv(REPORTS_DIR / "invalid_records_summary.csv", index=False)
 
 CATEGORICAL_TO_NORMALIZE = [
     "ProductCD", "card1", "card2", "card3", "card4", "card5", "card6", "addr1", "addr2",
@@ -511,6 +681,9 @@ def add_base_features(df: DataFrame) -> DataFrame:
         .withColumn("transaction_day", F.floor(F.col("TransactionDT") / F.lit(86400)).cast("long"))
         .withColumn("transaction_week", F.floor(F.col("TransactionDT") / F.lit(604800)).cast("long"))
         .withColumn("transaction_hour", F.floor((F.col("TransactionDT") % F.lit(86400)) / F.lit(3600)).cast("int"))
+        .withColumn("transaction_day_of_week_proxy", (F.col("transaction_day") % F.lit(7)).cast("int"))
+        .withColumn("transaction_age_days", (F.col("TransactionDT") / F.lit(86400)).cast("double"))
+        .withColumn("is_night_transaction", F.when((F.col("transaction_hour") <= 5) | (F.col("transaction_hour") >= 22), 1).otherwise(0).cast("int"))
         .withColumn("transaction_period", F.concat(F.lit("week_"), F.col("transaction_week").cast("string")))
         .withColumn("log_transaction_amount", F.log1p(F.col("TransactionAmt").cast("double")))
         .withColumn("amount_decimal", (F.col("TransactionAmt") - F.floor(F.col("TransactionAmt"))).cast("double"))
@@ -525,9 +698,12 @@ def add_base_features(df: DataFrame) -> DataFrame:
         .withColumn("selected_missing_count", selected_missing_expr.cast("int"))
         .withColumn("selected_missing_ratio", (F.col("selected_missing_count") / F.lit(max(len(selected_missing_columns), 1))).cast("double"))
         .withColumn("identity_missing_count", identity_missing_expr.cast("int"))
+        .withColumn("identity_missing_ratio", (F.col("identity_missing_count") / F.lit(max(len(identity_columns), 1))).cast("double"))
         .withColumn("has_device_info", F.when(F.col("DeviceInfo").isNotNull(), 1).otherwise(0).cast("int"))
         .withColumn("has_p_email", F.when(F.col("P_emaildomain").isNotNull(), 1).otherwise(0).cast("int"))
         .withColumn("has_r_email", F.when(F.col("R_emaildomain").isNotNull(), 1).otherwise(0).cast("int"))
+        .withColumn("has_distance", F.when(F.col("dist1").isNotNull() | F.col("dist2").isNotNull(), 1).otherwise(0).cast("int"))
+        .withColumn("has_address", F.when(F.col("addr1").isNotNull() | F.col("addr2").isNotNull(), 1).otherwise(0).cast("int"))
         .withColumn("same_email_domain", F.when(F.coalesce(F.col("P_emaildomain"), F.lit("__NA__")) == F.coalesce(F.col("R_emaildomain"), F.lit("__NA__")), 1).otherwise(0).cast("int"))
         .withColumn("device_family", F.when(F.lower(F.col("DeviceInfo")).rlike("iphone|ipad|ios"), "apple")
                     .when(F.lower(F.col("DeviceInfo")).rlike("android|samsung|sm-"), "android")
@@ -537,15 +713,49 @@ def add_base_features(df: DataFrame) -> DataFrame:
         .withColumn("card_entity_key", F.concat_ws("|", *[F.coalesce(F.col(c).cast("string"), F.lit("__NA__")) for c in ["card1", "card2", "card3", "card5"] if c in df.columns]))
         .withColumn("email_entity_key", F.coalesce(F.col("P_emaildomain"), F.lit("__NA__")))
         .withColumn("device_entity_key", F.concat_ws("|", F.coalesce(F.col("DeviceType"), F.lit("__NA__")), F.coalesce(F.col("DeviceInfo"), F.lit("__NA__"))))
+        .withColumn("address_entity_key", F.concat_ws("|", F.coalesce(F.col("addr1").cast("string"), F.lit("__NA__")), F.coalesce(F.col("addr2").cast("string"), F.lit("__NA__"))))
     )
     return result
 
 
 clean_train = add_base_features(normalize_categoricals(train_merged))
 clean_test = add_base_features(normalize_categoricals(test_merged))
-high_amount_threshold = clean_train.approxQuantile("TransactionAmt", [0.99], 0.001)[0]
-clean_train = clean_train.withColumn("high_amount_flag", F.when(F.col("TransactionAmt") >= high_amount_threshold, 1).otherwise(0).cast("int"))
-clean_test = clean_test.withColumn("high_amount_flag", F.when(F.col("TransactionAmt") >= high_amount_threshold, 1).otherwise(0).cast("int"))
+amount_quantiles = clean_train.approxQuantile("TransactionAmt", [0.95, 0.99, 0.25, 0.75], 0.001)
+amount_p95, amount_p99, amount_p25, amount_p75 = amount_quantiles
+amount_iqr = amount_p75 - amount_p25
+amount_upper_cap = amount_p75 + 1.5 * amount_iqr
+high_amount_threshold = amount_p99
+clean_train = (
+    clean_train
+    .withColumn("transaction_amount_capped", F.least(F.col("TransactionAmt"), F.lit(amount_upper_cap)).cast("double"))
+    .withColumn("high_amount_flag", F.when(F.col("TransactionAmt") >= high_amount_threshold, 1).otherwise(0).cast("int"))
+    .withColumn("amount_outlier_flag", F.when(F.col("TransactionAmt") >= amount_upper_cap, 1).otherwise(0).cast("int"))
+    .withColumn("distance_outlier_flag", F.when((F.col("dist1") >= 1000) | (F.col("dist2") >= 1000), 1).otherwise(0).cast("int"))
+)
+clean_test = (
+    clean_test
+    .withColumn("transaction_amount_capped", F.least(F.col("TransactionAmt"), F.lit(amount_upper_cap)).cast("double"))
+    .withColumn("high_amount_flag", F.when(F.col("TransactionAmt") >= high_amount_threshold, 1).otherwise(0).cast("int"))
+    .withColumn("amount_outlier_flag", F.when(F.col("TransactionAmt") >= amount_upper_cap, 1).otherwise(0).cast("int"))
+    .withColumn("distance_outlier_flag", F.when((F.col("dist1") >= 1000) | (F.col("dist2") >= 1000), 1).otherwise(0).cast("int"))
+)
+write_json(
+    {
+        "generated_at": utc_now_iso(),
+        "processing_version": PROCESSING_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "transaction_amount": {
+            "p95": amount_p95,
+            "p99": amount_p99,
+            "p25": amount_p25,
+            "p75": amount_p75,
+            "iqr": amount_iqr,
+            "upper_cap": amount_upper_cap,
+        },
+        "distance_outlier_threshold": 1000,
+    },
+    PREPROCESSING_ARTIFACTS_DIR / "outlier_thresholds.json",
+)
 print("99th percentile transaction amount:", high_amount_threshold)
 
 clean_train.createOrReplaceTempView("train_clean")
@@ -566,6 +776,24 @@ eda_queries = {
         FROM train_clean
         GROUP BY COALESCE(ProductCD, '__missing__')
         ORDER BY fraud_rate_pct DESC
+    """,
+    "fraud_by_card4": """
+        SELECT COALESCE(card4, '__missing__') AS card4,
+               COUNT(*) AS transactions,
+               ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY COALESCE(card4, '__missing__')
+        HAVING COUNT(*) >= 100
+        ORDER BY fraud_rate_pct DESC, transactions DESC
+    """,
+    "fraud_by_card6": """
+        SELECT COALESCE(card6, '__missing__') AS card6,
+               COUNT(*) AS transactions,
+               ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY COALESCE(card6, '__missing__')
+        HAVING COUNT(*) >= 100
+        ORDER BY fraud_rate_pct DESC, transactions DESC
     """,
     "fraud_by_amount_band": """
         SELECT amount_band, COUNT(*) AS transactions,
@@ -594,6 +822,16 @@ eda_queries = {
         ORDER BY fraud_rate_pct DESC, transactions DESC
         LIMIT 30
     """,
+    "fraud_by_r_email": """
+        SELECT COALESCE(R_emaildomain, '__missing__') AS R_emaildomain,
+               COUNT(*) AS transactions,
+               ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY COALESCE(R_emaildomain, '__missing__')
+        HAVING COUNT(*) >= 100
+        ORDER BY fraud_rate_pct DESC, transactions DESC
+        LIMIT 30
+    """,
     "fraud_by_hour": """
         SELECT transaction_hour, COUNT(*) AS transactions,
                ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct,
@@ -602,12 +840,66 @@ eda_queries = {
         GROUP BY transaction_hour
         ORDER BY transaction_hour
     """,
+    "fraud_by_day": """
+        SELECT transaction_day, COUNT(*) AS transactions,
+               ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY transaction_day
+        ORDER BY transaction_day
+    """,
     "fraud_by_week": """
         SELECT transaction_week, COUNT(*) AS transactions,
                ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
         FROM train_clean
         GROUP BY transaction_week
         ORDER BY transaction_week
+    """,
+    "fraud_by_has_identity": """
+        SELECT has_identity, COUNT(*) AS transactions,
+               ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY has_identity
+        ORDER BY has_identity
+    """,
+    "fraud_by_missing_ratio": """
+        SELECT ROUND(selected_missing_ratio, 1) AS missing_ratio_bucket,
+               COUNT(*) AS transactions,
+               ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY ROUND(selected_missing_ratio, 1)
+        ORDER BY missing_ratio_bucket
+    """,
+    "top_card_entities": """
+        SELECT card_entity_key, COUNT(*) AS transactions, ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY card_entity_key
+        HAVING COUNT(*) >= 20
+        ORDER BY transactions DESC
+        LIMIT 30
+    """,
+    "top_email_entities": """
+        SELECT email_entity_key, COUNT(*) AS transactions, ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY email_entity_key
+        HAVING COUNT(*) >= 20
+        ORDER BY transactions DESC
+        LIMIT 30
+    """,
+    "top_device_entities": """
+        SELECT device_entity_key, COUNT(*) AS transactions, ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY device_entity_key
+        HAVING COUNT(*) >= 20
+        ORDER BY transactions DESC
+        LIMIT 30
+    """,
+    "top_fraud_rate_entities": """
+        SELECT card_entity_key, COUNT(*) AS transactions, ROUND(AVG(isFraud) * 100, 6) AS fraud_rate_pct
+        FROM train_clean
+        GROUP BY card_entity_key
+        HAVING COUNT(*) >= 100
+        ORDER BY fraud_rate_pct DESC, transactions DESC
+        LIMIT 30
     """,
 }
 
@@ -618,6 +910,7 @@ for name, query in eda_queries.items():
     print(f"\n--- {name} ---")
     result.show(30, truncate=False)
     write_single_csv(result, REPORTS_DIR / f"{name}_csv")
+    write_single_csv(result, EDA_REPORTS_DIR / f"{name}.csv")
 
 # Only aggregated Spark results are converted to Pandas for figures.
 class_pd = class_distribution.toPandas()
@@ -641,6 +934,24 @@ ax.set_ylabel("Fraud rate (%)")
 plt.tight_layout()
 plt.savefig(FIGURES_DIR / "fraud_rate_by_week.png", dpi=160)
 plt.close()
+
+amount_class_pd = (
+    clean_train.groupBy("isFraud")
+    .agg(
+        F.avg("TransactionAmt").alias("avg_transaction_amount"),
+        F.expr("percentile_approx(TransactionAmt, 0.5)").alias("median_transaction_amount"),
+    )
+    .toPandas()
+)
+amount_class_pd.to_csv(EDA_REPORTS_DIR / "transaction_amount_by_class.csv", index=False)
+
+numeric_corr_pdf = (
+    clean_train.select("TransactionAmt", "log_transaction_amount", "selected_missing_ratio", "identity_missing_ratio", "dist1", "dist2")
+    .sample(withReplacement=False, fraction=0.02, seed=SEED)
+    .toPandas()
+    .corr(numeric_only=True)
+)
+numeric_corr_pdf.to_csv(EDA_REPORTS_DIR / "numeric_feature_correlation.csv")
 
 q70, q85 = clean_train.approxQuantile("TransactionDT", [0.70, 0.85], 0.001)
 train_split_base = clean_train.filter(F.col("TransactionDT") <= F.lit(q70))
@@ -683,6 +994,17 @@ for split_name, split_df in [
 split_report = spark.createDataFrame(pd.DataFrame(split_report_rows))
 write_single_csv(split_report, REPORTS_DIR / "chronological_split_csv")
 write_single_csv(split_report, REPORTS_DIR / "split_summary_csv")
+write_json(
+    {
+        "generated_at": utc_now_iso(),
+        "processing_version": PROCESSING_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "q70_transaction_dt": q70,
+        "q85_transaction_dt": q85,
+        "split_counts": split_counts,
+    },
+    PREPROCESSING_ARTIFACTS_DIR / "split_thresholds.json",
+)
 
 
 def build_training_lookups(train_df: DataFrame) -> dict[str, DataFrame]:
@@ -690,15 +1012,18 @@ def build_training_lookups(train_df: DataFrame) -> dict[str, DataFrame]:
         "card": train_df.groupBy("card_entity_key").agg(
             F.count("*").alias("card_history_count"),
             F.sum("TransactionAmt").alias("card_history_amount_sum"),
+            F.stddev_samp("TransactionAmt").alias("card_history_amount_stddev"),
             F.max("TransactionDT").alias("card_last_transaction_dt"),
         ),
         "email": train_df.groupBy("email_entity_key").agg(
             F.count("*").alias("email_history_count"),
             F.sum("TransactionAmt").alias("email_history_amount_sum"),
+            F.avg("TransactionAmt").alias("email_history_avg_amount"),
         ),
         "device": train_df.groupBy("device_entity_key").agg(
             F.count("*").alias("device_history_count"),
             F.sum("TransactionAmt").alias("device_history_amount_sum"),
+            F.avg("TransactionAmt").alias("device_history_avg_amount"),
         ),
     }
 
@@ -713,11 +1038,14 @@ def add_training_window_history(df: DataFrame) -> DataFrame:
         .withColumn("prior_card_transaction_count", F.count(F.lit(1)).over(card_history).cast("long"))
         .withColumn("prior_card_amount_sum", F.coalesce(F.sum("TransactionAmt").over(card_history), F.lit(0.0)).cast("double"))
         .withColumn("prior_card_avg_amount", F.when(F.col("prior_card_transaction_count") > 0, F.col("prior_card_amount_sum") / F.col("prior_card_transaction_count")).otherwise(F.lit(0.0)))
+        .withColumn("prior_card_amount_stddev", F.coalesce(F.stddev_samp("TransactionAmt").over(card_history), F.lit(0.0)).cast("double"))
         .withColumn("time_since_previous_card_transaction", (F.col("TransactionDT") - F.lag("TransactionDT").over(card_order)).cast("double"))
         .withColumn("prior_email_transaction_count", F.count(F.lit(1)).over(email_history).cast("long"))
         .withColumn("prior_email_amount_sum", F.coalesce(F.sum("TransactionAmt").over(email_history), F.lit(0.0)).cast("double"))
+        .withColumn("prior_email_avg_amount", F.coalesce(F.avg("TransactionAmt").over(email_history), F.lit(0.0)).cast("double"))
         .withColumn("prior_device_transaction_count", F.count(F.lit(1)).over(device_history).cast("long"))
         .withColumn("prior_device_amount_sum", F.coalesce(F.sum("TransactionAmt").over(device_history), F.lit(0.0)).cast("double"))
+        .withColumn("prior_device_avg_amount", F.coalesce(F.avg("TransactionAmt").over(device_history), F.lit(0.0)).cast("double"))
     )
 
 
@@ -730,12 +1058,15 @@ def apply_training_lookups(df: DataFrame, lookups: dict[str, DataFrame]) -> Data
         .withColumn("prior_card_transaction_count", F.coalesce(F.col("card_history_count"), F.lit(0)).cast("long"))
         .withColumn("prior_card_amount_sum", F.coalesce(F.col("card_history_amount_sum"), F.lit(0.0)).cast("double"))
         .withColumn("prior_card_avg_amount", F.when(F.col("prior_card_transaction_count") > 0, F.col("prior_card_amount_sum") / F.col("prior_card_transaction_count")).otherwise(F.lit(0.0)))
+        .withColumn("prior_card_amount_stddev", F.coalesce(F.col("card_history_amount_stddev"), F.lit(0.0)).cast("double"))
         .withColumn("time_since_previous_card_transaction", (F.col("TransactionDT") - F.col("card_last_transaction_dt")).cast("double"))
         .withColumn("prior_email_transaction_count", F.coalesce(F.col("email_history_count"), F.lit(0)).cast("long"))
         .withColumn("prior_email_amount_sum", F.coalesce(F.col("email_history_amount_sum"), F.lit(0.0)).cast("double"))
+        .withColumn("prior_email_avg_amount", F.coalesce(F.col("email_history_avg_amount"), F.lit(0.0)).cast("double"))
         .withColumn("prior_device_transaction_count", F.coalesce(F.col("device_history_count"), F.lit(0)).cast("long"))
         .withColumn("prior_device_amount_sum", F.coalesce(F.col("device_history_amount_sum"), F.lit(0.0)).cast("double"))
-        .drop("card_history_count", "card_history_amount_sum", "card_last_transaction_dt", "email_history_count", "email_history_amount_sum", "device_history_count", "device_history_amount_sum")
+        .withColumn("prior_device_avg_amount", F.coalesce(F.col("device_history_avg_amount"), F.lit(0.0)).cast("double"))
+        .drop("card_history_count", "card_history_amount_sum", "card_history_amount_stddev", "card_last_transaction_dt", "email_history_count", "email_history_amount_sum", "email_history_avg_amount", "device_history_count", "device_history_amount_sum", "device_history_avg_amount")
     )
 
 
@@ -747,6 +1078,29 @@ validation_features = apply_training_lookups(validation_split_base, lookups)
 holdout_features = apply_training_lookups(holdout_split_base, lookups)
 test_features = apply_training_lookups(clean_test, lookups)
 
+for dataset_name, df in [
+    ("train_features", train_features),
+    ("validation_features", validation_features),
+    ("holdout_features", holdout_features),
+    ("test_features", test_features),
+]:
+    if "prior_card_avg_amount" in df.columns:
+        df = df.withColumn(
+            "amount_ratio_to_card_mean",
+            F.when(F.col("prior_card_avg_amount") > 0, F.col("TransactionAmt") / F.col("prior_card_avg_amount")).otherwise(F.lit(1.0)),
+        ).withColumn(
+            "amount_deviation_from_card_mean",
+            (F.col("TransactionAmt") - F.col("prior_card_avg_amount")).cast("double"),
+        )
+    if dataset_name == "train_features":
+        train_features = df
+    elif dataset_name == "validation_features":
+        validation_features = df
+    elif dataset_name == "holdout_features":
+        holdout_features = df
+    else:
+        test_features = df
+
 if WRITE_WIDE_FEATURE_STORE:
     write_parquet(train_features, FEATURE_STORE_DIR / "train_wide", ["transaction_period"])
     write_parquet(validation_features, FEATURE_STORE_DIR / "validation_wide", ["transaction_period"])
@@ -754,14 +1108,16 @@ if WRITE_WIDE_FEATURE_STORE:
     write_parquet(test_features, FEATURE_STORE_DIR / "kaggle_test_wide", ["transaction_period"])
 
 NUMERIC_CANDIDATES = [
-    "TransactionAmt", "log_transaction_amount", "amount_decimal", "TransactionDT", "transaction_day", "transaction_week", "transaction_hour",
-    "selected_missing_count", "selected_missing_ratio", "identity_missing_count", "has_identity", "has_device_info", "has_p_email", "has_r_email",
-    "same_email_domain", "high_amount_flag", "dist1", "dist2",
+    "TransactionAmt", "log_transaction_amount", "transaction_amount_capped", "amount_decimal", "TransactionDT", "transaction_day", "transaction_week", "transaction_hour",
+    "transaction_day_of_week_proxy", "transaction_age_days", "is_night_transaction",
+    "selected_missing_count", "selected_missing_ratio", "identity_missing_count", "identity_missing_ratio", "has_identity", "has_device_info", "has_p_email", "has_r_email", "has_distance", "has_address",
+    "same_email_domain", "high_amount_flag", "amount_outlier_flag", "distance_outlier_flag", "dist1", "dist2",
     "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14",
     "D1", "D2", "D3", "D4", "D5", "D10", "D15",
-    "prior_card_transaction_count", "prior_card_amount_sum", "prior_card_avg_amount", "time_since_previous_card_transaction",
-    "prior_email_transaction_count", "prior_email_amount_sum",
-    "prior_device_transaction_count", "prior_device_amount_sum",
+    "prior_card_transaction_count", "prior_card_amount_sum", "prior_card_avg_amount", "prior_card_amount_stddev", "time_since_previous_card_transaction",
+    "prior_email_transaction_count", "prior_email_amount_sum", "prior_email_avg_amount",
+    "prior_device_transaction_count", "prior_device_amount_sum", "prior_device_avg_amount",
+    "amount_ratio_to_card_mean", "amount_deviation_from_card_mean",
 ]
 CATEGORICAL_CANDIDATES = ["ProductCD", "card4", "card6", "DeviceType", "device_family", "M4", "amount_band"]
 NUMERIC_COLUMNS = [c for c in NUMERIC_CANDIDATES if c in train_features.columns]
@@ -789,7 +1145,16 @@ imputed_names = [f"{c}__imputed" for c in NUMERIC_COLUMNS]
 imputer = Imputer(strategy="median", inputCols=NUMERIC_COLUMNS, outputCols=imputed_names)
 imputer_model = imputer.fit(train_model_raw)
 median_values = imputer_model.surrogateDF.collect()[0].asDict() if NUMERIC_COLUMNS else {}
-write_json({str(key): value for key, value in median_values.items()}, OUTPUT_DIR / "artifacts" / "numeric_medians.json")
+write_json(
+    {
+        "generated_at": utc_now_iso(),
+        "processing_version": PROCESSING_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "strategy": "median_train_only",
+        "values": {str(key): value for key, value in median_values.items()},
+    },
+    PREPROCESSING_ARTIFACTS_DIR / "numeric_medians.json",
+)
 
 
 def apply_imputer(df: DataFrame) -> DataFrame:
@@ -841,12 +1206,91 @@ balance_report = spark.createDataFrame(pd.DataFrame([
 ]))
 balance_report.show(truncate=False)
 
-write_parquet(train_model_ready, MODEL_READY_DIR / "train_original")
-write_parquet(train_weighted, MODEL_READY_DIR / "train_weighted")
-write_parquet(train_balanced, MODEL_READY_DIR / "train_balanced")
-write_parquet(validation_model_ready, MODEL_READY_DIR / "validation")
-write_parquet(holdout_model_ready, MODEL_READY_DIR / "holdout")
-write_parquet(test_model_ready, MODEL_READY_DIR / "kaggle_test")
+write_json(
+    {
+        "generated_at": utc_now_iso(),
+        "processing_version": PROCESSING_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "fraud_weight": fraud_weight,
+        "legitimate_weight": legit_weight,
+        "undersampling_ratio_legitimate_to_fraud": IMBALANCE_RATIO,
+        "undersampling_fraction_legitimate": legit_fraction,
+        "seed": SEED,
+    },
+    PREPROCESSING_ARTIFACTS_DIR / "imbalance_config.json",
+)
+
+feature_order = NUMERIC_COLUMNS + CATEGORICAL_COLUMNS
+write_json(
+    {
+        "generated_at": utc_now_iso(),
+        "processing_version": PROCESSING_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "feature_columns": feature_order,
+        "required_features": feature_order,
+        "optional_features": [],
+        "defaultable_features": CATEGORICAL_COLUMNS,
+    },
+    PREPROCESSING_ARTIFACTS_DIR / "feature_order.json",
+)
+write_json(
+    {
+        "generated_at": utc_now_iso(),
+        "processing_version": PROCESSING_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "selected_features": feature_order,
+    },
+    PREPROCESSING_ARTIFACTS_DIR / "selected_features.json",
+)
+write_json(
+    {
+        "generated_at": utc_now_iso(),
+        "processing_version": PROCESSING_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "missing_category": "__MISSING__",
+        "unseen_category": "__UNKNOWN__",
+        "rare_category": "__OTHER__",
+        "categorical_columns": CATEGORICAL_COLUMNS,
+    },
+    PREPROCESSING_ARTIFACTS_DIR / "category_policy.json",
+)
+
+def with_contract_columns(df: DataFrame, split_name: str, include_label: bool = True, weighted: bool = False) -> DataFrame:
+    result = (
+        df
+        .withColumn("split_name", F.lit(split_name))
+        .withColumn("processing_version", F.lit(PROCESSING_VERSION))
+        .withColumn("feature_schema_version", F.lit(FEATURE_SCHEMA_VERSION))
+        .withColumn("generated_at", F.lit(utc_now_iso()))
+    )
+    if not include_label and "isFraud" in result.columns:
+        result = result.drop("isFraud")
+    if not weighted and "class_weight" in result.columns:
+        result = result.drop("class_weight")
+    return result
+
+
+train_original_export = with_contract_columns(train_model_ready, "train_original")
+train_weighted_export = with_contract_columns(train_weighted, "train_weighted", weighted=True)
+train_balanced_export = with_contract_columns(train_balanced, "train_balanced")
+validation_export = with_contract_columns(validation_model_ready, "validation")
+holdout_export = with_contract_columns(holdout_model_ready, "holdout")
+test_export = with_contract_columns(test_model_ready, "kaggle_test", include_label=False)
+
+write_parquet(train_merged, CURATED_DIR / "train_joined")
+write_parquet(test_merged, CURATED_DIR / "test_joined")
+write_parquet(clean_train, CURATED_DIR / "train_cleaned")
+write_parquet(clean_test, CURATED_DIR / "test_cleaned")
+write_parquet(train_split_base, SPLITS_DIR / "train")
+write_parquet(validation_split_base, SPLITS_DIR / "validation")
+write_parquet(holdout_split_base, SPLITS_DIR / "holdout")
+
+write_parquet(train_original_export, MODEL_READY_DIR / "train_original")
+write_parquet(train_weighted_export, MODEL_READY_DIR / "train_weighted")
+write_parquet(train_balanced_export, MODEL_READY_DIR / "train_balanced")
+write_parquet(validation_export, MODEL_READY_DIR / "validation")
+write_parquet(holdout_export, MODEL_READY_DIR / "holdout")
+write_parquet(test_export, MODEL_READY_DIR / "kaggle_test")
 write_single_csv(balance_report, REPORTS_DIR / "class_balance_report_csv")
 write_single_csv(balance_report, REPORTS_DIR / "imbalance_comparison_csv")
 
@@ -1004,6 +1448,31 @@ for column in CATEGORICAL_COLUMNS:
 feature_catalog = spark.createDataFrame(pd.DataFrame(feature_catalog_rows))
 write_single_csv(feature_catalog, REPORTS_DIR / "feature_catalog_csv")
 write_single_csv(feature_catalog, REPORTS_DIR / "feature_catalog.csv")
+write_single_csv(feature_catalog, EDA_REPORTS_DIR / "feature_catalog.csv")
+
+missingness_strategy_pdf = data_profile.toPandas()
+missingness_strategy_pdf["empty_string_count"] = 0
+missingness_strategy_pdf["missing_group"] = np.where(
+    missingness_strategy_pdf["null_pct"] < 20,
+    "Low",
+    np.where(
+        missingness_strategy_pdf["null_pct"] < 70,
+        "Medium",
+        np.where(missingness_strategy_pdf["null_pct"] < 95, "High", "Extreme"),
+    ),
+)
+missingness_strategy_pdf["recommended_strategy"] = np.where(
+    missingness_strategy_pdf["spark_type"].str.contains("string", case=False, na=False),
+    "trim + normalize empty + __MISSING__ + __UNKNOWN__ for unseen",
+    "median_train_only",
+)
+missingness_strategy_pdf["final_action"] = np.where(
+    missingness_strategy_pdf["spark_type"].str.contains("string", case=False, na=False),
+    "categorical_fill_missing",
+    "numeric_imputation",
+)
+missingness_strategy_pdf.to_csv(REPORTS_DIR / "missingness_profile.csv", index=False)
+missingness_strategy_pdf.to_csv(REPORTS_DIR / "missingness_strategy.csv", index=False)
 
 # Small audit artifacts are materialized after distributed aggregation. The
 # source datasets remain Spark/Parquet; only bounded report rows use Pandas.
@@ -1018,33 +1487,129 @@ if outlier_rows:
 type_rows = [{"dataset": "train_joined", "column_name": field.name, "spark_type": field.dataType.simpleString()} for field in train_merged.schema.fields]
 write_single_csv(spark.createDataFrame(pd.DataFrame(type_rows)), REPORTS_DIR / "type_conversion_summary.csv")
 write_single_csv(spark.createDataFrame(pd.DataFrame(feature_catalog_rows)), REPORTS_DIR / "feature_selection.csv")
-(REPORTS_DIR / "leakage_controls.md").write_text(
+atomic_write_text(
     "# Leakage controls\n\n"
     "- Chronological split occurs before imputation and entity lookup fitting.\n"
     "- Numeric medians and card/email/device aggregates are fitted on training data only.\n"
     "- Validation and holdout are not resampled.\n"
     "- TransactionDT is treated as relative ordering, not calendar time.\n",
-    encoding="utf-8",
+    REPORTS_DIR / "leakage_controls.md",
 )
 
+model_ready_schema_records = [
+    {"name": field.name, "type": field.dataType.simpleString()}
+    for field in train_weighted_export.schema
+]
+write_json(
+    {
+        "generated_at": utc_now_iso(),
+        "processing_version": PROCESSING_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "model_ready_columns": model_ready_schema_records,
+        "schema_hash": schema_hash(model_ready_schema_records),
+        "exceptions": {
+            "kaggle_test": ["isFraud"],
+            "train_weighted": ["class_weight"],
+        },
+    },
+    SCHEMA_ARTIFACTS_DIR / "model_ready_schema.json",
+)
+write_json(
+    {
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "generated_at": utc_now_iso(),
+        "schema_hash": schema_hash(model_ready_schema_records),
+    },
+    SCHEMA_ARTIFACTS_DIR / "feature_schema_version.json",
+)
+
+dataset_exports = {
+    "train_original": train_original_export,
+    "train_weighted": train_weighted_export,
+    "train_balanced": train_balanced_export,
+    "validation": validation_export,
+    "holdout": holdout_export,
+    "kaggle_test": test_export,
+}
+model_ready_dataset_manifest = {}
+for dataset_name, dataset_df in dataset_exports.items():
+    schema_records = [{"name": field.name, "type": field.dataType.simpleString()} for field in dataset_df.schema.fields]
+    model_ready_dataset_manifest[dataset_name] = {
+        "path": str(MODEL_READY_DIR / dataset_name),
+        "row_count": int(dataset_df.count()),
+        "column_count": len(dataset_df.columns),
+        "schema_hash": schema_hash(schema_records),
+        "columns": [field["name"] for field in schema_records],
+    }
+
+input_paths = {
+    row["filename"]: {
+        "path": row["path"],
+        "size_bytes": row["size_bytes"],
+        "size_mb": row["size_mb"],
+        "modified_time": row["modified_time"],
+        "checksum_sha256": row["checksum_sha256"],
+        "row_count": row.get("row_count"),
+        "column_count": row.get("column_count"),
+        "schema_version": row.get("schema_version"),
+    }
+    for row in inventory_pdf.to_dict(orient="records")
+}
+
+report_paths = {}
+for report_path in REPORTS_DIR.rglob("*"):
+    if report_path.is_file():
+        report_paths[str(report_path.relative_to(OUTPUT_DIR))] = str(report_path)
+
+spark_hadoop_version = "unknown"
+try:
+    spark_hadoop_version = spark.sparkContext._jvm.org.apache.hadoop.util.VersionInfo.getVersion()
+except Exception:
+    pass
+
 manifest = {
+    "project_name": "Fraud Detection / Fraud Risk Scoring",
     "pipeline": "IEEE-CIS Spark preprocessing and EDA",
-    "generated_at_utc": pd.Timestamp.utcnow().isoformat(),
+    "pipeline_version": PIPELINE_VERSION,
+    "processing_version": PROCESSING_VERSION,
+    "feature_schema_version": FEATURE_SCHEMA_VERSION,
+    "generated_at": utc_now_iso(),
     "platform": platform.platform(),
     "python_version": sys.version,
     "spark_version": spark.version,
+    "hadoop_version": spark_hadoop_version,
     "spark_master": spark.sparkContext.master,
     "project_root": str(PROJECT_ROOT),
     "raw_data_dir": str(RAW_DATA_DIR),
     "output_dir": str(OUTPUT_DIR),
+    "input_paths": input_paths,
     "source_files": inventory_pdf.to_dict(orient="records"),
     "split_boundaries": {"q70_transaction_dt": q70, "q85_transaction_dt": q85},
     "split_counts": split_counts,
     "imbalance": imbalance_summary,
     "class_weights": {"legitimate": legit_weight, "fraud": fraud_weight},
     "undersampling_target_legitimate_to_fraud_ratio": IMBALANCE_RATIO,
+    "selected_features": feature_order,
+    "imputation_artifacts": {
+        "numeric_medians": str(PREPROCESSING_ARTIFACTS_DIR / "numeric_medians.json"),
+        "category_policy": str(PREPROCESSING_ARTIFACTS_DIR / "category_policy.json"),
+        "outlier_thresholds": str(PREPROCESSING_ARTIFACTS_DIR / "outlier_thresholds.json"),
+        "split_thresholds": str(PREPROCESSING_ARTIFACTS_DIR / "split_thresholds.json"),
+        "imbalance_config": str(PREPROCESSING_ARTIFACTS_DIR / "imbalance_config.json"),
+        "feature_order": str(PREPROCESSING_ARTIFACTS_DIR / "feature_order.json"),
+        "selected_features": str(PREPROCESSING_ARTIFACTS_DIR / "selected_features.json"),
+    },
+    "schema_hashes": {
+        "raw_train_transaction": schema_hash(schema_to_records(RAW_TRANSACTION_SCHEMA)),
+        "raw_train_identity": schema_hash(schema_to_records(RAW_IDENTITY_SCHEMA)),
+        "raw_test_transaction": schema_hash(schema_to_records(RAW_TRANSACTION_SCHEMA)),
+        "raw_test_identity": schema_hash(schema_to_records(RAW_IDENTITY_SCHEMA)),
+        "model_ready": schema_hash(model_ready_schema_records),
+    },
     "numeric_features": NUMERIC_COLUMNS,
     "categorical_features": CATEGORICAL_COLUMNS,
+    "model_ready_datasets": model_ready_dataset_manifest,
+    "report_paths": report_paths,
     "outputs": {
         "train_original": str(MODEL_READY_DIR / "train_original"),
         "train_weighted": str(MODEL_READY_DIR / "train_weighted"),
@@ -1057,6 +1622,8 @@ manifest = {
         "model": str(MODEL_DIR) if RUN_MODEL_DEMO else None,
     },
     "model_demo_metrics": model_metrics,
+    "verifier_result": {"status": "verification_pending"},
+    "status": "verification_pending",
 }
 write_json(manifest, OUTPUT_DIR / "manifest.json")
 

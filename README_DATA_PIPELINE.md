@@ -26,6 +26,13 @@ data/processed/ieee_cis_fraud_risk/
 
 The image uses Java 17, Spark 3.5.1 and Hadoop 3.3.6. It runs Spark locally inside Linux with bounded shuffle parallelism. The source dataset is approximately 1.3 GB and must contain the four required CSV files; `sample_submission.csv` is optional.
 
+If a long Docker preprocessing run writes Parquet artifacts but stops before the manifest is finalized, regenerate the downstream contract and normalize Spark CSV report folders with:
+
+```powershell
+python -m pipeline.processed_contract --output-dir .\data\processed\ieee_cis_fraud_risk
+python -m pipeline.verify_processed_data --output-dir .\data\processed\ieee_cis_fraud_risk
+```
+
 ## Pipeline stages
 
 The workflow performs source discovery and size validation, typed Spark ingestion, identity-column normalization, key and join audits, missingness profiling, categorical cleanup, temporal feature engineering, Spark SQL EDA, chronological splitting, training-only median imputation and entity aggregates, weighted and undersampled training variants, Decision Tree comparison, demo-case extraction, Parquet export, and manifest generation.
@@ -41,6 +48,7 @@ data/processed/ieee_cis_fraud_risk/model_ready/train_weighted/
 ```
 
 Read [HANDOVER_PROCESSED_DATA.md](HANDOVER_PROCESSED_DATA.md) and [DATA_DICTIONARY.md](DATA_DICTIONARY.md) before training. The proposed risk-score mapping is documented separately in `RISK_SCORE_DATA_CONTRACT.md`.
+The explicit model-ready schema and metadata contract is documented in `MODEL_READY_DATA_CONTRACT.md`.
 
 ## Configuration
 

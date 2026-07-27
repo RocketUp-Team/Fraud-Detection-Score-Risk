@@ -121,3 +121,15 @@ docker compose --profile training run --rm model-training \
 ```
 
 Spark UI: `http://localhost:8080`.
+
+Kết quả so sánh model V1/V2 được ghi tại
+[`docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md`](./docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md).
+V2 hiện tốt hơn V1 trên holdout PR-AUC (`0.4582` so với `0.4298`) nhưng vẫn là
+candidate model; V1 vẫn là serving default.
+
+Nếu Spark cluster image không resolve được, có thể chạy toàn bộ training V2
+bằng Spark local trong Docker:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model_v2_full.ps1
+```

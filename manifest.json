@@ -1,6 +1,6 @@
 {
   "project_name": "Distributed Data Processing and Feature Preparation Pipeline for Fraud Risk Scoring",
-  "pipeline_version": "1.0.0",
+  "pipeline_version": "2.0.0",
   "status": "not_run",
   "note": "This repository manifest is a template. The processing run writes the authoritative manifest to data/processed/ieee_cis_fraud_risk/manifest.json and changes status only after successful completion."
 }

@@ -9,12 +9,19 @@ from __future__ import annotations
 import argparse
 import os
 import runpy
-import json
-import shutil
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .contract_utils import (
+    FEATURE_SCHEMA_VERSION,
+    PIPELINE_VERSION,
+    PROCESSING_VERSION,
+    atomic_write_json,
+    atomic_write_text,
+    read_yaml_config,
+    safe_copy_if_exists,
+    utc_now_iso,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_IMPLEMENTATION = PROJECT_ROOT / "data" / "ieee_cis" / "pipeline" / "ieee_cis_preprocess.py"
@@ -22,11 +29,7 @@ LEGACY_IMPLEMENTATION = PROJECT_ROOT / "data" / "ieee_cis" / "pipeline" / "ieee_
 
 def _read_simple_yaml(path: Path) -> dict[str, Any]:
     """Read the small config contract without requiring YAML at runtime."""
-    try:
-        import yaml  # type: ignore
-    except ImportError:
-        return {}
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return read_yaml_config(path)
 
 
 def _setdefault_from_config(config: dict[str, Any]) -> None:
@@ -81,18 +84,32 @@ def main(argv: list[str] | None = None) -> None:
 def _finalize_contract(output_dir: Path) -> None:
     """Add stable names/metadata without duplicating large Parquet datasets."""
     manifest_path = output_dir / "manifest.json"
+    from .processed_contract import build_manifest
+    from .verify_processed_data import verify
+    import json
+
     if not manifest_path.is_file():
-        return
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = build_manifest(output_dir)
+    else:
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            manifest = build_manifest(output_dir)
+
+    verification = verify(output_dir, write_report=True)
     manifest.update({
         "project_name": "Distributed Data Processing and Feature Preparation Pipeline for Fraud Risk Scoring",
-        "pipeline_version": "1.0.0",
-        "processing_timestamp": datetime.now(timezone.utc).isoformat(),
-        "status": "ready_for_downstream_training",
+        "pipeline_version": PIPELINE_VERSION,
+        "processing_version": PROCESSING_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "processing_timestamp": utc_now_iso(),
+        "generated_at": manifest.get("generated_at", manifest.get("generated_at_utc", utc_now_iso())),
+        "status": verification["status"],
         "output_contract": "data/processed/ieee_cis_fraud_risk",
         "downstream_recommended_dataset": "model_ready/train_weighted",
+        "verifier_result": verification,
     })
-    manifest_path.write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
+    atomic_write_json(manifest, manifest_path)
 
     reports = output_dir / "reports"
     aliases = {
@@ -104,8 +121,8 @@ def _finalize_contract(output_dir: Path) -> None:
     for target, source in aliases.items():
         source_path = reports / source
         target_path = reports / target
-        if source_path.is_file() and source_path != target_path:
-            shutil.copyfile(source_path, target_path)
+        if source_path != target_path:
+            safe_copy_if_exists(source_path, target_path)
     demo_aliases = {
         "real_fraud_cases.csv": "real_fraud_cases_csv",
         "real_legitimate_cases.csv": "real_legitimate_cases_csv",
@@ -118,11 +135,12 @@ def _finalize_contract(output_dir: Path) -> None:
     for target, source in demo_aliases.items():
         source_path = demo_dir / source
         target_path = demo_dir / target
-        if source_path.is_file() and source_path != target_path:
-            shutil.copyfile(source_path, target_path)
+        if source_path != target_path:
+            safe_copy_if_exists(source_path, target_path)
     (output_dir / "logs").mkdir(parents=True, exist_ok=True)
-    (output_dir / "logs" / "pipeline.log").write_text(
-        "Pipeline completed successfully; see manifest.json and reports/.\n", encoding="utf-8"
+    atomic_write_text(
+        "Pipeline completed successfully; see manifest.json and reports/.\n",
+        output_dir / "logs" / "pipeline.log",
     )
 
 

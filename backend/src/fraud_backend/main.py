@@ -52,8 +52,13 @@ def meta() -> schemas.MetaOut:
     return schemas.MetaOut(
         model_version=info["model_version"],
         model_name=info["model_name"],
+        processing_version=info.get("processing_version"),
+        feature_schema_version=info.get("feature_schema_version"),
         explainability=info["explainability"],
         n_features=info.get("n_features", 0),
+        required_features=info.get("required_features", []),
+        optional_features=info.get("optional_features", []),
+        defaultable_features=info.get("defaultable_features", []),
         bands=[schemas.BandRange(band=b, min=lo, max=hi) for b, lo, hi in risk.BANDS],
         warning=info.get("warning"),
     )

@@ -37,8 +37,13 @@ class _HeuristicScorer:
         return {
             "model_name": self.name,
             "model_version": self.name,
+            "processing_version": None,
+            "feature_schema_version": None,
             "explainability": False,
             "n_features": 0,
+            "required_features": [],
+            "optional_features": [],
+            "defaultable_features": [],
             "warning": "fraud_model chưa dùng được — điểm dưới đây KHÔNG phải của model thật.",
         }
 
@@ -55,7 +60,11 @@ class _HeuristicScorer:
         digest = hashlib.sha256(f"{amt:.2f}".encode()).digest()[0] / 255.0
         # Giao dịch giá trị lớn -> điểm cao hơn, cộng nhiễu tiền định từ hash.
         base = 1 / (1 + math.exp(-(math.log1p(amt) - 6) / 1.5))
-        return {"proba": min(0.99, max(0.01, 0.7 * base + 0.3 * digest)), "shap": None}
+        return {
+            "proba": min(0.99, max(0.01, 0.7 * base + 0.3 * digest)),
+            "shap": None,
+            "scoring_mode": "partial_demo",
+        }
 
 
 class Scorer:

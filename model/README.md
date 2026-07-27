@@ -77,18 +77,67 @@ model/tham số trên `validation`. Mỗi script lưu artifact:
 
 | Script | Artifact |
 |---|---|
-| `train_baseline` | `artifacts/baseline_logreg.joblib` |
-| `train_compare` | `artifacts/model_comparison.json` (kết quả so sánh + tên model tốt nhất) |
-| `tune_and_explain` | `artifacts/final_model.joblib` (model đã tune + SHAP top-5 + metric holdout) |
+| `train_baseline` | `artifacts/v2/baseline_logreg_v2.joblib` |
+| `train_compare` | `artifacts/v2/model_comparison_v2.json` (kết quả so sánh + tên model tốt nhất) |
+| `tune_and_explain` | `artifacts/v2/final_model_v2.joblib` (model đã tune + SHAP top-5 + metric holdout) |
 
-`tune_and_explain` đọc `model_comparison.json` để biết model nào cần tune. Nếu
+Quy ước hiện tại:
+
+- `v1` = model đang phục vụ / artifact cũ
+- `v2` = nhánh retraining mới theo data pipeline cập nhật
+
+Mặc định code training ghi sang `v2` để không đè model hiện tại. `score()`
+vẫn đọc `v1` làm serving default cho đến khi chủ động promote version mới.
+
+`tune_and_explain` đọc `model_comparison_v2.json` để biết model nào cần tune. Nếu
 model tốt nhất không phải mô hình cây (LightGBM/XGBoost/CatBoost), script dừng
 lại — dùng tạm baseline cho demo theo phương án dự phòng ở mục 5.
 
-**Kết quả tham chiếu** (dữ liệu thật, Ngày 4, xem `artifacts/final_model.joblib`):
+**Kết quả tham chiếu của model hiện hành (`v1`)**:
 LightGBM tuned — validation ROC-AUC 0.888/PR-AUC 0.482, holdout (1 lần)
 ROC-AUC 0.868/PR-AUC 0.430. Vượt Decision Tree weighted của An (holdout
 PR-AUC 0.298, xem `HANDOVER_TO_QUAN.md`).
+
+**Báo cáo so sánh V1/V2**: xem
+[`../docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md`](../docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md).
+
+Kết quả final đã chạy của `v2`:
+
+| Metric | V1 | V2 |
+|---|---:|---:|
+| Validation ROC-AUC | 0.8877 | 0.8941 |
+| Validation PR-AUC | 0.4820 | 0.4925 |
+| Holdout ROC-AUC | 0.8684 | 0.8796 |
+| Holdout PR-AUC | 0.4298 | 0.4582 |
+
+V2 tốt hơn trên các metric offline hiện có nhưng vẫn là candidate model. V1
+tiếp tục là serving default cho đến khi hoàn tất threshold analysis và kiểm
+tra compatibility với downstream scoring.
+
+## Kế hoạch retraining an toàn: chuẩn bị `v2`
+
+Nếu data pipeline của An đã thay đổi và cần retrain, không ghi đè artifact cũ.
+Hãy giữ serving ở `v1` và train bản mới ở `v2`:
+
+```bash
+cd model
+uv sync
+uv run python -m fraud_model.train_baseline
+uv run python -m fraud_model.train_compare
+uv run python -m fraud_model.tune_and_explain
+```
+
+Output mặc định sẽ nằm trong:
+
+- `artifacts/v2/baseline_logreg_v2.joblib`
+- `artifacts/v2/model_comparison_v2.json`
+- `artifacts/v2/final_model_v2.joblib`
+
+Nếu cần override version khác trong tương lai:
+
+```bash
+FRAUD_MODEL_TRAINING_VERSION=v3 uv run python -m fraud_model.train_baseline
+```
 
 ## Chạy training qua Docker Compose + Spark cluster
 
@@ -108,9 +157,20 @@ docker compose --profile training run --rm model-training \
 dừng, và tự set `SPARK_MASTER_URL=spark://spark-master:7077` để dùng cluster
 thay vì `local[*]`. Xem Spark UI tại `http://localhost:8080` khi cluster chạy.
 
+Nếu image Spark cluster không resolve được trong Docker Registry, chạy local
+Spark trong Docker bằng script PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model_v2_full.ps1
+```
+
+Script mặc định dùng `model-training-local` với `SPARK_MASTER_URL=local[*]`,
+không ghi đè artifact V1. Các output V2 nằm trong `model/artifacts/v2/`.
+
 ## `score()` — module bàn giao cho Trung (Ngày 5)
 
-`artifacts/final_model.joblib` (LightGBM đã tune) đã commit sẵn trong repo —
+`v1` là model mặc định để backend gọi ở thời điểm hiện tại. Artifact hiện hành
+(LightGBM đã tune) đã commit sẵn trong repo —
 Trung **không cần train lại**, chỉ cần `uv sync` trong `model/` rồi import
 `fraud_model.score.score` là dùng được ngay.
 
@@ -127,10 +187,8 @@ score({
 
 Cột categorical nhận giá trị string thô (viết thường, khớp giá trị lúc train
 — xem `DATA_DICTIONARY.md`); được encode qua `category_mappings` lưu trong
-artifact (không cần Spark). Ưu tiên `artifacts/final_model.joblib` (có SHAP
-thật). Nếu chưa có — vd tuning trễ — tự động dùng tạm `baseline_logreg.joblib`
-(`shap: None`), đúng phương án dự phòng "Đóng gói model trễ" ở mục 5 của kế
-hoạch.
+artifact (không cần Spark). Serving default dùng artifact `v1`; các artifact
+`v2` chỉ nên promote sau khi đánh giá xong.
 
 ## Cấu trúc
 

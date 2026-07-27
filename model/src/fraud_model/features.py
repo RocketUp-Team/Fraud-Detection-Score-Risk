@@ -16,7 +16,33 @@ top-level: backend của Trung import `score.py` → `features.py` khi serving, 
 đường serving (`encode_categoricals_pandas`) không cần Spark. Import
 top-level sẽ buộc backend cài cả PySpark (~300MB) chỉ để chấm 1 giao dịch.
 """
+import json
+
 from . import config
+
+
+CONTRACT_METADATA_COLS = {
+    config.ID_COL,
+    config.TARGET_COL,
+    config.WEIGHT_COL,
+    "split_name",
+    "processing_version",
+    "feature_schema_version",
+    "generated_at",
+}
+
+
+def _canonical_feature_columns() -> list[str] | None:
+    """Read the preprocessing feature contract when it is available."""
+    path = config.MODEL_READY_DIR.parent / "artifacts" / "preprocessing" / "feature_order.json"
+    if not path.exists():
+        return None
+    with path.open(encoding="utf-8") as f:
+        payload = json.load(f)
+    columns = payload.get("feature_columns")
+    if not isinstance(columns, list) or not all(isinstance(c, str) for c in columns):
+        raise ValueError(f"Invalid feature contract: {path}")
+    return columns
 
 
 def fit_categorical_indexer(train_df):
@@ -69,6 +95,30 @@ def to_pandas_xy(df, weight_col: str = config.WEIGHT_COL):
     y = pdf[config.TARGET_COL] if config.TARGET_COL in pdf.columns else None
     sample_weight = pdf[weight_col] if weight_col in pdf.columns else None
 
-    drop_cols = {config.ID_COL, config.TIME_COL, config.TARGET_COL, weight_col}
-    X = pdf.drop(columns=[c for c in drop_cols if c in pdf.columns])
+    canonical_columns = _canonical_feature_columns()
+    if canonical_columns is not None:
+        missing = [c for c in canonical_columns if c not in pdf.columns]
+        if missing:
+            raise ValueError(
+                "Model-ready dataset is missing required feature columns: "
+                f"{missing[:20]}" + (" ..." if len(missing) > 20 else "")
+            )
+        # Select only the canonical feature vector. This excludes all contract
+        # metadata (split/version/timestamp) and preserves training order.
+        X = pdf[canonical_columns].copy()
+    else:
+        # Backward-compatible fallback for the synthetic/dev dataset only.
+        drop_cols = CONTRACT_METADATA_COLS | {config.TIME_COL, weight_col}
+        X = pdf.drop(columns=[c for c in drop_cols if c in pdf.columns])
     return X, y, sample_weight
+
+
+def align_feature_columns(X, reference_columns: list[str]):
+    """Align a validation/holdout frame without hiding missing contract fields."""
+    missing = [c for c in reference_columns if c not in X.columns]
+    if missing:
+        raise ValueError(f"Missing required model features during alignment: {missing}")
+    unexpected = [c for c in X.columns if c not in reference_columns]
+    if unexpected:
+        print(f"[features] ignoring non-contract columns: {unexpected[:20]}")
+    return X.loc[:, reference_columns]

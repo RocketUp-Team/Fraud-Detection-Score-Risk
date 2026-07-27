@@ -1,5 +1,5 @@
 project_name: fraud-risk-ieee-cis
-pipeline_version: 1.0.0
+pipeline_version: 2.0.0
 input_dir: data/data/ieee-fraud-detection
 output_dir: data/processed/ieee_cis_fraud_risk
 spark:
