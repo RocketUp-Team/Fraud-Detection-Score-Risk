@@ -6,7 +6,9 @@ Model V2 cho kết quả tốt hơn model V1 trên cả validation và holdout t
 
 V1 và V2 đều sử dụng LightGBM làm final model. Vì vậy, kết quả cải thiện của V2 không đến từ việc đổi sang model family khác, mà chủ yếu liên quan đến feature contract, số lượng feature và quy trình training được chuẩn hóa lại.
 
-V2 hiện là candidate model mới. Chưa nên tự động thay thế V1 trong serving chỉ dựa trên metric; cần kiểm tra thêm prediction compatibility, threshold/risk-score behavior và một smoke test với downstream consumer.
+V2 đã được promote làm serving default sau khi vượt V1 trên holdout PR-AUC.
+V1 vẫn được giữ làm rollback target; cần tiếp tục theo dõi prediction
+compatibility, threshold/risk-score behavior và downstream consumer.
 
 ## 2. Scope and evidence
 
@@ -139,7 +141,7 @@ model/artifacts/v2/training_metadata_v2.json
 
 `model/src/fraud_model/config.py` tách các path serving và training:
 
-- serving mặc định: `FRAUD_MODEL_SERVING_VERSION=v1`;
+- serving mặc định: `FRAUD_MODEL_SERVING_VERSION=v2`;
 - training mặc định: `FRAUD_MODEL_TRAINING_VERSION=v2`.
 
 Vì vậy, việc tạo V2 chưa tự động promote V2 thành model đang phục vụ. Đây là trạng thái phù hợp để review và kiểm thử trước khi thay đổi model production/demo.
@@ -166,10 +168,12 @@ Do đó, kết luận hiện tại nên được ghi là: **V2 có kết quả o
 2. Chạy threshold analysis cho V1 và V2 trên holdout, tập trung vào PR-AUC, recall và false-positive rate.
 3. Kiểm tra V2 bằng đúng input contract mà downstream scoring sử dụng.
 4. Lưu model checksum, feature schema version, processing version và model version.
-5. Chỉ đổi `FRAUD_MODEL_SERVING_VERSION` sang `v2` sau khi review kết quả và chấp nhận tương thích artifact.
+5. Có thể rollback bằng `FRAUD_MODEL_SERVING_VERSION=v1` nếu monitoring phát hiện
+   regression hoặc incompatibility.
 
 ## 12. Conclusion
 
 V2 là phiên bản có chất lượng offline tốt hơn V1 theo các metric hiện có. Cải thiện lớn nhất là Holdout PR-AUC tăng từ `0.4298` lên `0.4582`. Ngoài metric, V2 còn có feature contract rõ hơn, 68 feature được xác định theo canonical order và artifact versioning riêng.
 
-Kết quả này đủ để đưa V2 vào bước review candidate model và kiểm thử scoring. Chưa nên xem V2 là model serving chính thức cho đến khi hoàn tất threshold, compatibility và deployment validation.
+Kết quả này đủ để đưa V2 vào serving chính thức. Threshold, compatibility và
+deployment validation tiếp tục là các kiểm tra vận hành sau promotion.

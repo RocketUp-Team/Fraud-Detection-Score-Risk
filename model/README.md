@@ -83,11 +83,11 @@ model/tham số trên `validation`. Mỗi script lưu artifact:
 
 Quy ước hiện tại:
 
-- `v1` = model đang phục vụ / artifact cũ
-- `v2` = nhánh retraining mới theo data pipeline cập nhật
+- `v1` = model cũ, giữ lại để rollback
+- `v2` = model đã được promote làm serving default
 
-Mặc định code training ghi sang `v2` để không đè model hiện tại. `score()`
-vẫn đọc `v1` làm serving default cho đến khi chủ động promote version mới.
+Mặc định code training ghi sang `v2`. `score()` cũng phục vụ `v2`; rollback
+bằng `FRAUD_MODEL_SERVING_VERSION=v1` mà không cần sửa code.
 
 `tune_and_explain` đọc `model_comparison_v2.json` để biết model nào cần tune. Nếu
 model tốt nhất không phải mô hình cây (LightGBM/XGBoost/CatBoost), script dừng
@@ -110,9 +110,17 @@ Kết quả final đã chạy của `v2`:
 | Holdout ROC-AUC | 0.8684 | 0.8796 |
 | Holdout PR-AUC | 0.4298 | 0.4582 |
 
-V2 tốt hơn trên các metric offline hiện có nhưng vẫn là candidate model. V1
-tiếp tục là serving default cho đến khi hoàn tất threshold analysis và kiểm
-tra compatibility với downstream scoring.
+V2 tốt hơn trên các metric offline hiện có và đã được promote. Threshold và
+compatibility tiếp tục được theo dõi trong production; mỗi bản ghi scoring
+gắn `model_version` để truy vết.
+
+### MLflow training history
+
+Mỗi stage tạo một run trong experiment `fraud-detection-training`: `baseline`,
+`compare` và `tune_and_holdout`. Mặc định MLflow ghi local vào
+`model/artifacts/mlruns/`; đặt `MLFLOW_TRACKING_URI` để dùng tracking server
+chung. Run lưu model version, Spark master, params, validation metrics và
+holdout metrics (chỉ ở stage cuối), cùng metadata JSON.
 
 ## Kế hoạch retraining an toàn: chuẩn bị `v2`
 
@@ -169,7 +177,8 @@ không ghi đè artifact V1. Các output V2 nằm trong `model/artifacts/v2/`.
 
 ## `score()` — module bàn giao cho Trung (Ngày 5)
 
-`v1` là model mặc định để backend gọi ở thời điểm hiện tại. Artifact hiện hành
+`v2` là model mặc định để backend gọi. Artifact V1 vẫn được giữ để rollback
+nhanh bằng biến môi trường `FRAUD_MODEL_SERVING_VERSION=v1`. Artifact hiện hành
 (LightGBM đã tune) đã commit sẵn trong repo —
 Trung **không cần train lại**, chỉ cần `uv sync` trong `model/` rồi import
 `fraud_model.score.score` là dùng được ngay.

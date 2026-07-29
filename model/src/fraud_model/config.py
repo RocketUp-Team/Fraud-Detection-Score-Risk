@@ -34,7 +34,9 @@ FINAL_MODEL_PATH = ARTIFACTS_DIR / "final_model.joblib"
 
 TREE_MODEL_NAMES = {"lightgbm", "xgboost", "catboost"}
 
-SERVING_MODEL_VERSION = os.environ.get("FRAUD_MODEL_SERVING_VERSION", "v1")
+# V2 passed offline holdout gates and is now the production default. Roll back
+# without changing code by setting FRAUD_MODEL_SERVING_VERSION=v1.
+SERVING_MODEL_VERSION = os.environ.get("FRAUD_MODEL_SERVING_VERSION", "v2")
 TRAINING_MODEL_VERSION = os.environ.get("FRAUD_MODEL_TRAINING_VERSION", "v2")
 
 

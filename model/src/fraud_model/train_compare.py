@@ -11,6 +11,7 @@ Chạy:
     uv run python -m fraud_model.train_compare
 """
 import json
+import mlflow
 
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
@@ -28,6 +29,7 @@ from .features import (
     fit_categorical_indexer,
     to_pandas_xy,
 )
+from .tracking import log_dataset_params, training_run
 
 
 def _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val):
@@ -65,13 +67,16 @@ def main() -> dict:
         "catboost": CatBoostClassifier(iterations=300, verbose=False),
     }
 
-    results = {}
-    for name, model in models.items():
-        _, results[name] = _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val)
-        print(
-            f"[compare] {name:10s} validation ROC-AUC={results[name]['roc_auc']:.4f}  "
-            f"PR-AUC={results[name]['pr_auc']:.4f}"
-        )
+    with training_run("compare"):
+        log_dataset_params(len(X_train), len(X_val))
+        results = {}
+        for name, model in models.items():
+            _, results[name] = _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val)
+            mlflow.log_metrics({f"{name}_validation_roc_auc": results[name]["roc_auc"], f"{name}_validation_pr_auc": results[name]["pr_auc"]})
+            print(
+                f"[compare] {name:10s} validation ROC-AUC={results[name]['roc_auc']:.4f}  "
+                f"PR-AUC={results[name]['pr_auc']:.4f}"
+            )
 
     best_name = max(results, key=lambda n: results[n]["pr_auc"])
     print(f"[compare] best model by validation PR-AUC: {best_name}")

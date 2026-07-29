@@ -34,6 +34,7 @@ from .features import (
     fit_categorical_indexer,
     to_pandas_xy,
 )
+from .tracking import log_completed_run
 
 PARAM_GRIDS = {
     "lightgbm": [
@@ -158,6 +159,18 @@ def main() -> None:
             f,
             indent=2,
         )
+    run_id = log_completed_run(
+        "tune_and_holdout",
+        metrics={
+            "validation_roc_auc": val_roc_auc,
+            "validation_pr_auc": best_pr_auc,
+            "holdout_roc_auc": holdout_roc_auc,
+            "holdout_pr_auc": holdout_pr_auc,
+        },
+        params={"best_model": best_name, "best_params": json.dumps(best_params, sort_keys=True)},
+        artifacts=[config.TRAINING_METADATA_PATH],
+    )
+    print(f"[mlflow] tune run_id={run_id}")
     print(f"[tune] saved -> {config.TRAINING_FINAL_MODEL_PATH}")
 
 
