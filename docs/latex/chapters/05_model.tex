@@ -94,6 +94,41 @@ includes canonical feature selection and metadata filtering. It is not an
 ablation study and cannot attribute improvement to one feature group or one
 hyperparameter.
 
+\section{Unpromoted \texttt{0.0.2} candidate}
+
+A later XGBoost candidate on the 68-feature contract records a more complete
+evaluation workflow than V2: isotonic calibration, selected thresholds, a
+threshold table, holdout confusion counts, and five finished MLflow stage runs.
+Table~\ref{tab:candidate-002} summarizes its saved evidence.
+
+\begin{table}[H]
+\centering
+\caption{Saved \texttt{0.0.2} candidate metrics}
+\label{tab:candidate-002}
+\begin{tabular}{lr}
+\toprule
+Metric & Value\\
+\midrule
+Validation ROC-AUC & 0.8982\\
+Validation PR-AUC & 0.5050\\
+Holdout ROC-AUC & 0.8807\\
+Holdout PR-AUC & 0.4318\\
+Precision at review threshold 0.11 & 0.3275\\
+Recall at review threshold 0.11 & 0.5578\\
+F1 at review threshold 0.11 & 0.4127\\
+True negative / false positive & 82,433 / 3,556\\
+False negative / true positive & 1,373 / 1,732\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The candidate selects review and reject thresholds of 0.11 and 0.31 under a
+minimum-precision rule of 0.30. Its holdout PR-AUC is below V2's 0.4582, so it
+is evidence that the fuller workflow executed, not evidence that the candidate
+should replace V2. Calibration and threshold selection also reuse the validation
+period after model selection used that period; a separate temporal window is
+needed before treating the operating policy as independently validated.
+
 \section{Artifact structure and versioning}
 
 The current V2 directory contains:
@@ -105,14 +140,19 @@ The current V2 directory contains:
   \item \texttt{training\_metadata\_v2.json}.
 \end{itemize}
 
+The \texttt{0.0.2} directory additionally contains a calibration model,
+threshold configuration, threshold-analysis table, validation metrics, and
+holdout metrics. These files are candidate evidence and are not selected by the
+default serving configuration.
+
 Serving defaults to V2 in configuration. Setting
 \texttt{FRAUD\_MODEL\_SERVING\_VERSION=v1} selects the V1 path and supports the
 legacy root artifact.
 
 Training and serving targets are separate. This is a sound deployment boundary:
 training a new version need not overwrite the served artifact. The remaining
-lineage gaps are immutable checksums, external registry location, completed
-tracking runs, explicit promotion approval, and rollback smoke evidence.
+lineage gaps are immutable checksums, external registry location, explicit
+promotion approval, and rollback smoke evidence.
 
 \section{Request-time scoring}
 
@@ -155,34 +195,36 @@ use an explanation method aligned to the displayed output.
 \section{Risk scoring and operating policy}
 
 The backend maps probability to a rounded score and fixed bands. The model code
-contains threshold-analysis and optional threshold metadata paths, but the V2
-artifact directory has no calibration/threshold outputs, and the backend does
-not use model thresholds as decision authority.
+contains threshold-analysis and optional threshold metadata paths. V2 has no
+calibration/threshold outputs; \texttt{0.0.2} has both, but the backend does not
+use model thresholds as decision authority.
 
 This is the most important distinction between model quality and operational
 readiness. Area metrics show ranking quality across thresholds. They do not show
-the number of false alerts, missed frauds, or reviewers needed at scores 40 and
-80.
+the reviewers needed at scores 40 and 80. The \texttt{0.0.2} confusion counts
+describe threshold 0.11 only; they do not validate the current backend bands or
+the reject threshold as a two-stage business policy.
 
 \section{Experiment tracking}
 
 The model package implements an MLflow wrapper and declares MLflow as a current
-dependency \parencite{mlflow}. The observed local tracking directory contains
-experiment metadata but no completed run evidence. Therefore the thesis reports
-tracking as implemented, not as a complete auditable training history.
-
-Recommended runs are:
+dependency \parencite{mlflow}. The observed SQLite database contains five
+finished \texttt{0.0.2} runs:
 
 \begin{enumerate}
   \item baseline;
   \item candidate comparison;
-  \item tuning/model selection;
+  \item tuning/model selection and validation;
   \item calibration and threshold policy;
   \item final holdout evaluation.
 \end{enumerate}
 
-Each should log dataset/schema versions, code revision, parameters, metrics,
-artifact checksum, and the selected model/policy.
+Run parameters and metrics are queryable, but this is still local-only evidence.
+The artifact URIs point to a container-local
+\texttt{/app/artifacts/mlflow-artifacts} path, and the database has no registered
+models or model versions. A complete lineage record must additionally persist
+dataset/schema versions, code revision, artifact checksum, promotion approval,
+and rollback evidence in a durable shared store.
 
 \section{Model threats to validity}
 
@@ -192,7 +234,10 @@ artifact checksum, and the selected model/policy.
   \item The local review environment initially lacked LightGBM.
   \item One validation window can favor a transient regime.
   \item V1/V2 feature sets differ.
-  \item Operating-point metrics and calibration are missing.
+  \item Candidate calibration and threshold selection reuse the validation
+  period after model selection.
+  \item Candidate thresholds are not enforced by the backend, and V2 has no
+  equivalent operating-point artifact.
   \item Full data is collected to pandas for fitting.
   \item No production shadow test or delayed-label drift study exists.
 \end{itemize}
@@ -206,9 +251,10 @@ model until:
 \begin{enumerate}
   \item a frozen environment loads and scores the artifact without heuristic
   fallback;
-  \item operating-point and calibration evidence are produced;
+  \item candidate operating evidence is reproduced on independent windows and
+  compared with V2;
   \item the backend policy uses an approved threshold contract;
-  \item MLflow lineage and checksums are saved;
+  \item MLflow lineage, registry/promotion records, and checksums are saved in a
+  durable shared location;
   \item shadow behavior and rollback are tested.
 \end{enumerate}
-

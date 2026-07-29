@@ -62,7 +62,10 @@ canonical Parquet path and why the contract-finalization utility exists.
 
 \section{Automated tests}
 
-\begin{longtable}{p{0.22\textwidth}p{0.48\textwidth}p{0.20\textwidth}}
+\begin{longtable}{
+  >{\raggedright\arraybackslash}p{0.22\textwidth}
+  >{\raggedright\arraybackslash}p{0.48\textwidth}
+  >{\raggedright\arraybackslash}p{0.20\textwidth}}
 \caption{Automated and manual test coverage}
 \label{tab:test-coverage}\\
 \toprule
@@ -77,6 +80,7 @@ Data verifier & Schema, rows, IDs, split order/overlap, artifacts & Full pipelin
 Model features & Training-only indexer, unseen category, alignment & No multi-window validation\\
 Model scoring & Probability, SHAP, missing values, fallback & No latency/calibration test\\
 Model quality & Minimum holdout threshold if artifact is loadable & Can skip without artifact\\
+MLflow configuration & Local-directory creation and remote-URI behavior & Full server not exercised\\
 Backend risk & Every band boundary and 0--100 coverage & Fixed-policy only\\
 Backend API & Health, metadata, list/stats/detail, review, score, import & Real model may be replaced\\
 Frontend build/lint & Static typing and source lint & No component or browser tests\\
@@ -101,7 +105,11 @@ serving can be claimed independently reproducible.
 
 \section{Whole-project findings}
 
-\begin{longtable}{p{0.06\textwidth}p{0.43\textwidth}p{0.13\textwidth}p{0.22\textwidth}}
+\begin{longtable}{
+  >{\raggedright\arraybackslash}p{0.06\textwidth}
+  >{\raggedright\arraybackslash}p{0.43\textwidth}
+  >{\raggedright\arraybackslash}p{0.13\textwidth}
+  >{\raggedright\arraybackslash}p{0.22\textwidth}}
 \caption{Whole-project severity matrix}
 \label{tab:severity}\\
 \toprule
@@ -115,15 +123,14 @@ ID & Finding & Severity & Impact\\
 R1 & No authentication, authorization, or audit controls & Critical & Blocks external deployment\\
 R2 & Model readiness can fall back to heuristic & High & Predictions can be misidentified\\
 R3 & Decision thresholds are not evidence-based & High & Blocks policy approval\\
-R4 & No completed MLflow/model-registry evidence & High & Blocks lineage claim\\
-R5 & Operating-point and calibration evidence missing & High & Blocks operational metric claim\\
+R4 & Local MLflow runs exist but registry, promotion, and checksum evidence is absent & High & Blocks portable lineage claim\\
+R5 & Candidate thresholds are not the served backend policy & High & Blocks operational policy claim\\
 R6 & Manifest and verifier status differ & Medium & Handover ambiguity\\
-R7 & Promotion documentation conflicts & Medium & Release confusion\\
-R8 & Jobs and schema lifecycle are non-durable & Medium & Restart/upgrade risk\\
-R9 & No automated frontend/browser tests & Medium & UI regression and accessibility risk\\
-R10 & API types are manually synchronized and stale & Medium & Client contract risk\\
-R11 & Training collects full data to pandas & Medium & Driver-memory ceiling\\
-R12 & No bulk re-score/version-isolated views & Medium & Mixed-version analytics\\
+R7 & Jobs and schema lifecycle are non-durable & Medium & Restart/upgrade risk\\
+R8 & No automated frontend/browser tests & Medium & UI regression and accessibility risk\\
+R9 & API types are manually synchronized and stale & Medium & Client contract risk\\
+R10 & Training collects full data to pandas & Medium & Driver-memory ceiling\\
+R11 & No bulk re-score/version-isolated views & Medium & Mixed-version analytics\\
 \bottomrule
 \end{longtable}
 
@@ -149,9 +156,9 @@ merchant environment.
 \subsection{Reproducibility}
 
 Processed data is locally present and well contracted, but model artifacts are
-Git-ignored, tracking runs are incomplete, and checksums/registry IDs are absent.
-The dependency worktree is currently being corrected for MLflow compatibility
-but was not authored by this reporting task.
+Git-ignored. Five finished \texttt{0.0.2} runs are queryable in the local SQLite
+store, but their artifact URIs are container-local and checksums, registry IDs,
+promotion approval, and rollback records are absent.
 
 \section{Production-readiness gates}
 
@@ -168,11 +175,12 @@ but was not authored by this reporting task.
 \subsection{Gate 2: approved operating policy}
 
 \begin{enumerate}
-  \item separate temporal model-selection, calibration, and threshold windows;
-  \item quantify precision, recall, false positives, false negatives, and
-  calibration;
+  \item reproduce \texttt{0.0.2} calibration and threshold evidence on temporal
+  windows not reused for model selection;
+  \item compare its precision, recall, false positives, false negatives, and
+  calibration with V2;
   \item define review capacity and error cost;
-  \item store and enforce approved review/reject thresholds;
+  \item approve, store, and enforce review/reject thresholds;
   \item test exact boundaries through model, backend, and UI.
 \end{enumerate}
 

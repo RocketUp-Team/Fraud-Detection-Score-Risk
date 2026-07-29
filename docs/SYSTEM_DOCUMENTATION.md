@@ -28,6 +28,9 @@ The strongest verified statements about the current system are:
   reported holdout ROC-AUC is `0.8796` and holdout PR-AUC is `0.4582`.
 - V2 is the default model version in `model/src/fraud_model/config.py`, with V1
   available through the `FRAUD_MODEL_SERVING_VERSION` rollback variable.
+- A later, unpromoted `0.0.2` XGBoost candidate records five finished MLflow
+  runs, isotonic calibration, review/reject thresholds of `0.11`/`0.31`, and a
+  holdout PR-AUC of `0.4318`.
 - FastAPI, SQLAlchemy, React, Docker Compose, SHAP explanations, CSV import,
   dataset loading, review decisions, and risk-band presentation are implemented.
 - The repository is suitable as a technical demonstration, but it is not yet a
@@ -95,8 +98,8 @@ backend, not a separate network service.
 ## 4. End-to-end architecture
 
 The following view shows the current batch-to-serving path. Solid arrows are
-implemented data or request flows; the MLflow/model-registry area is only
-partially evidenced.
+implemented data or request flows. Local MLflow run tracking is verified, while
+external registry, promotion, and rollback controls are not.
 
 ```mermaid
 flowchart LR
@@ -105,7 +108,7 @@ flowchart LR
     B --> D[Model-ready chronological splits]
     D --> E[Model comparison and tuning]
     E --> F[Versioned Joblib artifact]
-    E -. partial evidence .-> G[MLflow local store]
+    E -. five local stage runs .-> G[MLflow SQLite store]
     F --> H[fraud_model.score]
     H --> I[FastAPI service]
     C --> J[Dataset loader]
@@ -314,10 +317,32 @@ Existing V2 artifacts are:
 path or the legacy root artifact. Training and serving paths are separated so a
 new training run need not overwrite the served version.
 
-The artifact directory is Git-ignored and currently has no documented external
-registry, immutable checksum manifest, or completed MLflow run history. The
-saved metadata also contains a container-local `/app/artifacts/...` path. These
-facts limit independent reproduction and auditability.
+The later `0.0.2` candidate directory contains an XGBoost artifact, an isotonic
+calibrator, threshold configuration, threshold table, validation/holdout
+metrics, and training metadata. It reports:
+
+| Metric | `0.0.2` value |
+|---|---:|
+| Validation ROC-AUC | 0.8982 |
+| Validation PR-AUC | 0.5050 |
+| Holdout ROC-AUC | 0.8807 |
+| Holdout PR-AUC | 0.4318 |
+| Precision at review threshold 0.11 | 0.3275 |
+| Recall at review threshold 0.11 | 0.5578 |
+| F1 at review threshold 0.11 | 0.4127 |
+| Confusion counts | TN 82,433; FP 3,556; FN 1,373; TP 1,732 |
+
+V2 remains the default and has the stronger saved holdout PR-AUC (`0.4582`).
+The `0.0.2` candidate is therefore evidence of a more complete evaluation
+workflow, not evidence of promotion.
+
+The artifact directory and SQLite tracking database are Git-ignored. The
+database contains five finished `0.0.2` runs covering baseline, comparison,
+tuning/validation, threshold/calibration, and final holdout. It contains no
+registered model or model version. Saved artifact URIs and metadata also contain
+container-local `/app/artifacts/...` paths. The absence of an external registry,
+immutable checksum manifest, promotion approval, and rollback record limits
+portable reproduction and auditability.
 
 ### 6.6 Scoring and explainability
 
@@ -333,20 +358,22 @@ facts limit independent reproduction and auditability.
 8. returns probability, SHAP top five, scoring mode, and optional threshold
    metadata.
 
-SHAP values explain the underlying tree output. If a future artifact calibrates
-the probability after model inference, the displayed SHAP contributions will not
-decompose that calibrated probability directly.
+SHAP values explain the underlying tree output. For the calibrated `0.0.2`
+artifact, the displayed SHAP contributions do not decompose the post-calibration
+probability directly.
 
 ### 6.7 Current model limitations
 
-- Current artifacts do not include saved calibration/threshold files.
-- Precision, recall, F1, false-positive count, and false-negative count at the
-  operational decision boundary are not part of the V2 final metadata.
+- V2 does not include calibration/threshold files or operating-point confusion
+  metrics; `0.0.2` does, but is not the serving default.
 - Threshold metadata is not the authoritative backend decision policy.
 - The fixed risk bands have not been tied to review capacity or explicit
   false-positive/false-negative costs.
-- The local MLflow store contains experiment metadata but no completed run
-  evidence.
+- The `0.0.2` threshold/calibration workflow reuses the validation period after
+  that period was used for model selection, so an independent calibration and
+  policy-selection window is still needed.
+- MLflow evidence is local and non-portable; no registered model, promotion
+  alias, immutable checksum, or approval/rollback record exists.
 - A missing model dependency can trigger the backend heuristic fallback, which is
   useful for a demo but unsafe as a silent production behavior.
 
@@ -551,7 +578,7 @@ environments where the cluster images are unavailable.
 | `FRAUD_MODEL_SERVING_VERSION` | Served artifact version | `v2` |
 | `FRAUD_MODEL_TRAINING_VERSION` | Training output version | `v2` |
 | `SPARK_MASTER_URL` | Spark connection | local or profile-specific |
-| `MLFLOW_TRACKING_URI` | Optional external tracking backend | local artifact path |
+| `MLFLOW_TRACKING_URI` | Optional external tracking backend | local SQLite database |
 
 ### 9.4 Standard commands
 
@@ -624,9 +651,9 @@ Current Compose credentials (`fraud`/`fraud`) are development defaults and must
 not be reused outside a local demonstration. Model artifacts loaded through
 Joblib must come from a trusted build because deserialization can execute code.
 
-Model governance gaps include missing immutable checksums, incomplete MLflow run
+Model governance gaps include missing immutable checksums, local-only MLflow
 evidence, no registry promotion record, no drift monitor, no business-approved
-thresholds, and no fail-closed serving health gate.
+served thresholds, and no fail-closed serving health gate.
 
 ## 12. Current limitations and recommended next steps
 
@@ -635,11 +662,12 @@ thresholds, and no fail-closed serving health gate.
 1. Make dependency locking and container model loading reproducible.
 2. Fail health/readiness when the expected model cannot load; make heuristic
    mode an explicit opt-in demo setting.
-3. Produce precision, recall, F1, confusion counts, calibration, and latency
-   evidence at candidate operating points.
-4. Connect an approved review/reject threshold policy to backend decisions.
-5. Record model checksum, dataset/schema versions, training configuration,
-   MLflow run ID, and promotion/rollback evidence.
+3. Reproduce the `0.0.2` precision, recall, F1, confusion, and calibration
+   evidence on windows not reused for model selection; add latency evidence.
+4. Compare the candidate with V2, approve review/reject thresholds, and connect
+   that contract to backend decisions.
+5. Promote run IDs and artifacts to a durable registry with model checksums,
+   dataset/schema versions, approval, and rollback evidence.
 
 ### Engineering hardening
 
@@ -669,6 +697,8 @@ Primary repository evidence used for this document:
 - `data/processed/ieee_cis_fraud_risk/manifest.json`;
 - processed-data split, join, class-balance, schema, and verification reports;
 - V1/V2 comparison and V2 training metadata artifacts;
+- ignored local `0.0.2` calibration, threshold, validation, and holdout files;
+- ignored local MLflow SQLite records for five finished `0.0.2` stage runs;
 - model, backend, and frontend tests;
 - Dockerfiles, Compose files, package manifests, and lock files;
 - dated reports under `reports/`;

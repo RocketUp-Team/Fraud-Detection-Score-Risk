@@ -15,8 +15,10 @@ defect is the stale terminal status in the top-level manifest.
 LightGBM has the highest saved validation PR-AUC in both V1 and V2 comparisons.
 The V2 final artifact reports a holdout ROC-AUC of 0.8796 and PR-AUC of 0.4582,
 improving on V1. Because V1 and V2 differ in feature contract and because
-operating-point metrics are absent, V2 should be described as the offline
-champion rather than proof of production benefit.
+V2 lacks operating-point metrics, it should be described as the offline champion
+rather than proof of production benefit. The later \texttt{0.0.2} XGBoost
+candidate provides calibrated thresholds and confusion counts but has a lower
+holdout PR-AUC of 0.4318 and has not been promoted.
 
 \subsection{RQ3: Spark-free serving and explanations}
 
@@ -31,8 +33,9 @@ features in a real online environment.
 The principal gaps are:
 
 \begin{itemize}
-  \item incomplete experiment/model lineage;
-  \item missing calibration and operating-policy evidence;
+  \item local-only experiment history with no registry/promotion/checksum
+  lineage;
+  \item candidate calibration and thresholds are not the served backend policy;
   \item fail-open heuristic fallback;
   \item no authentication, durable jobs, or migrations;
   \item no drift/latency/service monitoring;
@@ -62,9 +65,10 @@ make V2 independently reproducible and observable:
 
 \begin{enumerate}
   \item complete dependency locking and a frozen container smoke;
-  \item record model checksum, image digest, data/schema versions, and MLflow
-  run;
-  \item calculate operating-point and calibration evidence;
+  \item record model checksum, image digest, data/schema versions, MLflow run,
+  and promotion decision in a durable registry;
+  \item reproduce \texttt{0.0.2} operating evidence on independent windows and
+  compare it with V2;
   \item make fallback an explicit demo mode and enforce readiness;
   \item synchronize/generated API client types and expand CI.
 \end{enumerate}

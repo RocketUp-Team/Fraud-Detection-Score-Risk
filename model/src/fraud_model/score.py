@@ -1,10 +1,10 @@
 """Module đóng gói cuối cùng để Trung gọi từ backend (bàn giao Ngày 5, xem
 docs/RISK_SCORING_PLAN.md mục 2 và 4).
 
-Mặc định serving dùng model hiện hành `v1`. Artifact cũ được gom logic dưới
-nhãn `v1`; các lần train mới nên ghi sang `v2` để không đè lên model đang
-phục vụ. `score()` ưu tiên model cuối của serving version hiện tại, rồi mới
-fallback sang baseline cùng version. Với `v1`, code còn hỗ trợ legacy root
+Mặc định serving dùng model hiện hành `v2`. Artifact cũ được gom logic dưới
+nhãn `v1`; các lần train mới nên ghi sang version riêng để không đè lên model
+đang phục vụ. `score()` ưu tiên model cuối của serving version hiện tại, rồi
+mới fallback sang baseline cùng version. Với `v1`, code còn hỗ trợ legacy root
 artifact để tương thích ngược.
 """
 import joblib

@@ -24,8 +24,9 @@ FastAPI exposes scoring, transaction exploration, imports, dataset loading, and
 human review, while a React dashboard supports investigation. The processed-data
 contract passed 82 saved verification checks. The V2 LightGBM artifact reports a
 holdout ROC-AUC of 0.8796 and PR-AUC of 0.4582. The review also identifies
-limitations: incomplete experiment tracking, absent calibrated operating-policy
-evidence, heuristic fallback risk, in-memory jobs, manual API type
-synchronization, and missing production security controls. The result is a
+limitations: MLflow runs and calibrated thresholds exist for an unpromoted
+\texttt{0.0.2} candidate but are local-only and are not enforced by the
+backend; heuristic fallback risk, in-memory jobs, manual API type
+synchronization, and production security gaps also remain. The result is a
 coherent academic demonstration and a documented path toward production
 readiness.

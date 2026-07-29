@@ -6,9 +6,11 @@ Model V2 cho kết quả tốt hơn model V1 trên cả validation và holdout t
 
 V1 và V2 đều sử dụng LightGBM làm final model. Vì vậy, kết quả cải thiện của V2 không đến từ việc đổi sang model family khác, mà chủ yếu liên quan đến feature contract, số lượng feature và quy trình training được chuẩn hóa lại.
 
-V2 đã được promote làm serving default sau khi vượt V1 trên holdout PR-AUC.
-V1 vẫn được giữ làm rollback target; cần tiếp tục theo dõi prediction
-compatibility, threshold/risk-score behavior và downstream consumer.
+V2 là software serving default sau khi vượt V1 trên holdout PR-AUC; V1 vẫn được
+giữ làm rollback target. Đây là lựa chọn mặc định của code cho môi trường
+demo, không phải bằng chứng về một quyết định production promotion đã được phê
+duyệt. Prediction compatibility, threshold/risk-score behavior và downstream
+consumer vẫn cần được kiểm soát.
 
 ## 2. Scope and evidence
 
@@ -144,7 +146,10 @@ model/artifacts/v2/training_metadata_v2.json
 - serving mặc định: `FRAUD_MODEL_SERVING_VERSION=v2`;
 - training mặc định: `FRAUD_MODEL_TRAINING_VERSION=v2`.
 
-Vì vậy, việc tạo V2 chưa tự động promote V2 thành model đang phục vụ. Đây là trạng thái phù hợp để review và kiểm thử trước khi thay đổi model production/demo.
+Vì vậy, việc tạo artifact V2 không tự động tạo một quyết định promotion có kiểm
+soát. Cấu hình hiện đã chọn V2 làm mặc định cho demo, nhưng repository chưa có
+registry record, approval, checksum và rollback smoke để gọi đó là production
+promotion.
 
 ## 10. Limitations and open questions
 
@@ -158,14 +163,17 @@ Các điểm chưa đủ bằng chứng để kết luận hoàn toàn:
 - V1 là legacy artifact không có `model_version` metadata rõ ràng.
 - Model artifacts nằm trong thư mục được ignore bởi Git; cần lưu checksum hoặc model registry nếu muốn handover reproducible hoàn toàn.
 
-Do đó, kết luận hiện tại nên được ghi là: **V2 có kết quả offline tốt hơn V1 trên artifact validation/holdout hiện có, nhưng chưa đủ bằng chứng để tự động promote sang serving.**
+Do đó, kết luận hiện tại nên được ghi là: **V2 có kết quả offline tốt hơn V1
+trên artifact validation/holdout hiện có và là software default, nhưng chưa đủ
+bằng chứng để được xem là production promotion.**
 
 ## 11. Recommendation
 
 Đề xuất quy trình promote:
 
-1. Giữ V1 làm serving model hiện tại.
-2. Chạy threshold analysis cho V1 và V2 trên holdout, tập trung vào PR-AUC, recall và false-positive rate.
+1. Giữ V2 làm software default cho demo và V1 làm rollback target.
+2. So sánh threshold analysis của candidate mới với V2 trên các temporal window
+   độc lập, tập trung vào PR-AUC, recall và false-positive rate.
 3. Kiểm tra V2 bằng đúng input contract mà downstream scoring sử dụng.
 4. Lưu model checksum, feature schema version, processing version và model version.
 5. Có thể rollback bằng `FRAUD_MODEL_SERVING_VERSION=v1` nếu monitoring phát hiện
@@ -175,5 +183,6 @@ Do đó, kết luận hiện tại nên được ghi là: **V2 có kết quả o
 
 V2 là phiên bản có chất lượng offline tốt hơn V1 theo các metric hiện có. Cải thiện lớn nhất là Holdout PR-AUC tăng từ `0.4298` lên `0.4582`. Ngoài metric, V2 còn có feature contract rõ hơn, 68 feature được xác định theo canonical order và artifact versioning riêng.
 
-Kết quả này đủ để đưa V2 vào serving chính thức. Threshold, compatibility và
-deployment validation tiếp tục là các kiểm tra vận hành sau promotion.
+Kết quả này đủ để giữ V2 làm serving default cho demo, nhưng chưa đủ để gọi là
+serving production chính thức. Threshold, compatibility, deployment validation,
+registry approval và rollback evidence phải được hoàn tất trước promotion.

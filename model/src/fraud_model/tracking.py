@@ -1,9 +1,9 @@
 """Small MLflow integration shared by the training entry points.
 
-The default tracking URI is a local file store under ``model/artifacts`` so
-training remains reproducible offline and works in both Spark cluster and
-Spark local Docker modes. Set ``MLFLOW_TRACKING_URI`` to a remote tracking
-server when one is available.
+The default tracking URI uses a local SQLite backend under
+``model/artifacts`` so training remains reproducible offline and works in
+both Spark cluster and Spark local Docker modes. Set ``MLFLOW_TRACKING_URI``
+to use a remote tracking server when one is available.
 """
 from __future__ import annotations
 
@@ -18,19 +18,29 @@ from . import config
 
 
 def configure() -> None:
-    db_path = (config.ARTIFACTS_DIR / "mlflow.db").resolve()
-    tracking_uri = os.environ.get(
-        "MLFLOW_TRACKING_URI",
-        f"sqlite:///{db_path.as_posix()}",
-    )
+    configured_uri = os.environ.get("MLFLOW_TRACKING_URI")
+    artifact_location: str | None = None
+    if configured_uri:
+        tracking_uri = configured_uri
+    else:
+        config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+        db_path = (config.ARTIFACTS_DIR / "mlflow.db").resolve()
+        artifact_root = config.ARTIFACTS_DIR / "mlflow-artifacts"
+        artifact_root.mkdir(parents=True, exist_ok=True)
+        tracking_uri = f"sqlite:///{db_path.as_posix()}"
+        artifact_location = artifact_root.resolve().as_uri()
+
     mlflow.set_tracking_uri(tracking_uri)
     experiment_name = os.environ.get("MLFLOW_EXPERIMENT", "fraud-detection-training")
     experiment = mlflow.get_experiment_by_name(experiment_name)
     if experiment is None:
-        mlflow.create_experiment(
-            experiment_name,
-            artifact_location=(config.ARTIFACTS_DIR / "mlflow-artifacts").resolve().as_uri(),
-        )
+        if artifact_location is None:
+            mlflow.create_experiment(experiment_name)
+        else:
+            mlflow.create_experiment(
+                experiment_name,
+                artifact_location=artifact_location,
+            )
     mlflow.set_experiment(experiment_name)
 
 
