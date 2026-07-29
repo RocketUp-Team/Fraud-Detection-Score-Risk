@@ -5,11 +5,15 @@ system report.
 
 ## Before submission
 
-Edit `metadata.tex` and replace:
+Review `metadata.tex` and confirm:
 
-- `<Author Name>`;
-- `<Supervisor Name>`;
-- the proposed thesis title if an official title has been approved.
+- the official thesis title;
+- the Group 1 roster and name spelling;
+- the supervisor name;
+- the convocation year.
+
+The appendix distinguishes repository-recorded subsystem roles from team
+members whose detailed contribution statement still requires confirmation.
 
 ## Build
 

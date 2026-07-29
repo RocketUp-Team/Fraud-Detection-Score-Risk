@@ -87,4 +87,4 @@ if ($Mode -eq "cluster") {
 
 Write-Host "[training] Completed successfully."
 Write-Host "[training] Model artifacts: model/artifacts/$TrainingVersion/"
-Write-Host "[training] MLflow history: model/artifacts/mlruns/"
+Write-Host "[training] MLflow database: model/artifacts/mlflow.db"

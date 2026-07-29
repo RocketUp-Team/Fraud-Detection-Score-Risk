@@ -1,6 +1,12 @@
 # Whole-Project Review Report
 
 **Review date:** 30 July 2026
+
+**Prepared by:** Group 1 — Dương Bình An, Lê Quang Tuyến, Phạm Đức Long,
+Đỗ Quốc Trung, Dương Hồng Quân, and Nguyễn Lê Hồng Nhi
+
+**Supervisor:** TAN Le Duy
+
 **Decision:** the repository is a coherent end-to-end academic/demo system, but
 it needs reproducibility, serving-policy, security, and operational controls
 before it can support a production-readiness claim.
@@ -10,7 +16,7 @@ before it can support a production-readiness claim.
 The implementation covers all major layers promised by the project plan:
 large-data preparation, model development, real-time scoring, persistence,
 review workflow, dashboard, and container orchestration. The interfaces between
-the four team workstreams are visible and mostly consistent:
+the four documented subsystem workstreams are visible and mostly consistent:
 
 - the Spark pipeline exports an explicit model-ready contract;
 - the model consumes the canonical feature order and exports a Python scoring

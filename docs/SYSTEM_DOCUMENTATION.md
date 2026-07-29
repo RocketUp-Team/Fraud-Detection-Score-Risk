@@ -3,7 +3,13 @@
 **Evidence snapshot:** 30 July 2026
 
 **Audience:** software engineers, data engineers, ML engineers, reviewers, and thesis examiners
+
 **Repository status covered:** the local working tree and its available processed-data/model artifacts
+
+**Prepared by:** Group 1 — Dương Bình An, Lê Quang Tuyến, Phạm Đức Long,
+Đỗ Quốc Trung, Dương Hồng Quân, and Nguyễn Lê Hồng Nhi
+
+**Supervisor:** TAN Le Duy
 
 ## 1. Technical summary
 

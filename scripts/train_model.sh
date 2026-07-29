@@ -56,4 +56,4 @@ fi
 
 echo "[training] Completed successfully."
 echo "[training] Model artifacts: model/artifacts/$TRAINING_VERSION/"
-echo "[training] MLflow history: model/artifacts/mlruns/"
+echo "[training] MLflow database: model/artifacts/mlflow.db"

@@ -117,10 +117,11 @@ gắn `model_version` để truy vết.
 ### MLflow training history
 
 Mỗi stage tạo một run trong experiment `fraud-detection-training`: `baseline`,
-`compare` và `tune_and_holdout`. Mặc định MLflow ghi local vào
-`model/artifacts/mlruns/`; đặt `MLFLOW_TRACKING_URI` để dùng tracking server
-chung. Run lưu model version, Spark master, params, validation metrics và
-holdout metrics (chỉ ở stage cuối), cùng metadata JSON.
+`compare` và `tune_and_holdout`. Mặc định MLflow dùng SQLite tại
+`model/artifacts/mlflow.db` và lưu file artifacts tại
+`model/artifacts/mlflow-artifacts/`; đặt `MLFLOW_TRACKING_URI` để dùng tracking
+server chung. Run lưu model version, Spark master, params, validation metrics
+và holdout metrics (chỉ ở stage cuối), cùng metadata JSON.
 
 ## Kế hoạch retraining an toàn: chuẩn bị `v2`
 

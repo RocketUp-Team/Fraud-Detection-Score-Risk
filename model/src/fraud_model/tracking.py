@@ -18,12 +18,20 @@ from . import config
 
 
 def configure() -> None:
+    db_path = (config.ARTIFACTS_DIR / "mlflow.db").resolve()
     tracking_uri = os.environ.get(
         "MLFLOW_TRACKING_URI",
-        (config.ARTIFACTS_DIR / "mlruns").resolve().as_uri(),
+        f"sqlite:///{db_path.as_posix()}",
     )
     mlflow.set_tracking_uri(tracking_uri)
-    mlflow.set_experiment(os.environ.get("MLFLOW_EXPERIMENT", "fraud-detection-training"))
+    experiment_name = os.environ.get("MLFLOW_EXPERIMENT", "fraud-detection-training")
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        mlflow.create_experiment(
+            experiment_name,
+            artifact_location=(config.ARTIFACTS_DIR / "mlflow-artifacts").resolve().as_uri(),
+        )
+    mlflow.set_experiment(experiment_name)
 
 
 @contextmanager

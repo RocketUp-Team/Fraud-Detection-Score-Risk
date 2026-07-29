@@ -22,6 +22,20 @@ Fraud Detection and Risk Scoring System.
 ## Reference template
 
 The report structure and page format were derived from
-`3. Thesis_Template_MSE_FPT University.pdf`. Student, supervisor, degree, and
-submission metadata remain explicit placeholders in `latex/metadata.tex` and
-must be completed before formal submission.
+`3. Thesis_Template_MSE_FPT University.pdf`. The Group 1 roster and supervisor
+are populated in `latex/metadata.tex`; the official title, spelling, contribution
+statements, and convocation year should still be confirmed before formal
+submission.
+
+## Project team
+
+Supervisor: TAN Le Duy
+
+Group 1:
+
+- Dương Bình An
+- Lê Quang Tuyến
+- Phạm Đức Long
+- Đỗ Quốc Trung
+- Dương Hồng Quân
+- Nguyễn Lê Hồng Nhi
