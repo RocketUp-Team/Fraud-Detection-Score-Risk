@@ -81,7 +81,8 @@ def model_info() -> dict:
         "model_version": artifact.get("model_version", model_name),
         "processing_version": artifact.get("processing_version"),
         "feature_schema_version": artifact.get("feature_schema_version"),
-        "threshold": artifact.get("threshold"),
+        "threshold": artifact.get("threshold", artifact.get("threshold_config", {}).get("review_threshold")),
+        "threshold_config": artifact.get("threshold_config"),
         "risk_band_policy_version": artifact.get("risk_band_policy_version"),
         "explainability": model_name in config.TREE_MODEL_NAMES,
         "n_features": len(artifact["feature_columns"]),
@@ -146,6 +147,9 @@ def score(features: dict) -> dict:
         columns=columns,
     )
     proba = float(model.predict_proba(row)[0, 1])
+    calibrator = artifact.get("calibrator")
+    if calibrator is not None:
+        proba = float(calibrator.predict([proba])[0])
 
     explainer = _get_explainer(model, model_name)
     shap_top5 = None
@@ -159,4 +163,9 @@ def score(features: dict) -> dict:
         shap_top5 = [{"feature": name, "shap_value": float(val)} for name, val in contributions[:5]]
 
     scoring_mode = "full_feature" if len(set(features).intersection(columns)) >= len(columns) else "partial_demo"
-    return {"proba": proba, "shap": shap_top5, "scoring_mode": scoring_mode}
+    return {
+        "proba": max(0.0, min(1.0, proba)),
+        "shap": shap_top5,
+        "scoring_mode": scoring_mode,
+        "threshold_config": artifact.get("threshold_config"),
+    }

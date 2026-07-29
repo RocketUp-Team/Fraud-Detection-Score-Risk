@@ -22,7 +22,7 @@ from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
 from . import config
-from .data import DatasetNotFoundError, load_train_weighted, load_validation
+from .data import DatasetNotFoundError, load_train_balanced, load_train_weighted, load_validation
 from .features import (
     align_feature_columns,
     apply_categorical_indexer,
@@ -47,6 +47,7 @@ def _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val):
 def main() -> dict:
     try:
         train_df = load_train_weighted()
+        balanced_df = load_train_balanced()
         val_df = load_validation()
     except DatasetNotFoundError as e:
         print(e)
@@ -54,9 +55,12 @@ def main() -> dict:
 
     indexer = fit_categorical_indexer(train_df)
     train_df = apply_categorical_indexer(indexer, train_df)
+    balanced_df = apply_categorical_indexer(indexer, balanced_df)
     val_df = apply_categorical_indexer(indexer, val_df)
 
     X_train, y_train, w_train = to_pandas_xy(train_df)
+    X_balanced, y_balanced, _ = to_pandas_xy(balanced_df)
+    X_balanced = align_feature_columns(X_balanced, list(X_train.columns))
     X_val, y_val, _ = to_pandas_xy(val_df)
     X_val = align_feature_columns(X_val, list(X_train.columns))
 
@@ -72,10 +76,18 @@ def main() -> dict:
         results = {}
         for name, model in models.items():
             _, results[name] = _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val)
-            mlflow.log_metrics({f"{name}_validation_roc_auc": results[name]["roc_auc"], f"{name}_validation_pr_auc": results[name]["pr_auc"]})
+            mlflow.log_metrics({f"{name}_weighted_validation_roc_auc": results[name]["roc_auc"], f"{name}_weighted_validation_pr_auc": results[name]["pr_auc"]})
             print(
                 f"[compare] {name:10s} validation ROC-AUC={results[name]['roc_auc']:.4f}  "
                 f"PR-AUC={results[name]['pr_auc']:.4f}"
+            )
+        for name, model in models.items():
+            balanced_name = f"{name}__balanced"
+            _, results[balanced_name] = _fit_and_score(name, model, X_balanced, y_balanced, None, X_val, y_val)
+            mlflow.log_metrics({f"{name}_balanced_validation_roc_auc": results[balanced_name]["roc_auc"], f"{name}_balanced_validation_pr_auc": results[balanced_name]["pr_auc"]})
+            print(
+                f"[compare] {balanced_name:20s} validation ROC-AUC={results[balanced_name]['roc_auc']:.4f}  "
+                f"PR-AUC={results[balanced_name]['pr_auc']:.4f}"
             )
 
     best_name = max(results, key=lambda n: results[n]["pr_auc"])
@@ -88,6 +100,7 @@ def main() -> dict:
                 "model_version": config.TRAINING_MODEL_VERSION,
                 "results": results,
                 "best_model": best_name,
+                "best_dataset": "balanced" if best_name.endswith("__balanced") else "weighted",
             },
             f,
             indent=2,

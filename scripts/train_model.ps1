@@ -1,7 +1,7 @@
 param(
     [ValidateSet("local", "cluster")]
     [string]$Mode = "local",
-    [string]$TrainingVersion = "latest"
+    [string]$TrainingVersion = ""
 )
 
 Set-StrictMode -Version Latest
@@ -22,6 +22,23 @@ function Invoke-Stage {
         throw "Training stage '$Module' failed with exit code $LASTEXITCODE"
     }
 }
+
+function Resolve-TrainingVersion {
+    param([string]$RequestedVersion)
+    if ($RequestedVersion) { return $RequestedVersion }
+
+    $artifactRoot = Join-Path (Split-Path -Parent $PSScriptRoot) "model\artifacts"
+    $versions = @(
+        Get-ChildItem -LiteralPath $artifactRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+            ForEach-Object { [version]$_.Name }
+    )
+    if ($versions.Count -eq 0) { return "0.0.1" }
+    $next = ($versions | Sort-Object -Descending | Select-Object -First 1)
+    return "$($next.Major).$($next.Minor).$($next.Build + 1)"
+}
+
+$TrainingVersion = Resolve-TrainingVersion $TrainingVersion
 
 function Invoke-Workflow {
     param([Parameter(Mandatory = $true)][string]$Service)

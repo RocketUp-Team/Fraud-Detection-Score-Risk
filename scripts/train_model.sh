@@ -3,9 +3,22 @@ set -euo pipefail
 
 # One training entrypoint. Every execution creates new MLflow runs while the
 # model artifact directory is refreshed under the selected training version.
-# Usage: bash scripts/train_model.sh [local|cluster] [latest]
+# Usage: bash scripts/train_model.sh [local|cluster] [0.0.10]
 MODE="${1:-local}"
-TRAINING_VERSION="${2:-latest}"
+TRAINING_VERSION="${2:-}"
+
+if [[ -z "$TRAINING_VERSION" ]]; then
+  max_patch=0
+  shopt -s nullglob
+  for artifact_dir in model/artifacts/*; do
+    version_name="$(basename "$artifact_dir")"
+    if [[ "$version_name" =~ ^[0-9]+\.[0-9]+\.([0-9]+)$ ]]; then
+      patch="${BASH_REMATCH[1]}"
+      (( patch > max_patch )) && max_patch="$patch"
+    fi
+  done
+  TRAINING_VERSION="0.0.$((max_patch + 1))"
+fi
 
 run_stage() {
   local service="$1"

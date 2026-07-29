@@ -147,6 +147,44 @@ Nếu cần override version khác trong tương lai:
 FRAUD_MODEL_TRAINING_VERSION=v3 uv run python -m fraud_model.train_baseline
 ```
 
+Full V3 workflow (validation, baseline, weighted/balanced comparison, tuning,
+calibration, threshold analysis and one-time holdout evaluation) chạy từ repo
+root bằng:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model_v3_full.ps1 -Mode local
+```
+
+Artifacts V3 nằm trong `model/artifacts/v3/`; script không ghi đè V2.
+
+### Một script training duy nhất
+
+Chạy từ repo root để chạy lại toàn bộ training sau mỗi lần sửa code, không cần
+nhớ version V2/V3:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1
+```
+
+Script mặc định tự chọn semantic version tiếp theo: `0.0.1`, `0.0.2`,
+`0.0.3`... Artifact được ghi vào `model/artifacts/<version>/` và tạo run mới
+trong MLflow cho mỗi stage/mỗi lần chạy. Có thể truyền version thủ công khi
+cần tái lập:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 `
+  -TrainingVersion 0.0.10
+```
+
+Muốn thử Spark cluster trước rồi fallback local:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 -Mode cluster
+```
+
+V2/V3 cũ vẫn được giữ nguyên để rollback. Training mới không tự động đổi
+serving default.
+
 ## Chạy training qua Docker Compose + Spark cluster
 
 Mặc định `docker compose up` (xem `../docker-compose.yml`) chỉ khởi động

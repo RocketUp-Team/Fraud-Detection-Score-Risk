@@ -56,6 +56,11 @@ def _artifact_paths_for(version: str) -> dict[str, Path]:
         "comparison": artifact_dir / f"model_comparison_{version}.json",
         "final": artifact_dir / f"final_model_{version}.joblib",
         "metadata": artifact_dir / f"training_metadata_{version}.json",
+        "calibration": artifact_dir / f"calibration_model_{version}.joblib",
+        "thresholds": artifact_dir / f"threshold_config_{version}.json",
+        "validation_metrics": artifact_dir / f"validation_metrics_{version}.csv",
+        "holdout_metrics": artifact_dir / f"holdout_metrics_{version}.csv",
+        "threshold_analysis": artifact_dir / f"threshold_analysis_{version}.csv",
     }
 
 
@@ -72,6 +77,11 @@ TRAINING_BASELINE_MODEL_PATH = TRAINING_ARTIFACT_PATHS["baseline"]
 TRAINING_COMPARISON_RESULTS_PATH = TRAINING_ARTIFACT_PATHS["comparison"]
 TRAINING_FINAL_MODEL_PATH = TRAINING_ARTIFACT_PATHS["final"]
 TRAINING_METADATA_PATH = TRAINING_ARTIFACT_PATHS["metadata"]
+TRAINING_CALIBRATION_PATH = TRAINING_ARTIFACT_PATHS["calibration"]
+TRAINING_THRESHOLDS_PATH = TRAINING_ARTIFACT_PATHS["thresholds"]
+TRAINING_VALIDATION_METRICS_PATH = TRAINING_ARTIFACT_PATHS["validation_metrics"]
+TRAINING_HOLDOUT_METRICS_PATH = TRAINING_ARTIFACT_PATHS["holdout_metrics"]
+TRAINING_THRESHOLD_ANALYSIS_PATH = TRAINING_ARTIFACT_PATHS["threshold_analysis"]
 
 # Legacy names kept for backward compatibility with old tests/scripts. These
 # now point to the CURRENT TRAINING target, not the currently served model.
