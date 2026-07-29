@@ -1,40 +1,41 @@
-# Hợp đồng API — Backend (Trung) ↔ Frontend (Long)
+# Fraud Risk API Contract
 
-Chốt theo `docs/RISK_SCORING_PLAN.md` mục 2. Nguồn sự thật duy nhất cho cả hai
-phía: backend implement đúng shape này, frontend mock đúng shape này
-(`frontend/src/mocks/`), TypeScript types sinh tay tại
-`frontend/src/types/api.ts`.
+**Implementation source:** FastAPI Pydantic schemas and route definitions
 
-Base URL: `http://localhost:8000` (frontend đọc từ `VITE_API_URL`).
+**Base URL (local):** `http://localhost:8000`
+**Interactive schema:** `http://localhost:8000/docs`
 
-## Quy ước chung
+This document describes the backend contract implemented on 30 July 2026.
+`backend/src/fraud_backend/schemas.py` and the generated OpenAPI document are
+the runtime authorities. Frontend types are maintained manually and must be
+checked whenever this contract changes.
 
-- `fraud_probability` ∈ [0, 1] — output thô của model.
-- `risk_score` = `round(fraud_probability * 100)` ∈ [0, 100].
-- `risk_band` do **backend** tính, frontend không tự suy ra (tránh lệch logic).
-  Bands theo `RISK_SCORE_DATA_CONTRACT.md`:
+## 1. Common conventions
 
-  | band | risk_score |
-  |---|---|
-  | `low` | 0–19 |
-  | `guarded` | 20–39 |
-  | `medium` | 40–59 |
-  | `high` | 60–79 |
-  | `critical` | 80–100 |
+- JSON property names use `snake_case`.
+- Timestamps are ISO 8601 values serialized by FastAPI.
+- Errors use FastAPI's `{"detail": "..."}` envelope.
+- `fraud_probability` is clamped to `[0, 1]`.
+- `risk_score = round(fraud_probability × 100)` and is in `[0, 100]`.
+- `risk_band` and `decision` are calculated by the backend.
+- An automatic `decision` is distinct from a human `review.status`.
+- `shap_top5` can be `null` when explainability is unavailable.
+- A backend warning indicates fallback operation and must be shown to operators.
 
-- `decision` ∈ `approve` \| `review` \| `reject` — quyết định tự động của hệ
-  thống theo band (`low`/`guarded` → approve, `medium`/`high` → review,
-  `critical` → reject). Khác với `review.status` là quyết định **của người rà soát**.
-- Mọi timestamp là ISO 8601 UTC (`2026-07-26T09:12:33Z`).
-- Lỗi trả về theo mặc định FastAPI: `{"detail": "..."}` với HTTP status tương ứng.
-
-## Kiểu dữ liệu
+## 2. Shared types
 
 ```ts
 type RiskBand = "low" | "guarded" | "medium" | "high" | "critical"
 type Decision = "approve" | "review" | "reject"
 type ReviewStatus = "pending" | "approved" | "rejected"
 type ReviewLabel = "fraud" | "legit"
+type FeatureValue = string | number | null
+type ScoringMode = "full_feature" | "partial_demo"
+
+type ShapContribution = {
+  feature: string
+  shap_value: number
+}
 
 type Transaction = {
   transaction_id: number
@@ -45,12 +46,7 @@ type Transaction = {
   decision: Decision
   scored_at: string
   model_version: string
-  review_status: ReviewStatus     // để list hiển thị được mà không cần gọi detail
-}
-
-type ShapContribution = {
-  feature: string
-  shap_value: number              // >0 đẩy về fraud, <0 kéo về legit
+  review_status: ReviewStatus
 }
 
 type Review = {
@@ -62,142 +58,324 @@ type Review = {
 }
 
 type TransactionDetail = Transaction & {
-  features: Record<string, string | number | null>
-  shap_top5: ShapContribution[] | null   // null khi model fallback (baseline LogReg)
+  features: Record<string, FeatureValue>
+  shap_top5: ShapContribution[] | null
   review: Review | null
 }
 ```
 
-> `shap_top5` **có thể là `null`** — `model/src/fraud_model/score.py` trả
-> `shap: None` khi đang chạy fallback `baseline_logreg`. Frontend phải render
-> trạng thái "chưa có explainability" thay vì crash.
+## 3. Risk policy
 
-## Endpoints
+| Score | Band | Automatic decision |
+|---:|---|---|
+| 0–19 | `low` | `approve` |
+| 20–39 | `guarded` | `approve` |
+| 40–59 | `medium` | `review` |
+| 60–79 | `high` | `review` |
+| 80–100 | `critical` | `reject` |
+
+This fixed backend policy is the current decision authority. Threshold metadata
+inside a model artifact does not currently override these boundaries.
+
+## 4. Health and model metadata
 
 ### `GET /health`
+
+Response `200`:
+
 ```json
-{ "status": "ok" }
+{"status": "ok"}
 ```
+
+This is process health, not a strict guarantee that the expected model loaded
+without fallback.
 
 ### `GET /meta`
-Metadata cho frontend hiển thị + tự sinh filter options.
-```json
-{
-  "model_version": "lightgbm-2026-07-25",
-  "model_name": "lightgbm",
-  "explainability": true,
-  "bands": [
-    { "band": "low",      "min": 0,  "max": 19 },
-    { "band": "guarded",  "min": 20, "max": 39 },
-    { "band": "medium",   "min": 40, "max": 59 },
-    { "band": "high",     "min": 60, "max": 79 },
-    { "band": "critical", "min": 80, "max": 100 }
-  ]
+
+Response `200`:
+
+```ts
+type Meta = {
+  model_version: string
+  model_name: string
+  processing_version: string | null
+  feature_schema_version: string | null
+  explainability: boolean
+  n_features: number
+  required_features: string[]
+  optional_features: string[]
+  defaultable_features: string[]
+  bands: { band: RiskBand; min: number; max: number }[]
+  warning: string | null
 }
 ```
 
-### `GET /transactions`
-Query params (tất cả optional):
+`warning` is non-null when the backend uses a non-model heuristic fallback.
 
-| param | kiểu | mặc định | ghi chú |
-|---|---|---|---|
-| `risk_band` | `RiskBand` | – | lọc theo 1 band |
-| `decision` | `Decision` | – | |
-| `review_status` | `ReviewStatus` | – | dùng cho màn rà soát: `pending` |
-| `min_score` / `max_score` | int 0–100 | – | |
-| `search` | string | – | khớp `transaction_id` |
-| `sort` | `risk_score` \| `-risk_score` \| `scored_at` \| `-scored_at` | `-risk_score` | |
-| `page` | int ≥ 1 | 1 | |
-| `page_size` | int 1–100 | 20 | |
-
-```json
-{
-  "items": [ /* Transaction[] */ ],
-  "total": 348,
-  "page": 1,
-  "page_size": 20
-}
-```
-
-### `GET /transactions/stats`
-Số liệu tổng quan cho KPI row của dashboard. Khai báo **trước** route
-`/{transaction_id}` để `stats` không bị hiểu là id.
-```json
-{
-  "total": 348,
-  "pending_review": 96,
-  "by_band": [
-    { "band": "low", "count": 171 },
-    { "band": "guarded", "count": 74 },
-    { "band": "medium", "count": 52 },
-    { "band": "high", "count": 33 },
-    { "band": "critical", "count": 18 }
-  ],
-  "avg_risk_score": 28.4,
-  "high_risk_amount": 128450.75
-}
-```
-- `by_band` luôn trả đủ 5 band, band không có giao dịch thì `count: 0`.
-- `high_risk_amount` = tổng `amount` của band `high` + `critical`.
-
-### `GET /transactions/{transaction_id}`
-Trả `TransactionDetail`. `404` nếu không tồn tại.
-
-### `POST /transactions/{transaction_id}/review`
-Người rà soát duyệt/từ chối + gắn nhãn.
-```json
-// request
-{ "action": "reject", "label": "fraud", "reviewer": "long", "note": "Thẻ lạ, IP khác quốc gia" }
-```
-- `action`: `"approve" | "reject"` (bắt buộc) → map sang `review.status`
-  `approved`/`rejected`.
-- `label`: `"fraud" | "legit"` (bắt buộc) — nhãn thủ công để đối chiếu model.
-- `reviewer`, `note`: optional.
-
-Response: `TransactionDetail` sau khi cập nhật (`200`). `404` nếu không tồn tại,
-`422` nếu payload sai.
+## 5. Ad-hoc scoring
 
 ### `POST /score`
-Chấm điểm ad-hoc, không ghi DB — dùng cho demo "nhập giao dịch mới".
+
+Scores one feature dictionary without writing a database row.
+
+Request:
+
 ```json
-// request
-{ "features": { "TransactionAmt": 4899.0, "ProductCD": "W", "card4": "visa", "...": null } }
-```
-```json
-// response
 {
-  "fraud_probability": 0.8712,
-  "risk_score": 87,
-  "risk_band": "critical",
-  "decision": "reject",
-  "shap_top5": [ /* ShapContribution[] | null */ ],
-  "model_version": "lightgbm-2026-07-25",
-  "scored_at": "2026-07-26T09:12:33Z"
+  "features": {
+    "TransactionAmt": 4899.0,
+    "ProductCD": "W",
+    "card4": "visa",
+    "DeviceType": "mobile"
+  }
 }
 ```
-Feature thiếu được điền `-999` như `score.py` đang làm — không lỗi.
 
-### `POST /transactions/import`
-`multipart/form-data`, field `file` = CSV theo `DATA_DICTIONARY.md`. Mỗi dòng
-được chấm điểm rồi ghi DB.
-```json
-{ "imported": 200, "failed": 2, "errors": [{ "row": 17, "error": "TransactionAmt không phải số" }] }
+Response `200`:
+
+```ts
+type ScoreResponse = {
+  fraud_probability: number
+  risk_score: number
+  risk_band: RiskBand
+  decision: Decision
+  scoring_mode: "full_feature" | "partial_demo"
+  shap_top5: ShapContribution[] | null
+  model_version: string
+  processing_version: string | null
+  feature_schema_version: string | null
+  scored_at: string
+}
 ```
 
-## Feature set (cho `POST /score` và cột `features` ở detail)
+`full_feature` means the request supplied the complete model vector.
+`partial_demo` means some model columns were defaulted. Required features that
+are neither optional nor defaultable cause a validation error.
 
-Theo `DATA_DICTIONARY.md`:
+## 6. Transaction exploration and review
 
-- **Amount**: `TransactionAmt`, `log_transaction_amount`, `amount_band`
-- **Presence**: `has_identity`, `has_device_info`, `has_p_email`, `has_r_email`
-- **Missingness**: `selected_missing_count`, `selected_missing_ratio`, `identity_missing_count`
-- **Entity history**: `prior_card_transaction_count`, `prior_card_amount_sum`,
-  `prior_email_transaction_count`, `prior_email_amount_sum`,
-  `prior_device_transaction_count`, `prior_device_amount_sum`
-- **Categorical** (giá trị string gốc, backend không encode — `score()` tự lo):
-  `ProductCD`, `card4`, `card6`, `DeviceType`, `device_family`, `M4`, `amount_band`
+### `GET /transactions`
 
-## Thay đổi hợp đồng
+Query parameters:
 
-Sửa file này trước, cập nhật `frontend/src/types/api.ts` và
-`frontend/src/mocks/` cùng commit. Không đổi shape một phía.
+| Parameter | Type/default | Behavior |
+|---|---|---|
+| `risk_band` | `RiskBand` | Exact band filter |
+| `decision` | `Decision` | Exact automatic-decision filter |
+| `review_status` | `ReviewStatus` | Missing review maps to `pending` |
+| `min_score` | integer 0–100 | Inclusive lower score |
+| `max_score` | integer 0–100 | Inclusive upper score |
+| `search` | string | Exact numeric transaction ID; non-numeric returns empty |
+| `sort` | `-risk_score` | `risk_score`, `-risk_score`, `scored_at`, `-scored_at` |
+| `page` | integer ≥1, default 1 | One-based page |
+| `page_size` | 1–100, default 20 | Page size |
+
+Response `200`:
+
+```ts
+type PaginatedTransactions = {
+  items: Transaction[]
+  total: number
+  page: number
+  page_size: number
+}
+```
+
+Rows with equal sort values use `transaction_id` ascending as a stable
+tie-breaker.
+
+### `GET /transactions/stats`
+
+Response `200`:
+
+```ts
+type Stats = {
+  total: number
+  pending_review: number
+  by_band: { band: RiskBand; count: number }[]
+  avg_risk_score: number
+  high_risk_amount: number
+}
+```
+
+`by_band` always contains all five bands. `high_risk_amount` sums transaction
+amount for `high` and `critical`.
+
+### `GET /transactions/{transaction_id}`
+
+Response `200`: `TransactionDetail`.
+Response `404`: transaction does not exist.
+
+### `POST /transactions/{transaction_id}/review`
+
+Request:
+
+```ts
+type ReviewRequest = {
+  action: "approve" | "reject"
+  label: "fraud" | "legit"
+  reviewer?: string | null // maximum 64 characters
+  note?: string | null     // maximum 1,000 characters
+}
+```
+
+`action` maps to review status `approved` or `rejected`. A repeated request
+overwrites the existing review.
+
+Response `200`: updated `TransactionDetail`.
+
+Response `404`: transaction does not exist.
+Response `422`: invalid payload.
+
+## 7. CSV import
+
+### `GET /transactions/import/template`
+
+Query:
+
+- `rows`: integer `1..500`, default `20`.
+
+Returns UTF-8-with-BOM CSV containing:
+
+1. `TransactionID`;
+2. every model feature in expected order;
+3. up to the requested number of real holdout examples when available.
+
+Response `409` when the backend cannot determine model columns. If processed
+Parquet examples are unavailable, the endpoint still returns the header.
+
+### `POST /transactions/import`
+
+Content type: `multipart/form-data`; field `file` must be a UTF-8 `.csv`.
+`TransactionID` is required.
+
+The backend scores and upserts each row independently. Empty cells become
+`null`; numeric-looking values become numbers; other values remain strings.
+Import stops after `MAX_IMPORT_ROWS` attempted rows (default 5,000).
+
+Response `200`:
+
+```ts
+type ImportResponse = {
+  imported: number
+  failed: number
+  errors: { row: number; error: string }[] // at most first 50 returned
+  matched_features: number
+  expected_features: number
+  missing_features: string[]               // at most first 60 returned
+}
+```
+
+Missing feature columns are reported because a raw Kaggle CSV does not contain
+all engineered model features. A successful import can therefore still be
+`partial_demo` quality.
+
+Common `422` errors:
+
+- non-CSV extension;
+- non-UTF-8 file;
+- missing `TransactionID` header.
+
+## 8. Processed datasets
+
+### `GET /datasets`
+
+Response `200`:
+
+```ts
+type Dataset = {
+  name: string
+  rows: number
+  recommended: boolean
+  note: string
+  fraud_rate: number | null
+  has_labels: boolean
+  model_trained_on: boolean
+}
+```
+
+Dataset availability is discovered from mounted model-ready Parquet rather than
+hard-coded.
+
+### `POST /data/load`
+
+Starts one in-memory background load and returns `202`.
+
+```ts
+type LoadRequest = {
+  dataset?: string             // default "holdout"
+  limit?: number               // 1..100000, default 5000
+  reset?: boolean              // default false
+  mode?: "head" | "sample" | "coverage" // default "head"
+  per_band?: number            // 1..500, default 20
+  seed?: number                // >=0, default 42
+}
+```
+
+Mode behavior:
+
+- `head`: first `limit` rows;
+- `sample`: deterministic sample using `seed`;
+- `coverage`: up to `per_band` examples for each of five risk bands.
+
+Requested `limit` is capped at the actual dataset size. `reset` occurs inside
+the background task after the source is readable.
+
+Response:
+
+```ts
+type Job = {
+  id: string
+  status: "running" | "done" | "error" | "cancelled"
+  processed: number
+  total: number
+  percent: number
+  error: string | null
+  started_at: string
+  finished_at: string | null
+}
+```
+
+Errors:
+
+- `409` when no processed datasets exist;
+- `409` when another job is already active;
+- `422` for an unknown dataset or invalid request.
+
+## 9. Job control
+
+### `GET /jobs/{job_id}`
+
+Returns a `Job`; `404` also covers job history lost after a backend restart.
+
+### `GET /jobs/active/current`
+
+Returns the active `Job` or `null`. The frontend uses this to reconnect polling
+after a page refresh.
+
+### `POST /jobs/{job_id}/cancel`
+
+Requests cooperative cancellation.
+
+- `200`: updated `Job`;
+- `404`: unknown job;
+- `409`: job is already terminal.
+
+The registry is in process memory and is correct only for a single backend
+worker.
+
+## 10. Compatibility and change procedure
+
+When changing a wire shape:
+
+1. change the Pydantic schema and route behavior;
+2. regenerate/review FastAPI OpenAPI;
+3. update `frontend/src/types/api.ts`;
+4. update mocks and callers;
+5. update this document;
+6. run backend API and frontend build tests in the same change.
+
+Known synchronization gap at this evidence snapshot: frontend TypeScript types
+do not yet declare all backend metadata/version fields or `scoring_mode`.
+Runtime JSON tolerates these extra properties, but generated OpenAPI types are
+recommended.

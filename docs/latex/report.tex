@@ -1,0 +1,165 @@
+\documentclass[12pt,letterpaper,oneside]{report}
+
+\usepackage[letterpaper,left=1.25in,right=1in,top=1in,bottom=1in]{geometry}
+\usepackage{fontspec}
+\IfFontExistsTF{Times New Roman}
+  {\setmainfont{Times New Roman}}
+  {\setmainfont{TeX Gyre Termes}}
+\setsansfont{Arial}
+\setmonofont{Courier New}
+
+\usepackage{setspace}
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{12pt}
+\setlength{\emergencystretch}{3em}
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\centering}
+  {\Large Chapter \thechapter}
+  {4pt}
+  {\LARGE}
+\titlespacing*{\chapter}{0pt}{0pt}{24pt}
+\titleformat{\section}{\normalfont\Large}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large}{\thesubsection}{1em}{}
+
+\usepackage{xcolor}
+\definecolor{ReportBlue}{HTML}{2F5D8C}
+\definecolor{ReportGold}{HTML}{B78A2E}
+\definecolor{ReportOrange}{HTML}{C56A2D}
+\definecolor{ReportInk}{HTML}{222222}
+\definecolor{ReportGray}{HTML}{E7E9EC}
+
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\setlist{itemsep=3pt,topsep=6pt,parsep=0pt,partopsep=0pt,leftmargin=*}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{siunitx}
+\sisetup{group-separator={,},group-minimum-digits=4}
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  frame=single,
+  breaklines=true,
+  columns=fullflexible,
+  backgroundcolor=\color{ReportGray!45},
+  rulecolor=\color{ReportGray},
+  showstringspaces=false
+}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{pgfplotstable}
+\usepackage{url}
+\Urlmuskip=0mu plus 1mu
+\usepackage[round,authoryear]{natbib}
+\newcommand{\parencite}[1]{\citep{#1}}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  pdftitle={Fraud Detection and Risk Scoring System Using Apache Spark and Machine Learning},
+  pdfauthor={<Author Name>},
+  pdfsubject={Master of Software Engineering thesis},
+  pdfkeywords={fraud detection, risk scoring, Apache Spark, LightGBM, SHAP}
+}
+\usepackage{microtype}
+
+\newcommand{\evidence}[1]{\textit{Evidence: #1}}
+\newcommand{\systempath}[1]{\path{#1}}
+\newcommand{\artifactreported}{\textit{artifact-reported}}
+
+\input{metadata}
+
+\begin{document}
+
+% First title page: matches the supplied FPT template.
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+{\bfseries\MakeUppercase{\MinistryName}\par}
+{\bfseries\MakeUppercase{\InstitutionName}\par}
+\vspace{1.45in}
+{\Large\ThesisTitle\par}
+\vfill
+{\large by\par}
+\vfill
+{\large\AuthorName\par}
+\vfill
+{\large A thesis submitted in conformity with the requirements\par}
+{\large for the degree of \DegreeName\par}
+\vfill
+{\large \copyright\ Copyright by \AuthorName\ \ConvocationYear\par}
+\end{center}
+\end{titlepage}
+
+% Second title page: includes supervisors, as in the supplied template.
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+{\bfseries\MakeUppercase{\MinistryName}\par}
+{\bfseries\MakeUppercase{\InstitutionName}\par}
+\vspace{0.9in}
+{\Large\ThesisTitle\par}
+\vfill
+{\large by\par}
+\vspace{0.3in}
+{\large\AuthorName\par}
+\vfill
+{\large A thesis submitted in conformity with the requirements\par}
+{\large for the degree of \DegreeName\par}
+\vfill
+{\large Supervisor:\par}
+{\large 1. \SupervisorOne\par}
+\ifx\SupervisorTwo\empty\else{\large 2. \SupervisorTwo\par}\fi
+\vfill
+{\large \copyright\ Copyright by \AuthorName\ \ConvocationYear\par}
+\end{center}
+\end{titlepage}
+
+\pagenumbering{arabic}
+\setcounter{page}{3}
+\input{frontmatter/abstract}
+\clearpage
+\input{frontmatter/acknowledgments}
+\clearpage
+\tableofcontents
+\clearpage
+\listoftables
+\clearpage
+\listoffigures
+\clearpage
+\input{frontmatter/list_appendices}
+\clearpage
+
+\input{chapters/01_introduction}
+\input{chapters/02_background}
+\input{chapters/03_architecture}
+\input{chapters/04_data_pipeline}
+\input{chapters/05_model}
+\input{chapters/06_application}
+\input{chapters/07_validation}
+\input{chapters/08_conclusion}
+
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{References}
+\begingroup
+\raggedright
+\bibliographystyle{plainnat}
+\bibliography{references}
+\endgroup
+
+\appendix
+\input{appendices/appendices}
+
+\end{document}

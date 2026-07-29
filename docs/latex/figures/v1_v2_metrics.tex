@@ -1,0 +1,38 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  ybar,
+  width=0.9\textwidth,
+  height=7.2cm,
+  bar width=10pt,
+  ymin=0.40,
+  ymax=0.51,
+  ylabel={PR-AUC},
+  symbolic x coords={Validation,Holdout},
+  xtick=data,
+  ymajorgrids=true,
+  grid style={draw=ReportGray},
+  axis line style={draw=ReportInk},
+  legend style={at={(0.5,1.03)},anchor=south,legend columns=2,draw=none},
+  nodes near coords,
+  every node near coord/.append style={font=\small},
+  enlarge x limits=0.28
+]
+\addplot[fill=ReportBlue!70,draw=ReportBlue] coordinates {
+  (Validation,0.4820)
+  (Holdout,0.4298)
+};
+\addplot[fill=ReportGold!75,draw=ReportGold!90!black] coordinates {
+  (Validation,0.4925)
+  (Holdout,0.4582)
+};
+\legend{V1,V2}
+\end{axis}
+\end{tikzpicture}
+\caption[V1 and V2 PR-AUC]{V1 and V2 PR-AUC on saved validation and holdout
+artifacts. The focused vertical scale is declared to make the version
+differences readable; exact values are printed on each bar.}
+\label{fig:v1-v2}
+\end{figure}
+

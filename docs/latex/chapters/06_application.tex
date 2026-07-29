@@ -1,0 +1,207 @@
+\chapter{Application and Deployment}
+\label{chap:application}
+
+\section{Backend application}
+
+The FastAPI application creates SQL tables during startup, loads the scorer,
+configures CORS, and registers transaction and data/job routers. PostgreSQL is
+used in Compose; SQLite is the default for local development.
+
+\subsection{Persistence model}
+
+The \texttt{Transaction} entity stores:
+
+\begin{itemize}
+  \item transaction identifier and amount;
+  \item raw feature dictionary;
+  \item probability, score, band, and automatic decision;
+  \item SHAP top-five payload;
+  \item model version and score timestamp.
+\end{itemize}
+
+The \texttt{Review} entity stores status, fraud/legitimate label, reviewer,
+note, and update time. A missing review is exposed as \texttt{pending}. A
+subsequent review replaces the existing review for the transaction.
+
+\subsection{API surface}
+
+\begingroup
+\small
+\begin{longtable}{p{0.11\textwidth}p{0.48\textwidth}p{0.30\textwidth}}
+\caption{Implemented API endpoints}
+\label{tab:api-endpoints}\\
+\toprule
+Method & Path & Purpose\\
+\midrule
+\endfirsthead
+\toprule
+Method & Path & Purpose\\
+\midrule
+\endhead
+GET & \path|/health| & Process health\\
+GET & \path|/meta| & Model/schema/feature/band metadata\\
+POST & \path|/score| & Non-persistent ad-hoc scoring\\
+GET & \path|/transactions| & Filtered, sorted, paginated list\\
+GET & \path|/transactions/stats| & Aggregate dashboard statistics\\
+GET & \path|/transactions/import/template| & Model-aligned CSV template\\
+POST & \path|/transactions/import| & Bounded synchronous CSV scoring/import\\
+GET & \path|/transactions/{id}| & Transaction detail\\
+POST & \path|/transactions/{id}/review| & Human decision and label\\
+GET & \path|/datasets| & Available processed datasets\\
+POST & \path|/data/load| & Start a background dataset load\\
+GET & \path|/jobs/{id}| & Job status\\
+GET & \path|/jobs/active/current| & Active job or null\\
+POST & \path|/jobs/{id}/cancel| & Cooperative cancellation\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+The exact request/response types are reproduced in Appendix~\ref{app:api}.
+
+\subsection{Transaction queries}
+
+List queries support exact risk/decision/review filters, inclusive score range,
+exact numeric identifier search, four sort modes, and bounded pagination. SQL
+aggregates calculate statistics without loading the full table into Python.
+Every risk band is represented in the statistics response, including zero-count
+bands.
+
+\subsection{CSV import}
+
+The import route requires a UTF-8 CSV with \texttt{TransactionID}. A
+per-row SQL savepoint means one bad row does not roll back the full batch.
+Coverage diagnostics report how many model columns are present. This is
+important because raw Kaggle files do not include every engineered feature.
+
+\subsection{Dataset loading and jobs}
+
+The dataset route discovers model-ready Parquet. A load can use:
+
+\begin{description}[style=multiline,leftmargin=2.5cm,labelwidth=2.2cm]
+  \item[head:] the first bounded rows;
+  \item[sample:] a deterministic random sample;
+  \item[coverage:] a deliberately non-representative set covering all five risk
+  bands.
+\end{description}
+
+Only one in-memory job is active. Status is lost after restart and is not safe
+across multiple Uvicorn workers.
+
+\section{Frontend application}
+
+\subsection{Routes and workflows}
+
+\begin{table}[H]
+\centering
+\caption{Frontend routes}
+\label{tab:frontend-routes}
+\begin{tabularx}{\textwidth}{p{0.28\textwidth}X}
+\toprule
+Route & Workflow\\
+\midrule
+\texttt{/} & Transaction KPIs, filtering, sorting, and pagination\\
+\texttt{/transactions/:id} & Risk, features, SHAP, and review\\
+\texttt{/review} & Pending medium/high/critical cases\\
+\texttt{/score} & Partial ad-hoc scoring form\\
+\texttt{/import} & Dataset loading, job progress, template, and CSV import\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+TanStack Query manages server state, polling, and invalidation
+\parencite{tanstackquery}. The API abstraction can switch to local JSON mocks
+through \texttt{VITE\_USE\_MOCKS=true}. Mock scores preserve UI development but
+are explicitly not model results.
+
+\subsection{Risk and explanation presentation}
+
+Risk badges combine color and text. The score bullet displays the 0--100 scale
+and band thresholds. The SHAP component uses diverging bars and preserves a
+numeric table for accessibility. A null SHAP response renders an explicit
+unavailable state.
+
+\subsection{Review experience}
+
+The review form requires both an approve/reject action and a
+fraud/legitimate label. Optional reviewer and note fields are bounded by backend
+validation. Mutations invalidate detail, list, queue, and statistic queries so
+the new state appears consistently.
+
+\subsection{Rule-based assistant}
+
+The chat dock parses a limited grammar for tasks such as finding transactions
+or explaining displayed evidence. It is deterministic code, not a generative
+AI system. The distinction is important for system scope and risk.
+
+\subsection{Accessibility and responsive design}
+
+The implementation includes visible labels, focus styles, reduced-motion
+support, semantic text beyond color, system/light/dark themes, and enlarged
+mobile controls. The project records a manual checklist at widths 375, 768,
+1024, and 1440 pixels.
+
+There are no automated component, accessibility, or browser end-to-end tests.
+TypeScript types are manually synchronized and currently lag several backend
+metadata fields.
+
+\section{Deployment}
+
+Figure~\ref{fig:deployment} shows the default application stack.
+
+\input{figures/deployment}
+
+The backend receives processed Parquet through a read-only mount. Model code is
+installed as a path dependency inside the backend image. Adminer is an optional
+\texttt{tools} profile.
+
+\subsection{Training profile}
+
+The separate \texttt{training} profile starts Spark master and worker services
+plus a model-training container. A local-Spark training service is available
+when the cluster image cannot be resolved. The Spark UI and Adminer use
+different host ports (8080 and 8081).
+
+\subsection{Configuration}
+
+\begingroup
+\small
+\begin{longtable}{p{0.43\textwidth}p{0.27\textwidth}p{0.19\textwidth}}
+\caption{Principal environment variables}
+\label{tab:environment}\\
+\toprule
+Variable & Purpose & Default\\
+\midrule
+\endfirsthead
+\toprule
+Variable & Purpose & Default\\
+\midrule
+\endhead
+\path|DATABASE_URL| & SQLAlchemy connection & Local SQLite\\
+\path|CORS_ORIGINS| & Browser origins & Local Vite origins\\
+\path|DATA_PROCESSED_DIR| & Host data mount &
+\texttt{./data/}\allowbreak\texttt{processed}\\
+\path|SEED_DATASET| & Dataset for CLI seed & \texttt{holdout}\\
+\path|SEED_LIMIT| & Seed rows & 5,000\\
+\path|MAX_IMPORT_ROWS| & CSV cap & 5,000\\
+\path|FRAUD_MODEL_SERVING_VERSION| & Served model & \texttt{v2}\\
+\path|FRAUD_MODEL_TRAINING_VERSION| & Training target & \texttt{v2}\\
+\path|SPARK_MASTER_URL| & Spark target & Local/profile\\
+\path|MLFLOW_TRACKING_URI| & Tracking backend & Local unless set\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+\section{Application limitations}
+
+\begin{itemize}
+  \item no authentication, authorization, rate limiting, or audit event log;
+  \item no Alembic migrations;
+  \item process health is not strict real-model readiness;
+  \item job registry is in memory and single-worker;
+  \item CSV import is synchronous;
+  \item no bulk re-scoring after a model change;
+  \item backend image includes training-heavy dependencies;
+  \item no automated frontend/browser test suite;
+  \item frontend API types are manually maintained;
+  \item default database credentials are development-only.
+\end{itemize}

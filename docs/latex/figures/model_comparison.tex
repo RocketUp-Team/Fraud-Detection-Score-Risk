@@ -1,0 +1,44 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  ybar,
+  width=0.95\textwidth,
+  height=7.2cm,
+  bar width=8pt,
+  ymin=0,
+  ymax=0.55,
+  ylabel={PR-AUC},
+  symbolic x coords={Logistic Regression,LightGBM,XGBoost,CatBoost},
+  xtick=data,
+  x tick label style={rotate=18,anchor=east,font=\small},
+  ymajorgrids=true,
+  grid style={draw=ReportGray},
+  axis line style={draw=ReportInk},
+  tick align=outside,
+  legend style={at={(0.5,1.03)},anchor=south,legend columns=2,draw=none},
+  nodes near coords,
+  every node near coord/.append style={font=\scriptsize,rotate=90,anchor=west},
+  enlarge x limits=0.14
+]
+\addplot[fill=ReportBlue!70,draw=ReportBlue] coordinates {
+  (Logistic Regression,0.2522)
+  (LightGBM,0.4739)
+  (XGBoost,0.4285)
+  (CatBoost,0.4083)
+};
+\addplot[fill=ReportGold!75,draw=ReportGold!90!black] coordinates {
+  (Logistic Regression,0.2518)
+  (LightGBM,0.4770)
+  (XGBoost,0.4538)
+  (CatBoost,0.4298)
+};
+\legend{V1 validation,V2 validation}
+\end{axis}
+\end{tikzpicture}
+\caption[Validation PR-AUC by candidate model]{Validation PR-AUC by candidate
+model and artifact version. The chart compares validation results; it does not
+show a production operating point. Source: saved model-comparison JSON files.}
+\label{fig:model-comparison}
+\end{figure}
+

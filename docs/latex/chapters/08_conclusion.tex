@@ -1,0 +1,105 @@
+\chapter{Conclusion and Future Work}
+\label{chap:conclusion}
+
+\section{Answers to the research questions}
+
+\subsection{RQ1: leakage-controlled data handoff}
+
+The project produces chronological, non-overlapping model-ready splits and
+persists the transformation artifacts needed by downstream training. The saved
+verifier reports 82 passed checks and no failures. The only identified lifecycle
+defect is the stale terminal status in the top-level manifest.
+
+\subsection{RQ2: model comparison}
+
+LightGBM has the highest saved validation PR-AUC in both V1 and V2 comparisons.
+The V2 final artifact reports a holdout ROC-AUC of 0.8796 and PR-AUC of 0.4582,
+improving on V1. Because V1 and V2 differ in feature contract and because
+operating-point metrics are absent, V2 should be described as the offline
+champion rather than proof of production benefit.
+
+\subsection{RQ3: Spark-free serving and explanations}
+
+The model package serializes categorical mappings and feature order so FastAPI
+can score without Spark. Supported tree artifacts return local SHAP
+contributions. This design successfully separates batch feature preparation
+from request-time inference, subject to the availability of the same engineered
+features in a real online environment.
+
+\subsection{RQ4: production-readiness gaps}
+
+The principal gaps are:
+
+\begin{itemize}
+  \item incomplete experiment/model lineage;
+  \item missing calibration and operating-policy evidence;
+  \item fail-open heuristic fallback;
+  \item no authentication, durable jobs, or migrations;
+  \item no drift/latency/service monitoring;
+  \item manual client contract synchronization;
+  \item uneven CI and frontend test coverage.
+\end{itemize}
+
+\section{Technical contributions}
+
+The system demonstrates a complete flow from multi-gigabyte source data to a
+human review decision:
+
+\begin{enumerate}
+  \item Spark performs typed ingestion, audits, EDA, chronological splitting,
+  and leakage-controlled feature engineering.
+  \item Explicit contracts make the data--model handoff inspectable.
+  \item Multiple classifiers are compared under an imbalanced metric.
+  \item The selected estimator is packaged with categorical mappings and SHAP.
+  \item FastAPI, SQLAlchemy, and React implement an explainable review workflow.
+  \item Docker Compose provides local application and training profiles.
+\end{enumerate}
+
+\section{Immediate future work}
+
+The first release-hardening milestone should not train a new model. It should
+make V2 independently reproducible and observable:
+
+\begin{enumerate}
+  \item complete dependency locking and a frozen container smoke;
+  \item record model checksum, image digest, data/schema versions, and MLflow
+  run;
+  \item calculate operating-point and calibration evidence;
+  \item make fallback an explicit demo mode and enforce readiness;
+  \item synchronize/generated API client types and expand CI.
+\end{enumerate}
+
+\section{Model-development future work}
+
+After reproducibility:
+
+\begin{itemize}
+  \item perform temporal cross-validation;
+  \item separate model selection, calibration, threshold selection, and holdout;
+  \item run feature-group ablations;
+  \item evaluate paired V1/V2 errors by segment;
+  \item measure inference latency and resource consumption;
+  \item monitor delayed-label performance and drift.
+\end{itemize}
+
+\section{Platform future work}
+
+A deployable platform requires:
+
+\begin{itemize}
+  \item authentication, authorization, secrets, and immutable audit events;
+  \item Alembic migrations and durable background queues;
+  \item a serving-only model dependency profile;
+  \item production metrics, logs, tracing, readiness, and alerts;
+  \item bulk re-scoring or version-isolated reporting;
+  \item retention, privacy, and incident-response policies.
+\end{itemize}
+
+\section{Final statement}
+
+The project is a coherent and well-integrated academic fraud risk scoring
+demonstration. Its strongest contribution is not a single metric; it is the
+connection of data contracts, a trained model, explanations, API behavior,
+persistence, and human review. The whole-project audit defines the additional
+evidence and controls required to turn that demonstration into a trustworthy
+deployment candidate.

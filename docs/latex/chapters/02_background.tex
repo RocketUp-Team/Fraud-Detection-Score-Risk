@@ -1,0 +1,122 @@
+\chapter{Background and Related Work}
+\label{chap:background}
+
+\section{Transaction fraud as imbalanced learning}
+
+Fraud detection differs from a balanced classroom classification task. Fraud is
+rare, labels can be delayed, behavior changes, and the cost of a missed fraud
+case may differ substantially from the cost of reviewing a legitimate
+transaction. Accuracy can therefore be misleading: a classifier that predicts
+the majority class can appear accurate while detecting no fraud.
+
+For a positive fraud class, precision and recall are:
+
+\begin{align}
+\mathrm{Precision} &= \frac{TP}{TP + FP},\\
+\mathrm{Recall} &= \frac{TP}{TP + FN}.
+\end{align}
+
+ROC-AUC measures ranking across true- and false-positive rates, while PR-AUC
+summarizes the precision--recall tradeoff. Davis and Goadrich showed the
+relationship between ROC and PR spaces and highlighted the usefulness of PR
+curves under class skew \parencite{davis2006pr}. Saito and Rehmsmeier further
+demonstrated why PR plots can be more informative for imbalanced binary
+classifiers \parencite{saito2015pr}.
+
+\section{The IEEE-CIS dataset}
+
+The source consists of transaction tables and smaller optional identity tables.
+The public columns include transaction amount, product and card categories,
+email domains, device attributes, time, and many anonymized groups such as
+\texttt{C}, \texttt{D}, \texttt{M}, and \texttt{V}
+\parencite{ieeecis2019,amazonfraudbenchmark}. The training transaction file
+contains 590,540 rows in the inspected source, and the natural fraud prevalence
+is approximately 3.5\%.
+
+The project uses a left join because identity information is unavailable for
+most transactions. Missingness and identity presence can themselves be useful
+signals, but they must be interpreted carefully: association does not show that
+missing data causes fraud.
+
+\section{Apache Spark for batch processing}
+
+Apache Spark provides a unified engine and higher-level APIs for distributed
+data processing \parencite{zaharia2016spark}. This project uses Spark for typed
+CSV ingestion, joins, profiling, feature computation, chronological splitting,
+Parquet export, and a small decision-tree demonstration.
+
+Spark is not used for request-time inference. Model training crosses from Spark
+to pandas because the compared Python estimators use in-memory array/data-frame
+interfaces. This boundary simplifies integration but constrains training scale
+to available driver memory.
+
+\section{Gradient-boosted decision trees}
+
+Gradient boosting builds an additive ensemble of decision trees, where later
+trees correct residual errors of the current ensemble
+\parencite{friedman2001greedy}. Three modern implementations are compared:
+
+\begin{description}[style=multiline,leftmargin=2.6cm,labelwidth=2.3cm]
+  \item[XGBoost] provides scalable tree boosting with sparsity-aware learning,
+  weighted quantile sketches, cache-aware access, and distributed execution
+  \parencite{chen2016xgboost}.
+  \item[LightGBM] uses histogram-based learning together with techniques such as
+  gradient-based one-side sampling and exclusive feature bundling
+  \parencite{ke2017lightgbm}.
+  \item[CatBoost] introduces ordered boosting and categorical-statistic
+  techniques designed to reduce prediction shift and target leakage
+  \parencite{prokhorenkova2018catboost}.
+\end{description}
+
+Logistic regression provides a lower-complexity baseline. The comparison uses
+the same training/validation interface, but the final V1/V2 comparison is not a
+controlled algorithm-only experiment because feature contracts differ.
+
+\section{Explainability with SHAP}
+
+SHAP is a framework for additive feature attribution based on Shapley values
+\parencite{lundberg2017shap}. For a prediction \(f(x)\), an additive explanation
+approximates the output as:
+
+\begin{equation}
+g(z') = \phi_0 + \sum_{i=1}^{M}\phi_i z'_i,
+\end{equation}
+
+where \(\phi_i\) is the contribution attributed to feature \(i\). The project
+uses a tree-specific explainer and returns the five largest absolute local
+contributions.
+
+SHAP values provide a model explanation, not a causal explanation. They can
+also explain a different output scale from the probability shown to a user when
+a separate calibrator transforms the raw model score.
+
+\section{Service and interface technologies}
+
+FastAPI uses Python type annotations and Pydantic models to create runtime
+validation and OpenAPI schemas \parencite{fastapi}. SQLAlchemy maps the
+transaction and review entities to PostgreSQL or SQLite
+\parencite{sqlalchemy,postgresql}. React provides the component model for the
+browser application \parencite{react}, while Vite builds and serves the
+TypeScript bundle \parencite{vite}.
+
+The technologies are connected as a modular monorepo rather than independent
+microservices. This is appropriate for a short project because it reduces
+deployment complexity, but the backend image inherits heavyweight training
+dependencies from the model package.
+
+\section{Related engineering concerns}
+
+A production fraud platform would additionally require:
+
+\begin{itemize}
+  \item a feature store or request-time method that exactly reproduces
+  historical aggregates;
+  \item monitored calibration and drift;
+  \item business-approved operating thresholds;
+  \item immutable model lineage and controlled promotion;
+  \item durable case management and review audit history;
+  \item authentication, authorization, secrets, and privacy governance.
+\end{itemize}
+
+The present work evaluates these as readiness gaps instead of claiming that the
+academic demonstration already provides them.

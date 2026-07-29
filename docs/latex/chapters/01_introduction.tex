@@ -1,0 +1,121 @@
+\chapter{Introduction}
+\label{chap:introduction}
+
+\section{Problem context}
+
+Online transaction fraud is a highly imbalanced classification problem in which
+the positive class is rare, errors have asymmetric consequences, and the data
+distribution can change over time. A useful operational system must therefore do
+more than maximize a single offline metric. It must preserve the temporal
+meaning of validation, make feature transformations reproducible, expose model
+version and uncertainty, support investigation, and connect predictions to a
+review process.
+
+The IEEE-CIS Fraud Detection dataset was released through a Kaggle competition
+and contains anonymized card-not-present transaction and identity information
+provided by Vesta Corporation \parencite{ieeecis2019,amazonfraudbenchmark}.
+Its scale and mixture of numeric, categorical, missing, and identity attributes
+make it a useful academic basis for studying big-data preparation and tabular
+machine learning.
+
+This project addresses the following system question:
+
+\begin{quote}
+How can a reproducible big-data pipeline, an imbalanced-classification model,
+an explainable scoring API, and a human-review interface be integrated into one
+auditable fraud risk scoring demonstration?
+\end{quote}
+
+\section{Objectives}
+
+The project has six technical objectives:
+
+\begin{enumerate}
+  \item ingest and validate the full IEEE-CIS transaction and identity files;
+  \item build leakage-controlled, chronological, model-ready datasets;
+  \item compare interpretable and gradient-boosted classifiers using metrics
+        suitable for an imbalanced positive class;
+  \item package the selected estimator behind a stable per-transaction scoring
+        interface with local explanations;
+  \item expose scoring, persistence, review, import, and dataset loading through
+        a typed API;
+  \item provide a usable dashboard and reproducible local deployment.
+\end{enumerate}
+
+\section{Research and engineering questions}
+
+The implementation and review are organized around four questions:
+
+\begin{description}[style=multiline,leftmargin=1.8cm,labelwidth=1.5cm]
+  \item[RQ1:] Can the raw data be transformed into a versioned handoff without
+  identifier overlap or training-to-holdout leakage?
+  \item[RQ2:] Which evaluated classifier has the strongest saved validation
+  PR-AUC, and does its final artifact retain performance on the chronological
+  holdout?
+  \item[RQ3:] Can the batch model be served without Spark at request time while
+  retaining categorical compatibility and local explanations?
+  \item[RQ4:] Which gaps prevent the demonstration from supporting a
+  production-readiness claim?
+\end{description}
+
+\section{Contributions}
+
+The project contributes:
+
+\begin{itemize}
+  \item a Spark pipeline with typed ingestion, join audits, EDA, temporal
+  splitting, training-only transform fitting, feature contracts, and a
+  machine-readable verifier;
+  \item weighted and deterministic undersampling strategies that leave
+  validation and holdout prevalence untouched;
+  \item a versioned comparison of logistic regression, LightGBM, XGBoost, and
+  CatBoost, with a packaged LightGBM scoring interface;
+  \item a FastAPI and SQL persistence layer for scoring, imports, dataset loads,
+  transaction exploration, and human review;
+  \item a React dashboard with risk visualization, SHAP evidence, data loading,
+  review operations, and fallback-aware states;
+  \item a whole-project audit that separates verified behavior, saved artifact
+  claims, implemented capability, and missing evidence.
+\end{itemize}
+
+\section{Evaluation basis}
+
+The primary predictive metrics are ROC-AUC and precision--recall AUC (PR-AUC).
+PR curves are particularly informative when positive and negative class counts
+are highly skewed because precision exposes the false-positive burden among
+positive predictions \parencite{davis2006pr,saito2015pr}.
+
+The project does not treat area metrics as a complete operational policy.
+Precision, recall, confusion counts, calibration, error cost, and review
+capacity at a selected threshold are required before a model score can control
+real financial decisions.
+
+\section{Scope and evidence}
+
+The evidence snapshot is the repository and locally available generated
+artifacts inspected on 30 July 2026. Source code proves that a capability is
+implemented; it does not by itself prove that a training or deployment run
+completed. Saved JSON/CSV artifacts are reported as \artifactreported{} when
+they could not be independently regenerated in the review environment.
+
+The thesis excludes:
+
+\begin{itemize}
+  \item claims about real production fraud savings;
+  \item personal or merchant identification from anonymized fields;
+  \item causal explanations of fraud;
+  \item automatic deployment or online learning;
+  \item regulatory approval of the risk-band policy.
+\end{itemize}
+
+\section{Thesis organization}
+
+Chapter~\ref{chap:background} introduces the dataset, large-scale processing,
+boosted-tree models, evaluation, and SHAP. Chapter~\ref{chap:architecture}
+defines requirements and the integrated architecture.
+Chapter~\ref{chap:data} examines the data pipeline and its leakage controls.
+Chapter~\ref{chap:model} presents model training, results, serving, and
+limitations. Chapter~\ref{chap:application} documents the API, database,
+frontend, and deployment. Chapter~\ref{chap:validation} consolidates validation
+evidence and the production-readiness review. Chapter~\ref{chap:conclusion}
+answers the research questions and identifies future work.

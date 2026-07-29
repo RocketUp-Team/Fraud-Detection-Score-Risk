@@ -1,0 +1,293 @@
+\chapter{API Reference}
+\label{app:api}
+
+\section{Common enums}
+
+\begin{lstlisting}
+RiskBand    = low | guarded | medium | high | critical
+Decision    = approve | review | reject
+ReviewState = pending | approved | rejected
+ReviewLabel = fraud | legit
+ScoringMode = full_feature | partial_demo
+\end{lstlisting}
+
+\section{Core response fields}
+
+\begingroup
+\small
+\begin{longtable}{p{0.35\textwidth}p{0.18\textwidth}p{0.37\textwidth}}
+\caption{Core API fields}
+\label{tab:core-api-fields}\\
+\toprule
+Field & Type & Meaning\\
+\midrule
+\endfirsthead
+\toprule
+Field & Type & Meaning\\
+\midrule
+\endhead
+\path|fraud_probability| & float & Model/fallback output in \([0,1]\)\\
+\path|risk_score| & integer & Rounded probability times 100\\
+\path|risk_band| & enum & Fixed backend score band\\
+\path|decision| & enum & Automatic backend policy result\\
+\path|scoring_mode| & enum & Full vector or partial demonstration\\
+\path|shap_top5| & list/null & Local model contributions when available\\
+\path|model_version| & string & Artifact version used for the score\\
+\path|processing_version| & string/null & Data processing lineage\\
+\path|feature_schema_version| & string/null & Feature contract lineage\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+\section{Endpoint summary}
+
+\begingroup
+\small
+\begin{longtable}{p{0.11\textwidth}p{0.50\textwidth}p{0.28\textwidth}}
+\toprule
+Method & Path & Response\\
+\midrule
+\endfirsthead
+\toprule
+Method & Path & Response\\
+\midrule
+\endhead
+GET & \path|/health| & Process status\\
+GET & \path|/meta| & Model and feature metadata\\
+POST & \path|/score| & Score response\\
+GET & \path|/transactions| & Paginated transactions\\
+GET & \path|/transactions/stats| & Aggregate statistics\\
+GET & \path|/transactions/import/template| & UTF-8 CSV\\
+POST & \path|/transactions/import| & Import outcome and coverage\\
+GET & \path|/transactions/{id}| & Transaction detail\\
+POST & \path|/transactions/{id}/review| & Updated detail\\
+GET & \path|/datasets| & Available datasets\\
+POST & \path|/data/load| & Background job\\
+GET & \path|/jobs/{id}| & Job state\\
+GET & \path|/jobs/active/current| & Job or null\\
+POST & \path|/jobs/{id}/cancel| & Updated job\\
+\bottomrule
+\end{longtable}
+\endgroup
+
+The normative, implementation-aligned contract is maintained in
+\systempath{docs/API_CONTRACT.md}.
+
+\chapter{Feature and Risk Contracts}
+\label{app:contracts}
+
+\section{Canonical feature groups}
+
+\begin{longtable}{p{0.21\textwidth}p{0.69\textwidth}}
+\caption{Canonical feature groups}
+\label{tab:feature-groups}\\
+\toprule
+Group & Representative features\\
+\midrule
+\endfirsthead
+\toprule
+Group & Representative features\\
+\midrule
+\endhead
+Amount & \texttt{TransactionAmt}, log/capped/decimal amount, amount band,
+card-mean ratios and deviations\\
+Time & \texttt{TransactionDT}, day, week, hour, day-of-week proxy, age, night flag\\
+Missingness & Selected/identity missing counts and ratios\\
+Presence & Identity, device, payer/recipient email, distance, address,
+same-domain flags\\
+Anonymous behavior & \texttt{dist1}, \texttt{dist2}, selected
+\texttt{C1--C14}, selected \texttt{D1--D15}\\
+Card history & Prior count/sum/mean/stddev and time since previous transaction\\
+Email history & Prior count/sum/mean\\
+Device history & Prior count/sum/mean\\
+Categorical & \texttt{ProductCD}, \texttt{card4}, \texttt{card6},
+\texttt{DeviceType}, \texttt{device\_family}, \texttt{M4},
+\texttt{amount\_band}\\
+\bottomrule
+\end{longtable}
+
+\section{Forbidden model columns}
+
+\begin{lstlisting}
+TransactionID
+isFraud
+class_weight
+split_name
+processing_version
+feature_schema_version
+generated_at
+\end{lstlisting}
+
+\section{Risk bands}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{rrll}
+\toprule
+Minimum & Maximum & Band & Decision\\
+\midrule
+0 & 19 & low & approve\\
+20 & 39 & guarded & approve\\
+40 & 59 & medium & review\\
+60 & 79 & high & review\\
+80 & 100 & critical & reject\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The risk bands are a fixed demonstration policy. They are not derived from the
+saved V2 validation operating point.
+
+\chapter{Reproducible Runbook}
+\label{app:runbook}
+
+\section{Raw data placement}
+
+\begin{lstlisting}
+data/data/ieee-fraud-detection/
+  train_transaction.csv
+  train_identity.csv
+  test_transaction.csv
+  test_identity.csv
+  sample_submission.csv       # optional
+\end{lstlisting}
+
+\section{Preprocessing}
+
+\begin{lstlisting}[language=bash]
+docker compose -f docker-compose.preprocessing.yml build
+docker compose -f docker-compose.preprocessing.yml run --rm preprocess
+docker compose -f docker-compose.preprocessing.yml run --rm verify-processed
+\end{lstlisting}
+
+If a completed Spark export lacks a finalized manifest:
+
+\begin{lstlisting}[language=bash]
+python -m pipeline.processed_contract \
+  --output-dir data/processed/ieee_cis_fraud_risk
+python -m pipeline.verify_processed_data \
+  --output-dir data/processed/ieee_cis_fraud_risk
+\end{lstlisting}
+
+\section{Model training}
+
+\begin{lstlisting}[language=bash]
+cd model
+uv sync --frozen
+uv run python -m fraud_model.train_baseline
+uv run python -m fraud_model.train_compare
+uv run python -m fraud_model.tune_and_explain
+\end{lstlisting}
+
+The commands must run in order for one version. Holdout evaluation should occur
+only after model/parameter selection is fixed.
+
+\section{Application}
+
+\begin{lstlisting}[language=bash]
+docker compose up --build
+\end{lstlisting}
+
+Then open:
+
+\begin{itemize}
+  \item dashboard: \url{http://localhost:5173};
+  \item API documentation: \url{http://localhost:8000/docs};
+  \item optional Adminer: \url{http://localhost:8081}; select the
+  \texttt{PostgreSQL} system, then use the configured database credentials.
+\end{itemize}
+
+\section{Local development}
+
+\begin{lstlisting}[language=bash]
+# Terminal 1
+cd backend
+uv sync --frozen
+uv run uvicorn fraud_backend.main:app --reload
+
+# Terminal 2
+cd frontend
+npm ci
+npm run dev
+\end{lstlisting}
+
+\section{Rollback}
+
+\begin{lstlisting}[language=bash]
+FRAUD_MODEL_SERVING_VERSION=v1
+\end{lstlisting}
+
+Restart the backend and verify \texttt{/meta} before accepting traffic.
+
+\chapter{Test and Contribution Matrix}
+\label{app:tests}
+
+\section{Recommended validation commands}
+
+\begin{lstlisting}[language=bash]
+# Processed data (read-only unless --write-report is supplied)
+python -m pipeline.verify_processed_data \
+  --output-dir data/processed/ieee_cis_fraud_risk
+
+# Model
+cd model
+uv run ruff check .
+uv run pytest -q
+
+# Backend
+cd backend
+uv run ruff check src tests
+uv run pytest -q
+
+# Frontend
+cd frontend
+npm run lint
+npm run build
+python scripts/check-ui.py
+\end{lstlisting}
+
+\section{Acceptance scenarios}
+
+\begin{longtable}{p{0.38\textwidth}p{0.52\textwidth}}
+\caption{Acceptance scenarios}
+\label{tab:acceptance}\\
+\toprule
+Scenario & Expected evidence\\
+\midrule
+\endfirsthead
+\toprule
+Scenario & Expected evidence\\
+\midrule
+\endhead
+Processed handoff & Verifier passes every schema, row, split, and artifact check\\
+Real model startup & \texttt{/meta} returns expected version with no warning\\
+Full-feature score & \texttt{scoring\_mode=full\_feature}; probability bounded\\
+Partial score & \texttt{partial\_demo} is visible; required fields enforced\\
+Unseen category & Request succeeds with training-defined unknown mapping\\
+SHAP absent & UI renders explicit unavailable state\\
+Review update & Status/label persist and queue/statistics invalidate\\
+CSV row error & Good rows commit; bad row appears in bounded error list\\
+Job reconnect & Active job is returned after browser refresh\\
+Model rollback & V1 loads and \texttt{/meta} reports V1\\
+\bottomrule
+\end{longtable}
+
+\section{Repository role mapping}
+
+\begin{table}[H]
+\centering
+\caption{Role mapping recorded by the repository}
+\label{tab:roles}
+\begin{tabularx}{\textwidth}{p{0.16\textwidth}X}
+\toprule
+Role name & Recorded contribution\\
+\midrule
+An & Data processing, EDA, feature engineering, contracts, and handover\\
+Quân & Model training, comparison, SHAP, artifact packaging, and scoring\\
+Trung & FastAPI, SQL persistence, imports, background data loading, and Docker\\
+Long & React dashboard, risk/SHAP presentation, review UX, and import UI\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Formal names and contribution approval must be supplied before submission.
