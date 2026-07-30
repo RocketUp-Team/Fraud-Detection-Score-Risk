@@ -1,10 +1,36 @@
 """Reusable, point-in-time-safe Spark transformations."""
 from __future__ import annotations
 
+import os
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
+
+
+def configure_spark_python() -> str:
+    """Point PySpark workers at this interpreter, using a Windows short path
+    when the workspace contains spaces."""
+    executable = str(Path(sys.executable).resolve())
+    if os.name == "nt" and " " in executable:
+        try:
+            import ctypes
+
+            buffer = ctypes.create_unicode_buffer(32768)
+            length = ctypes.windll.kernel32.GetShortPathNameW(
+                executable,
+                buffer,
+                len(buffer),
+            )
+            if length:
+                executable = buffer.value
+        except (AttributeError, OSError):
+            pass
+    os.environ["PYSPARK_PYTHON"] = executable
+    os.environ["PYSPARK_DRIVER_PYTHON"] = executable
+    return executable
 
 
 @dataclass(frozen=True)

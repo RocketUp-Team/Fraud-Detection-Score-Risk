@@ -60,6 +60,7 @@ from pipeline.contract_utils import (
 from pipeline.temporal_features import (
     add_point_in_time_history,
     calculate_temporal_boundaries,
+    configure_spark_python,
     split_by_boundaries,
 )
 
@@ -241,16 +242,15 @@ print(json.dumps({
 }, indent=2))
 
 def create_spark_session() -> SparkSession:
-    os.environ["PYSPARK_PYTHON"] = sys.executable
-    os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
+    python_executable = configure_spark_python()
     master = os.getenv("SPARK_MASTER", "local[*]")
     shuffle_partitions = os.getenv("SPARK_SHUFFLE_PARTITIONS", str(max(16, (os.cpu_count() or 4) * 2)))
     builder = (
         SparkSession.builder
         .appName("IEEE-CIS-Fraud-Preprocessing")
         .master(master)
-        .config("spark.pyspark.python", sys.executable)
-        .config("spark.pyspark.driver.python", sys.executable)
+        .config("spark.pyspark.python", python_executable)
+        .config("spark.pyspark.driver.python", python_executable)
         .config("spark.sql.shuffle.partitions", shuffle_partitions)
         .config("spark.default.parallelism", os.getenv("SPARK_DEFAULT_PARALLELISM", str(max(8, os.cpu_count() or 4))))
         .config("spark.sql.adaptive.enabled", "true")

@@ -3,11 +3,13 @@ from pyspark.sql import SparkSession
 from pipeline.temporal_features import (
     add_point_in_time_history,
     calculate_temporal_boundaries,
+    configure_spark_python,
     split_by_boundaries,
 )
 
 
 def test_split_boundaries_and_point_in_time_history():
+    configure_spark_python()
     spark = (
         SparkSession.builder.master("local[1]")
         .appName("pipeline-temporal-test")
