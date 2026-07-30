@@ -10,8 +10,9 @@ Chi tiết phân công & lịch: [`../docs/RISK_SCORING_PLAN.md`](../docs/RISK_S
 ## Nguồn dữ liệu: feature contract thật từ An
 
 `data.py`/`features.py` đọc trực tiếp parquet đã xử lý bởi pipeline Spark của
-An tại `../data/processed/ieee_cis_fraud_risk/model_ready/` (47 numeric + 7
-categorical feature, đã impute median/missing-category, đã chia chronological
+An tại `../data/processed/ieee_cis_fraud_risk/model_ready/` (61 numeric + 7
+categorical feature, tổng cộng 68 feature theo canonical order; đã impute
+median/missing-category, đã chia chronological
 train/validation/holdout, có sẵn cột `class_weight`). Xem
 [`../data/ieee_cis/HANDOVER_TO_QUAN.md`](../data/ieee_cis/HANDOVER_TO_QUAN.md)
 và [`../DATA_DICTIONARY.md`](../DATA_DICTIONARY.md) cho data contract đầy đủ.
@@ -28,9 +29,11 @@ docker compose -f ../docker-compose.preprocessing.yml run --rm verify-processed
 
 **Kỷ luật tránh leakage** (theo yêu cầu của An): `StringIndexer` cho 7 cột
 categorical chỉ `fit` trên `train_weighted`, áp dụng lại (không refit) cho
-validation/holdout. `train_compare`/`tune_and_explain` chỉ dùng
-`validation` để chọn model/tham số; `holdout` chỉ được đánh giá **đúng một
-lần** sau khi đã chốt, trong `tune_and_explain.py`.
+validation/holdout. Validation được chia theo thời gian thành selection
+(50%), calibration (25%) và policy (25%). `train_compare`/`tune_and_explain`
+chỉ dùng selection; `threshold_analysis` fit calibrator trên calibration và
+chọn threshold trên policy. `evaluate_holdout` chỉ đọc holdout **đúng một
+lần** sau khi model, calibrator và policy đã freeze.
 
 `synthetic_data.py` (sinh dữ liệu giả từ CSV thô, xem lịch sử) vẫn còn nhưng
 không dùng trong luồng chính nữa — chỉ hữu ích nếu cần test nhanh không phụ
@@ -86,9 +89,13 @@ model/tham số trên `validation`. Mỗi script lưu artifact:
 
 | Script | Artifact |
 |---|---|
-| `train_baseline` | `artifacts/v2/baseline_logreg_v2.joblib` |
-| `train_compare` | `artifacts/v2/model_comparison_v2.json` (kết quả so sánh + tên model tốt nhất) |
-| `tune_and_explain` | `artifacts/v2/final_model_v2.joblib` (model đã tune + SHAP top-5 + metric holdout) |
+| `train_baseline` | `artifacts/<version>/baseline_logreg_<version>.joblib` |
+| `train_compare` | `artifacts/<version>/model_comparison_<version>.json` |
+| `tune_and_explain` | model đã tune, SHAP và validation metrics |
+| `threshold_analysis` | calibrator, threshold policy và threshold analysis |
+| `evaluate_holdout` | one-time holdout metrics |
+| `package_candidate` | candidate manifest và SHA-256 checksum |
+| `promotion_gate` | quyết định review; không tự đổi serving version |
 
 Quy ước hiện tại:
 
@@ -98,9 +105,9 @@ Quy ước hiện tại:
 Mặc định code training ghi sang `v2`. `score()` cũng phục vụ `v2`; rollback
 bằng `FRAUD_MODEL_SERVING_VERSION=v1` mà không cần sửa code.
 
-`tune_and_explain` đọc `model_comparison_v2.json` để biết model nào cần tune. Nếu
-model tốt nhất không phải mô hình cây (LightGBM/XGBoost/CatBoost), script dừng
-lại — dùng tạm baseline cho demo theo phương án dự phòng ở mục 5.
+`tune_and_explain` đọc file comparison của đúng training version để biết
+model nào cần tune. Logistic Regression và ba model cây
+(LightGBM/XGBoost/CatBoost) đều có trainer tương ứng.
 
 **Kết quả tham chiếu của model hiện hành (`v1`)**:
 LightGBM tuned — validation ROC-AUC 0.888/PR-AUC 0.482, holdout (1 lần)
@@ -125,9 +132,9 @@ gắn `model_version` để truy vết.
 
 ### MLflow training history
 
-Mỗi stage tạo một run trong experiment `fraud-detection-training`: `baseline`,
-`compare`, `tune_and_holdout`, `threshold_and_calibration` và
-`final_holdout`. Mặc định MLflow dùng SQLite tại
+Các stage chính tạo run trong experiment `fraud-detection-training`:
+`baseline`, `compare`, `tune_validation`, `threshold_and_calibration`,
+`holdout_final` và `promotion_gate`. Mặc định MLflow dùng SQLite tại
 `model/artifacts/mlflow.db` và lưu file artifacts tại
 `model/artifacts/mlflow-artifacts/`; đặt `MLFLOW_TRACKING_URI` để dùng tracking
 server chung. Khi dùng server chung, artifact location do server/experiment
@@ -135,45 +142,25 @@ quản lý thay vì bị ép về đường dẫn local của client. Run lưu m
 Spark master, params, validation metrics và holdout metrics (chỉ ở stage cuối),
 cùng metadata JSON.
 
-## Kế hoạch retraining an toàn: chuẩn bị `v2`
+## Retraining an toàn bằng candidate version
 
-Nếu data pipeline của An đã thay đổi và cần retrain, không ghi đè artifact cũ.
-Hãy giữ serving ở `v1` và train bản mới ở `v2`:
-
-```bash
-cd model
-uv sync
-uv run python -m fraud_model.train_baseline
-uv run python -m fraud_model.train_compare
-uv run python -m fraud_model.tune_and_explain
-```
-
-Output mặc định sẽ nằm trong:
-
-- `artifacts/v2/baseline_logreg_v2.joblib`
-- `artifacts/v2/model_comparison_v2.json`
-- `artifacts/v2/final_model_v2.joblib`
-
-Nếu cần override version khác trong tương lai:
-
-```bash
-FRAUD_MODEL_TRAINING_VERSION=v3 uv run python -m fraud_model.train_baseline
-```
-
-Full V3 workflow (validation, baseline, weighted/balanced comparison, tuning,
-calibration, threshold analysis and one-time holdout evaluation) chạy từ repo
-root bằng:
+Nếu data pipeline thay đổi, giữ serving ở `v2` và train candidate bằng một
+semantic version riêng:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\train_model_v3_full.ps1 -Mode local
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 `
+  -Mode local `
+  -TrainingVersion 0.0.3 `
+  -DataRoot candidates\ieee_cis_fraud_risk_2_1_0
 ```
 
-Artifacts V3 nằm trong `model/artifacts/v3/`; script không ghi đè V2.
+Output nằm trong `model/artifacts/0.0.3/`. Promotion gate chỉ ghi
+`eligible_for_promotion_review` hoặc `not_promoted`; thao tác đổi serving
+version luôn là bước review riêng.
 
 ### Một script training duy nhất
 
-Chạy từ repo root để chạy lại toàn bộ training sau mỗi lần sửa code, không cần
-nhớ version V2/V3:
+Chạy từ repo root để chạy lại toàn bộ workflow, không cần gọi từng stage:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 `
@@ -203,7 +190,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 `
 Cluster failure làm workflow fail rõ ràng; script không âm thầm fallback sang
 local trong cùng run.
 
-V2/V3 cũ vẫn được giữ nguyên để rollback. Training mới không tự động đổi
+V1/V2 hiện có vẫn được giữ nguyên để rollback. Training mới không tự động đổi
 serving default.
 
 ## Chạy training qua Docker Compose + Spark cluster
@@ -227,11 +214,14 @@ thay vì `local[*]`. Xem Spark UI tại `http://localhost:8080` khi cluster ch�
 Nếu không cần cluster, chọn local Spark rõ ràng bằng script PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\train_model_v2_full.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 `
+  -Mode local `
+  -TrainingVersion 0.0.3 `
+  -DataRoot candidates\ieee_cis_fraud_risk_2_1_0
 ```
 
-Script mặc định dùng `model-training-local` với `SPARK_MASTER_URL=local[*]`,
-không ghi đè artifact V1. Các output V2 nằm trong `model/artifacts/v2/`.
+Script dùng `model-training-local` với `SPARK_MASTER_URL=local[*]`; candidate
+được ghi vào thư mục version riêng và không ghi đè V2.
 
 ## `score()` — module bàn giao cho Trung (Ngày 5)
 
@@ -254,8 +244,8 @@ score({
 
 Cột categorical nhận giá trị string thô (viết thường, khớp giá trị lúc train
 — xem `DATA_DICTIONARY.md`); được encode qua `category_mappings` lưu trong
-artifact (không cần Spark). Serving default dùng artifact `v1`; các artifact
-`v2` chỉ nên promote sau khi đánh giá xong.
+artifact (không cần Spark). Serving default tiếp tục dùng artifact `v2`;
+candidate semantic version chỉ được xem xét sau khi tất cả gates đạt.
 
 ## Cấu trúc
 
@@ -270,7 +260,11 @@ model/
 │   ├── synthetic_data.py    # sinh dữ liệu giả lập CSV (không dùng trong luồng chính)
 │   ├── train_baseline.py    # baseline Logistic Regression + StandardScaler (Ngày 1-2)
 │   ├── train_compare.py     # so sánh LogReg/LightGBM/XGBoost/CatBoost (Ngày 3)
-│   ├── tune_and_explain.py  # tuning + SHAP + đánh giá holdout 1 lần (Ngày 4)
+│   ├── tune_and_explain.py  # tuning + SHAP trên selection window
+│   ├── threshold_analysis.py # calibration + policy thresholds
+│   ├── evaluate_holdout.py  # one-time final holdout evaluation
+│   ├── package_candidate.py # manifest + checksum + load/score smoke
+│   ├── promotion_gate.py    # review decision, không auto-promote
 │   └── score.py             # module bàn giao cho Trung: score(features) -> {proba, shap} (Ngày 5)
 ├── Dockerfile               # Python + Java + uv, dùng cho service model-training
 ├── entrypoint.sh            # set JAVA_HOME động (đa kiến trúc) trước khi chạy

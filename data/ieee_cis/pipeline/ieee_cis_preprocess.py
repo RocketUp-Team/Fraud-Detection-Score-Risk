@@ -964,7 +964,10 @@ eda_queries = {
 
 eda_results: dict[str, DataFrame] = {}
 for name, query in eda_queries.items():
-    result = spark.sql(query)
+    # Each aggregate is consumed by show(), two CSV exports, and sometimes a
+    # figure. Materialize the small result once instead of rescanning the
+    # 1.3 GB source for every action.
+    result = spark.sql(query).persist(StorageLevel.MEMORY_ONLY)
     eda_results[name] = result
     print(f"\n--- {name} ---")
     result.show(30, truncate=False)

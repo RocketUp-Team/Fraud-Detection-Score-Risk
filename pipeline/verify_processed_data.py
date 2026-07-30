@@ -216,8 +216,12 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
     checks.append(CheckResult("artifact.numeric_medians", medians_path.is_file(), "numeric_medians.json exists", str(medians_path), str(medians_path), "Generate preprocessing median artifact."))
     checks.append(CheckResult("artifact.model_ready_schema", model_ready_schema_path.is_file(), "model_ready_schema.json exists", str(model_ready_schema_path), str(model_ready_schema_path), "Generate model_ready schema artifact."))
 
+    canonical_feature_columns: list[str] | None = None
     if feature_order_path.is_file():
         feature_contract = _read_json(feature_order_path)
+        raw_feature_columns = feature_contract.get("feature_columns")
+        if isinstance(raw_feature_columns, list):
+            canonical_feature_columns = raw_feature_columns
         checks.append(CheckResult(
             name="artifact.feature_order.processing_version",
             ok=feature_contract.get("processing_version") == expected_processing_version,
@@ -233,6 +237,33 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
             actual=feature_contract.get("feature_schema_version"),
             path=str(feature_order_path),
             fix="Regenerate feature_order.json with the dataset feature schema version.",
+        ))
+        checks.append(CheckResult(
+            name="artifact.feature_order.count",
+            ok=(
+                canonical_feature_columns is not None
+                and len(canonical_feature_columns) == 68
+            ),
+            expected=68,
+            actual=(
+                len(canonical_feature_columns)
+                if canonical_feature_columns is not None
+                else None
+            ),
+            path=str(feature_order_path),
+            fix="Restore the canonical 68-feature logical contract.",
+        ))
+        checks.append(CheckResult(
+            name="artifact.feature_order.unique",
+            ok=(
+                canonical_feature_columns is not None
+                and len(canonical_feature_columns)
+                == len(set(canonical_feature_columns))
+            ),
+            expected="68 unique feature names",
+            actual=canonical_feature_columns,
+            path=str(feature_order_path),
+            fix="Remove duplicate names from the canonical feature order.",
         ))
 
     if expected_processing_version == PROCESSING_VERSION:
@@ -258,26 +289,35 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
             fix=f"Generate report {report_name} during preprocessing.",
         ))
 
-    # Schema consistency for labeled datasets
-    labeled_feature_columns: dict[str, list[str]] = {}
-    for dataset_name in LABELED_DATASETS:
+    # Schema consistency for all six public model-ready datasets.
+    dataset_feature_columns: dict[str, list[str]] = {}
+    for dataset_name in REQUIRED_DATASETS:
         dataset_path = model_ready / dataset_name
         if not dataset_path.is_dir():
             continue
         columns = _dataset_columns(dataset_path)
         feature_columns = [c for c in columns if c not in {"TransactionID", "isFraud", "class_weight", "split_name", "processing_version", "feature_schema_version", "generated_at"}]
-        labeled_feature_columns[dataset_name] = feature_columns
-    if labeled_feature_columns:
-        baseline = next(iter(labeled_feature_columns.values()))
-        for dataset_name, columns in labeled_feature_columns.items():
+        dataset_feature_columns[dataset_name] = feature_columns
+    if dataset_feature_columns:
+        baseline = next(iter(dataset_feature_columns.values()))
+        for dataset_name, columns in dataset_feature_columns.items():
             checks.append(CheckResult(
                 name=f"schema.feature_consistency.{dataset_name}",
                 ok=columns == baseline,
                 expected=baseline,
                 actual=columns,
                 path=str(model_ready / dataset_name),
-                fix="Ensure model-ready feature order/selection is identical across labeled datasets.",
+                fix="Ensure model-ready feature order/selection is identical across all datasets.",
             ))
+            if canonical_feature_columns is not None:
+                checks.append(CheckResult(
+                    name=f"schema.feature_contract.{dataset_name}",
+                    ok=columns == canonical_feature_columns,
+                    expected=canonical_feature_columns,
+                    actual=columns,
+                    path=str(model_ready / dataset_name),
+                    fix="Export every dataset in the exact canonical feature order.",
+                ))
 
     # Split order and overlap
     split_bounds: dict[str, tuple[Any, Any]] = {}
