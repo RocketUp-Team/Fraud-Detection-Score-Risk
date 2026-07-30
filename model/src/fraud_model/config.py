@@ -15,7 +15,13 @@ TRAIN_IDENTITY_FILE = RAW_DATA_DIR / "train_identity.csv"
 # Feature contract thật từ An — xem data/ieee_cis/HANDOVER_TO_QUAN.md,
 # DATA_DICTIONARY.md. Tạo bằng: docker compose -f
 # docker-compose.preprocessing.yml run --rm preprocess (chạy ở repo root).
-MODEL_READY_DIR = REPO_ROOT / "data" / "processed" / "ieee_cis_fraud_risk" / "model_ready"
+DEFAULT_PROCESSED_DATA_ROOT = (
+    REPO_ROOT / "data" / "processed" / "ieee_cis_fraud_risk"
+)
+PROCESSED_DATA_ROOT = Path(
+    os.environ.get("FRAUD_MODEL_DATA_ROOT", str(DEFAULT_PROCESSED_DATA_ROOT))
+).expanduser().resolve()
+MODEL_READY_DIR = PROCESSED_DATA_ROOT / "model_ready"
 
 ID_COL = "TransactionID"
 TIME_COL = "TransactionDT"
@@ -38,6 +44,7 @@ TREE_MODEL_NAMES = {"lightgbm", "xgboost", "catboost"}
 # without changing code by setting FRAUD_MODEL_SERVING_VERSION=v1.
 SERVING_MODEL_VERSION = os.environ.get("FRAUD_MODEL_SERVING_VERSION", "v2")
 TRAINING_MODEL_VERSION = os.environ.get("FRAUD_MODEL_TRAINING_VERSION", "v2")
+RANDOM_SEED = int(os.environ.get("FRAUD_MODEL_RANDOM_SEED", "42"))
 
 
 def _artifact_dir_for(version: str) -> Path:
@@ -61,6 +68,9 @@ def _artifact_paths_for(version: str) -> dict[str, Path]:
         "validation_metrics": artifact_dir / f"validation_metrics_{version}.csv",
         "holdout_metrics": artifact_dir / f"holdout_metrics_{version}.csv",
         "threshold_analysis": artifact_dir / f"threshold_analysis_{version}.csv",
+        "candidate_manifest": artifact_dir / f"candidate_manifest_{version}.json",
+        "checksum": artifact_dir / f"checksum_{version}.sha256",
+        "promotion_decision": artifact_dir / f"promotion_decision_{version}.json",
     }
 
 
@@ -82,6 +92,9 @@ TRAINING_THRESHOLDS_PATH = TRAINING_ARTIFACT_PATHS["thresholds"]
 TRAINING_VALIDATION_METRICS_PATH = TRAINING_ARTIFACT_PATHS["validation_metrics"]
 TRAINING_HOLDOUT_METRICS_PATH = TRAINING_ARTIFACT_PATHS["holdout_metrics"]
 TRAINING_THRESHOLD_ANALYSIS_PATH = TRAINING_ARTIFACT_PATHS["threshold_analysis"]
+TRAINING_CANDIDATE_MANIFEST_PATH = TRAINING_ARTIFACT_PATHS["candidate_manifest"]
+TRAINING_CHECKSUM_PATH = TRAINING_ARTIFACT_PATHS["checksum"]
+TRAINING_PROMOTION_DECISION_PATH = TRAINING_ARTIFACT_PATHS["promotion_decision"]
 
 # Legacy names kept for backward compatibility with old tests/scripts. These
 # now point to the CURRENT TRAINING target, not the currently served model.

@@ -32,7 +32,7 @@ CONTRACT_METADATA_COLS = {
 }
 
 
-def _canonical_feature_columns() -> list[str] | None:
+def _canonical_feature_contract() -> dict | None:
     """Read the preprocessing feature contract when it is available."""
     path = config.MODEL_READY_DIR.parent / "artifacts" / "preprocessing" / "feature_order.json"
     if not path.exists():
@@ -42,7 +42,34 @@ def _canonical_feature_columns() -> list[str] | None:
     columns = payload.get("feature_columns")
     if not isinstance(columns, list) or not all(isinstance(c, str) for c in columns):
         raise ValueError(f"Invalid feature contract: {path}")
-    return columns
+    return payload
+
+
+def _canonical_feature_columns() -> list[str] | None:
+    payload = _canonical_feature_contract()
+    return list(payload["feature_columns"]) if payload is not None else None
+
+
+def feature_contract_metadata() -> dict:
+    payload = _canonical_feature_contract()
+    if payload is None:
+        return {
+            "processing_version": None,
+            "feature_schema_version": None,
+            "feature_columns": [],
+            "required_features": [],
+            "optional_features": [],
+            "defaultable_features": [],
+        }
+    columns = list(payload["feature_columns"])
+    return {
+        "processing_version": payload.get("processing_version"),
+        "feature_schema_version": payload.get("feature_schema_version"),
+        "feature_columns": columns,
+        "required_features": list(payload.get("required_features", columns)),
+        "optional_features": list(payload.get("optional_features", [])),
+        "defaultable_features": list(payload.get("defaultable_features", [])),
+    }
 
 
 def fit_categorical_indexer(train_df):
@@ -86,6 +113,20 @@ def encode_categoricals_pandas(row: dict, mappings: dict) -> dict:
     return encoded
 
 
+def encode_categorical_frame(pdf, mappings: dict):
+    """Apply a frozen train-fitted mapping to a pandas frame."""
+    encoded = pdf.copy()
+    for column, mapping in mappings.items():
+        if column in encoded.columns:
+            encoded[column] = (
+                encoded[column]
+                .map(mapping)
+                .fillna(len(mapping))
+                .astype("float64")
+            )
+    return encoded
+
+
 def to_pandas_xy(df, weight_col: str = config.WEIGHT_COL):
     """Convert Spark DataFrame sang pandas (X, y, sample_weight) — điểm
     chuyển giao duy nhất giữa xử lý phân tán (Spark) và train model in-memory
@@ -110,6 +151,26 @@ def to_pandas_xy(df, weight_col: str = config.WEIGHT_COL):
         # Backward-compatible fallback for the synthetic/dev dataset only.
         drop_cols = CONTRACT_METADATA_COLS | {config.TIME_COL, weight_col}
         X = pdf.drop(columns=[c for c in drop_cols if c in pdf.columns])
+    return X, y, sample_weight
+
+
+def to_pandas_xy_with_mappings(
+    df,
+    mappings: dict,
+    weight_col: str = config.WEIGHT_COL,
+):
+    """Convert a later temporal window with the mapping saved in the model
+    artifact, without refitting Spark StringIndexer."""
+    pdf = df.orderBy(config.TIME_COL, config.ID_COL).toPandas()
+    y = pdf[config.TARGET_COL] if config.TARGET_COL in pdf.columns else None
+    sample_weight = pdf[weight_col] if weight_col in pdf.columns else None
+    canonical_columns = _canonical_feature_columns()
+    if canonical_columns is None:
+        raise ValueError("Canonical feature contract is required for model evaluation.")
+    missing = [column for column in canonical_columns if column not in pdf.columns]
+    if missing:
+        raise ValueError(f"Model-ready dataset is missing required columns: {missing}")
+    X = encode_categorical_frame(pdf.loc[:, canonical_columns], mappings)
     return X, y, sample_weight
 
 

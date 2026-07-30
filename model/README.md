@@ -67,10 +67,19 @@ uv sync
 ## Pipeline huấn luyện (chạy tuần tự)
 
 ```bash
-uv run python -m fraud_model.train_baseline      # Ngày 1-2: baseline Logistic Regression
-uv run python -m fraud_model.train_compare       # Ngày 3: so sánh LogReg/LightGBM/XGBoost/CatBoost
-uv run python -m fraud_model.tune_and_explain     # Ngày 4: tuning model tốt nhất + SHAP + holdout (1 lần)
+uv run python -m fraud_model.validate_data
+uv run python -m fraud_model.train_baseline
+uv run python -m fraud_model.train_compare
+uv run python -m fraud_model.tune_and_explain
+uv run python -m fraud_model.threshold_analysis
+uv run python -m fraud_model.evaluate_holdout
+uv run python -m fraud_model.package_candidate
+uv run python -m fraud_model.promotion_gate
 ```
+
+`validation` được chia theo `TransactionDT` thành selection/calibration/policy
+theo tỉ lệ 50/25/25. Holdout chỉ được đọc sau khi candidate, calibrator và
+threshold policy đã freeze.
 
 Train trên `train_weighted` (dùng `class_weight` làm `sample_weight`), chọn
 model/tham số trên `validation`. Mỗi script lưu artifact:
@@ -167,7 +176,9 @@ Chạy từ repo root để chạy lại toàn bộ training sau mỗi lần s�
 nhớ version V2/V3:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 `
+  -TrainingVersion 0.0.3 `
+  -DataRoot candidates\ieee_cis_fraud_risk_2_1_0
 ```
 
 Script mặc định tự chọn semantic version tiếp theo: `0.0.1`, `0.0.2`,
@@ -180,11 +191,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 `
   -TrainingVersion 0.0.10
 ```
 
-Muốn thử Spark cluster trước rồi fallback local:
+Chạy bằng Spark standalone cluster:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 -Mode cluster
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 `
+  -Mode cluster `
+  -TrainingVersion 0.0.3 `
+  -DataRoot candidates\ieee_cis_fraud_risk_2_1_0
 ```
+
+Cluster failure làm workflow fail rõ ràng; script không âm thầm fallback sang
+local trong cùng run.
 
 V2/V3 cũ vẫn được giữ nguyên để rollback. Training mới không tự động đổi
 serving default.
@@ -207,8 +224,7 @@ docker compose --profile training run --rm model-training \
 dừng, và tự set `SPARK_MASTER_URL=spark://spark-master:7077` để dùng cluster
 thay vì `local[*]`. Xem Spark UI tại `http://localhost:8080` khi cluster chạy.
 
-Nếu image Spark cluster không resolve được trong Docker Registry, chạy local
-Spark trong Docker bằng script PowerShell:
+Nếu không cần cluster, chọn local Spark rõ ràng bằng script PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\train_model_v2_full.ps1

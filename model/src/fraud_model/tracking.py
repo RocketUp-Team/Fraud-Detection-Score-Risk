@@ -8,6 +8,8 @@ to use a remote tracking server when one is available.
 from __future__ import annotations
 
 import os
+import hashlib
+import json
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -62,12 +64,30 @@ def training_run(stage: str, *, tags: dict[str, str] | None = None) -> Iterator:
 
 
 def log_dataset_params(train_rows: int, validation_rows: int) -> None:
+    feature_contract_path = (
+        config.PROCESSED_DATA_ROOT
+        / "artifacts"
+        / "preprocessing"
+        / "feature_order.json"
+    )
+    contract_hash = None
+    processing_version = None
+    feature_schema_version = None
+    if feature_contract_path.is_file():
+        payload = json.loads(feature_contract_path.read_text(encoding="utf-8"))
+        processing_version = payload.get("processing_version")
+        feature_schema_version = payload.get("feature_schema_version")
+        contract_hash = hashlib.sha256(feature_contract_path.read_bytes()).hexdigest()
     mlflow.log_params(
         {
             "training_version": config.TRAINING_MODEL_VERSION,
             "train_rows": train_rows,
             "validation_rows": validation_rows,
             "feature_contract": str(config.MODEL_READY_DIR),
+            "feature_contract_sha256": contract_hash,
+            "processing_version": processing_version,
+            "feature_schema_version": feature_schema_version,
+            "git_commit": os.environ.get("FRAUD_GIT_COMMIT", "unknown"),
         }
     )
 
