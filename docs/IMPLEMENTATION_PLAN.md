@@ -127,6 +127,7 @@ Environment tương ứng:
 
 - `FRAUD_MODEL_TRAINING_VERSION`
 - `FRAUD_MODEL_DATA_ROOT`
+- `FRAUD_SPARK_ARROW_ENABLED`
 - `SPARK_MASTER_URL`
 - `MLFLOW_EXPERIMENT`
 
@@ -183,14 +184,30 @@ không thay đổi.
 
 ## 6. Progress checklist
 
-- [ ] Baseline và rollback evidence
-- [ ] Data pipeline config/refactor
-- [ ] Leakage-safe fitted artifacts
-- [ ] Point-in-time historical features
-- [ ] Candidate data full run và verifier
-- [ ] Spark local/cluster compatibility
-- [ ] Temporal validation 50/25/25
-- [ ] Candidate comparison và tuning
-- [ ] Calibration, policy và holdout
-- [ ] Bundle/checksum/MLflow lineage
-- [ ] Promotion decision và handover
+- [x] Baseline và rollback evidence
+- [x] Data pipeline config/refactor
+- [x] Leakage-safe fitted artifacts
+- [x] Point-in-time historical features
+- [x] Candidate data full run và verifier
+- [x] Spark local/cluster compatibility
+- [x] Temporal validation 50/25/25
+- [x] Candidate comparison và tuning
+- [x] Calibration, policy và holdout
+- [x] Bundle/checksum/MLflow lineage
+- [x] Promotion decision và handover
+
+## 7. Kết quả triển khai
+
+Hoàn tất ngày 31/07/2026:
+
+- candidate data `ieee_cis_fraud_risk_2_1_0` có đủ sáu dataset, 68 features
+  theo đúng canonical order và verifier pass toàn bộ 94 checks;
+- local Docker training và Spark standalone 3.5.1 contract smoke test đều
+  đọc thành công cùng candidate Parquet;
+- model candidate `0.0.3` là CatBoost train trên balanced dataset, có
+  validation PR-AUC `0.5750`;
+- calibration isotonic giảm policy Brier score từ `0.0461` xuống `0.0238`;
+- one-time holdout đạt ROC-AUC `0.8771`, PR-AUC `0.4342`, precision `0.3730`
+  và recall `0.5221` tại review threshold `0.14`;
+- promotion decision là `not_promoted` vì PR-AUC thấp hơn V2 reference
+  `0.4582`; serving V2 và stable processed data không thay đổi.

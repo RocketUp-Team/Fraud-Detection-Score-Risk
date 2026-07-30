@@ -74,23 +74,46 @@ services:
   # --- Spark: chỉ dùng cho training (model/), không cần cho demo chấm điểm.
   # Chạy: docker compose --profile training run --rm model-training uv run python -m fraud_model.train_baseline
   spark-master:
-    image: bitnami/spark:3.5.1
-    environment:
-      - SPARK_MODE=master
+    image: apache/spark:3.5.1
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.master.Master
+      - --host
+      - spark-master
+      - --port
+      - "7077"
+      - --webui-port
+      - "8080"
     ports:
       - "8080:8080"
       - "7077:7077"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/spark-master/7077'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     profiles: ["training"]
 
   spark-worker:
-    image: bitnami/spark:3.5.1
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=2G
-      - SPARK_WORKER_CORES=2
+    image: apache/spark:3.5.1
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - spark://spark-master:7077
+      - --cores
+      - "2"
+      - --memory
+      - 2G
+      - --webui-port
+      - "8081"
     depends_on:
-      - spark-master
+      spark-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/8081'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     volumes:
       # Spark standalone executors must see the same absolute Parquet paths as
       # the Python driver.
@@ -102,6 +125,7 @@ services:
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - FRAUD_SPARK_ARROW_ENABLED=false
+      - GIT_PYTHON_REFRESH=quiet
       - FRAUD_MODEL_TRAINING_VERSION=v2
       - FRAUD_MODEL_DATA_ROOT=/data/processed/ieee_cis_fraud_risk
     volumes:
@@ -109,8 +133,10 @@ services:
       - ./model/artifacts:/app/artifacts
       - ./data/processed:/data/processed:ro
     depends_on:
-      - spark-master
-      - spark-worker
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_healthy
     profiles: ["training"]
 
   model-training-local:
@@ -118,6 +144,7 @@ services:
     environment:
       - SPARK_MASTER_URL=local[*]
       - FRAUD_SPARK_ARROW_ENABLED=false
+      - GIT_PYTHON_REFRESH=quiet
       - FRAUD_MODEL_TRAINING_VERSION=v2
       - FRAUD_MODEL_DATA_ROOT=/data/processed/ieee_cis_fraud_risk
     volumes:

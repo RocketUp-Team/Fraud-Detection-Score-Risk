@@ -210,6 +210,9 @@ docker compose --profile training run --rm model-training \
 `model/data` và `model/artifacts` để dữ liệu/kết quả không mất khi container
 dừng, và tự set `SPARK_MASTER_URL=spark://spark-master:7077` để dùng cluster
 thay vì `local[*]`. Xem Spark UI tại `http://localhost:8080` khi cluster chạy.
+Master/worker dùng image chính thức `apache/spark:3.5.1`; training image ghim
+Java 17. Arrow collection mặc định tắt để giữ tương thích runtime và có thể
+opt-in bằng `FRAUD_SPARK_ARROW_ENABLED=true` khi benchmark.
 
 Nếu không cần cluster, chọn local Spark rõ ràng bằng script PowerShell:
 
