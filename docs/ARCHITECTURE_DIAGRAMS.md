@@ -2,17 +2,22 @@
 
 **Phạm vi:** Data Pipeline và Model Training  
 **Trạng thái:** As-built tại ngày 31/07/2026  
-**Định dạng:** UML-like diagram-as-code bằng Mermaid  
+**Định dạng:** UML-like diagram-as-code bằng Mermaid 11.16.0 + SVG vector  
 
 Tài liệu này mô tả kiến trúc đã triển khai, không phải kiến trúc đề xuất.
 Mỗi sơ đồ chỉ trả lời một câu hỏi ở một mức trừu tượng. GitHub là renderer
 chính; phần mô tả dưới mỗi hình là text fallback cho môi trường không render
 được Mermaid.
 
+Các bản SVG chất lượng cao nằm tại [`docs/diagrams/`](diagrams/README.md).
+Mermaid source trong tài liệu này là source of truth; SVG là generated export.
+
 ## 1. Bản đồ kiến trúc tổng thể
 
 **Câu hỏi:** Dữ liệu đi từ IEEE-CIS đến candidate model và serving champion
 như thế nào?
+
+[Mở bản SVG](diagrams/01-system-overview.svg)
 
 ```mermaid
 flowchart TB
@@ -67,6 +72,8 @@ Nguồn triển khai:
 
 **Câu hỏi:** Pipeline tạo model-ready data mà không học statistic từ tương lai
 như thế nào?
+
+[Mở bản SVG](diagrams/02-data-pipeline.svg)
 
 ```mermaid
 flowchart TB
@@ -150,6 +157,8 @@ Nguồn triển khai:
 
 **Câu hỏi:** Mỗi khoảng thời gian được dùng cho quyết định nào?
 
+[Mở bản SVG](diagrams/03-temporal-windows.svg)
+
 ```mermaid
 flowchart LR
     RAW["Labeled stream<br/>590,540 rows"]
@@ -181,6 +190,8 @@ Quy tắc đọc:
 ## 4. Data contract và handover
 
 **Câu hỏi:** Model team nhận những gì, và không cần làm lại những gì?
+
+[Mở bản SVG](diagrams/04-data-contract.svg)
 
 ```mermaid
 flowchart TB
@@ -239,6 +250,8 @@ pipeline.
 
 **Câu hỏi:** Candidate được chọn, hiệu chỉnh, đánh giá và đóng gói như thế nào?
 
+[Mở bản SVG](diagrams/05-model-training-lifecycle.svg)
+
 ```mermaid
 flowchart TB
     DATA_GATE{"Validate six datasets<br/>68 features + exact versions"}
@@ -296,6 +309,8 @@ Nguồn triển khai:
 
 **Câu hỏi:** Các thành phần tương tác theo thứ tự nào khi chạy workflow?
 
+[Mở bản SVG](diagrams/06-training-sequence.svg)
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -328,6 +343,8 @@ sequenceDiagram
 
 **Câu hỏi:** Local mode và cluster mode khác nhau ở đâu, và cùng đọc data như
 thế nào?
+
+[Mở bản SVG](diagrams/07-spark-deployment.svg)
 
 ```mermaid
 flowchart TB
@@ -372,6 +389,8 @@ Nguồn triển khai:
 ## 8. Candidate promotion state machine
 
 **Câu hỏi:** Candidate được phép chuyển qua những trạng thái nào?
+
+[Mở bản SVG](diagrams/08-promotion-state-machine.svg)
 
 ```mermaid
 stateDiagram-v2
