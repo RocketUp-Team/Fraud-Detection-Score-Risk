@@ -120,21 +120,24 @@ def score(features: dict) -> dict:
     columns = artifact["feature_columns"]
     model_name = artifact.get("model_name", "baseline_logreg")
     mappings = artifact.get("category_mappings", {})
-    required_features = set(artifact.get("required_features", columns))
+    required_features = artifact.get("required_features")
     defaultable_features = set(artifact.get("defaultable_features", []))
     optional_features = set(artifact.get("optional_features", []))
 
-    missing_required = sorted(
-        feature
-        for feature in required_features
-        if feature not in features and feature not in defaultable_features and feature not in optional_features
-    )
-    if missing_required:
-        raise ValueError(
-            "Thiếu required features cho full-feature scoring: "
-            + ", ".join(missing_required[:10])
-            + ("..." if len(missing_required) > 10 else "")
+    if required_features is not None:
+        missing_required = sorted(
+            feature
+            for feature in required_features
+            if feature not in features
+            and feature not in defaultable_features
+            and feature not in optional_features
         )
+        if missing_required:
+            raise ValueError(
+                "Thiếu required features cho full-feature scoring: "
+                + ", ".join(missing_required[:10])
+                + ("..." if len(missing_required) > 10 else "")
+            )
 
     encoded = encode_categoricals_pandas(features, mappings)
     # Cột THIẾU và cột CÓ nhưng giá trị None đều phải thành -999. Chỉ dùng
