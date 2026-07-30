@@ -1,0 +1,31 @@
+\begin{center}
+{\Large\parbox{0.94\textwidth}{\centering\ThesisTitle}\par}
+{\large\GroupName\par}
+\vspace{2pt}
+{\small\AuthorList\par}
+{\large Degree \DegreeName\par}
+{\large \InstitutionName\par}
+{\large\ConvocationYear\par}
+\end{center}
+
+\vspace{0.25in}
+\begin{center}
+{\Large Abstract\par}
+\end{center}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This thesis presents an end-to-end fraud risk scoring system built on the
+IEEE-CIS transaction dataset. Apache Spark performs typed ingestion, quality
+auditing, chronological splitting, leakage-controlled preprocessing, feature
+engineering, and Parquet export. A model pipeline compares logistic regression,
+LightGBM, XGBoost, and CatBoost using ROC-AUC and precision--recall AUC, then
+packages the selected model with categorical mappings and SHAP explanations.
+FastAPI exposes scoring, transaction exploration, imports, dataset loading, and
+human review, while a React dashboard supports investigation. The processed-data
+contract passed 82 saved verification checks. The V2 LightGBM artifact reports a
+holdout ROC-AUC of 0.8796 and PR-AUC of 0.4582. The review also identifies
+limitations: incomplete experiment tracking, absent calibrated operating-policy
+evidence, heuristic fallback risk, in-memory jobs, manual API type
+synchronization, and missing production security controls. The result is a
+coherent academic demonstration and a documented path toward production
+readiness.

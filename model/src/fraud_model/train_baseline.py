@@ -10,6 +10,7 @@ Chạy:
     uv run python -m fraud_model.train_baseline
 """
 import joblib
+import mlflow
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.pipeline import make_pipeline
@@ -24,6 +25,7 @@ from .features import (
     fit_categorical_indexer,
     to_pandas_xy,
 )
+from .tracking import log_dataset_params, training_run
 
 
 def main() -> None:
@@ -42,12 +44,14 @@ def main() -> None:
     X_val, y_val, _ = to_pandas_xy(val_df)
     X_val = align_feature_columns(X_val, list(X_train.columns))
 
-    model = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
-    model.fit(X_train, y_train, logisticregression__sample_weight=w_train)
-
-    val_proba = model.predict_proba(X_val)[:, 1]
-    roc_auc = roc_auc_score(y_val, val_proba)
-    pr_auc = average_precision_score(y_val, val_proba)
+    with training_run("baseline"):
+        log_dataset_params(len(X_train), len(X_val))
+        model = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
+        model.fit(X_train, y_train, logisticregression__sample_weight=w_train)
+        val_proba = model.predict_proba(X_val)[:, 1]
+        roc_auc = roc_auc_score(y_val, val_proba)
+        pr_auc = average_precision_score(y_val, val_proba)
+        mlflow.log_metrics({"validation_roc_auc": roc_auc, "validation_pr_auc": pr_auc})
 
     print(
         f"[baseline] validation ROC-AUC={roc_auc:.4f}  PR-AUC={pr_auc:.4f}  "

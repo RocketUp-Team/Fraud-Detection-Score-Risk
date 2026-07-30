@@ -125,7 +125,8 @@ Spark UI: `http://localhost:8080`.
 Kết quả so sánh model V1/V2 được ghi tại
 [`docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md`](./docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md).
 V2 hiện tốt hơn V1 trên holdout PR-AUC (`0.4582` so với `0.4298`) nhưng vẫn là
-candidate model; V1 vẫn là serving default.
+đã được promote làm serving default; rollback bằng
+`FRAUD_MODEL_SERVING_VERSION=v1` nếu cần.
 
 Nếu Spark cluster image không resolve được, có thể chạy toàn bộ training V2
 bằng Spark local trong Docker:

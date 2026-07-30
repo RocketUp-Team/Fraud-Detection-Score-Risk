@@ -1,0 +1,34 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=9mm and 12mm,
+  box/.style={draw=ReportInk, rounded corners=2pt, align=center,
+    minimum height=9mm, text width=27mm, fill=white},
+  data/.style={box, fill=ReportBlue!10},
+  model/.style={box, fill=ReportGold!16},
+  app/.style={box, fill=ReportOrange!12},
+  arrow/.style={-{Latex[length=2.2mm]}, thick, draw=ReportInk}
+]
+\node[data] (raw) {IEEE-CIS\\CSV files};
+\node[data, right=of raw] (spark) {Spark\\preprocessing};
+\node[data, right=of spark] (parquet) {Verified Parquet\\and contracts};
+\node[model, below=of parquet] (train) {Model comparison\\and tuning};
+\node[model, left=of train] (artifact) {Versioned model\\artifact};
+\node[app, left=of artifact] (api) {FastAPI\\scoring service};
+\node[app, below=of api] (ui) {React\\dashboard};
+\node[data, right=of ui] (db) {PostgreSQL\\or SQLite};
+
+\draw[arrow] (raw) -- (spark);
+\draw[arrow] (spark) -- (parquet);
+\draw[arrow] (parquet) -- (train);
+\draw[arrow] (train) -- (artifact);
+\draw[arrow] (artifact) -- (api);
+\draw[thick, {Latex[length=2.2mm]}-{Latex[length=2.2mm]}] (api) -- (ui);
+\draw[arrow] (api) -- (db);
+\draw[arrow, dashed] (parquet.east) -- ++(8mm,0) |- (db.east);
+\end{tikzpicture}
+\caption[End-to-end system architecture]{End-to-end system architecture. Solid
+arrows show implemented data or request flows; the dashed path is the
+processed-dataset loading flow into persistence.}
+\label{fig:system-architecture}
+\end{figure}

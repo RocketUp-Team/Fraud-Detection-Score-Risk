@@ -1,0 +1,26 @@
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=6mm,
+  stage/.style={draw=ReportInk, rounded corners=2pt, align=left,
+    minimum height=8mm, text width=112mm, fill=ReportBlue!8},
+  fitted/.style={stage, fill=ReportGold!16},
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[stage] (s1) {1. Validate source files, sizes, headers, and typed schemas};
+\node[stage, below=of s1] (s2) {2. Audit keys; left-join transactions with optional identity};
+\node[stage, below=of s2] (s3) {3. Normalize categorical values; profile quality, missingness, and EDA};
+\node[stage, below=of s3] (s4) {4. Create base time, amount, presence, missingness, and behavior features};
+\node[stage, below=of s4] (s5) {5. Split chronologically into train, validation, and holdout windows};
+\node[fitted, below=of s5] (s6) {6. Fit medians and entity-history lookups on training only};
+\node[fitted, below=of s6] (s7) {7. Apply frozen transforms forward; create weighted and undersampled training variants};
+\node[stage, below=of s7] (s8) {8. Export Parquet, contracts, reports, manifest, and verification evidence};
+\foreach \a/\b in {s1/s2,s2/s3,s3/s4,s4/s5,s5/s6,s6/s7,s7/s8}
+  \draw[arrow] (\a) -- (\b);
+\end{tikzpicture}
+\caption[Leakage-controlled data pipeline]{Leakage-controlled data pipeline.
+Gold stages are the training-fitted transformations that must not learn from
+validation or holdout data.}
+\label{fig:data-pipeline}
+\end{figure}
+
