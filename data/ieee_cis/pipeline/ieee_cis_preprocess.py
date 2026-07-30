@@ -57,6 +57,11 @@ from pipeline.contract_utils import (
     sha256_file,
     utc_now_iso,
 )
+from pipeline.temporal_features import (
+    add_point_in_time_history,
+    calculate_temporal_boundaries,
+    split_by_boundaries,
+)
 
 SEED = int(os.getenv("PIPELINE_SEED", "42"))
 np.random.seed(SEED)
@@ -187,6 +192,30 @@ RUN_MODEL_DEMO = os.getenv("RUN_MODEL_DEMO", "true").lower() in {"1", "true", "y
 WRITE_WIDE_FEATURE_STORE = os.getenv("WRITE_WIDE_FEATURE_STORE", "true").lower() in {"1", "true", "yes"}
 IMBALANCE_RATIO = float(os.getenv("IMBALANCE_RATIO", "4.0"))
 PROFILE_BATCH_SIZE = int(os.getenv("PROFILE_BATCH_SIZE", "40"))
+TRAIN_RATIO = float(os.getenv("TRAIN_RATIO", "0.70"))
+VALIDATION_RATIO = float(os.getenv("VALIDATION_RATIO", "0.15"))
+HOLDOUT_RATIO = float(os.getenv("HOLDOUT_RATIO", "0.15"))
+OUTLIER_QUANTILES = [
+    float(value)
+    for value in os.getenv(
+        "OUTLIER_QUANTILES",
+        "0.01,0.05,0.25,0.50,0.75,0.95,0.99",
+    ).split(",")
+    if value.strip()
+]
+OUTLIER_RELATIVE_ERROR = float(os.getenv("OUTLIER_RELATIVE_ERROR", "0.01"))
+OUTLIER_TRANSFORM_RELATIVE_ERROR = float(
+    os.getenv("OUTLIER_TRANSFORM_RELATIVE_ERROR", "0.001")
+)
+if not np.isclose(TRAIN_RATIO + VALIDATION_RATIO + HOLDOUT_RATIO, 1.0):
+    raise ValueError(
+        "TRAIN_RATIO + VALIDATION_RATIO + HOLDOUT_RATIO must equal 1.0; "
+        f"received {TRAIN_RATIO}, {VALIDATION_RATIO}, {HOLDOUT_RATIO}"
+    )
+if not 0.0 < TRAIN_RATIO < TRAIN_RATIO + VALIDATION_RATIO < 1.0:
+    raise ValueError("Chronological split ratios must create three non-empty windows.")
+if any(not 0.0 <= quantile <= 1.0 for quantile in OUTLIER_QUANTILES):
+    raise ValueError(f"OUTLIER_QUANTILES must be in [0, 1]: {OUTLIER_QUANTILES}")
 PARQUET_EXPORT_ENABLED = (
     os.name != "nt"
     or os.getenv("ENABLE_WINDOWS_PARQUET", "false").lower() in {"1", "true", "yes"}
@@ -200,6 +229,12 @@ print(json.dumps({
     "run_model_demo": RUN_MODEL_DEMO,
     "write_wide_feature_store": WRITE_WIDE_FEATURE_STORE,
     "imbalance_ratio_legit_to_fraud": IMBALANCE_RATIO,
+    "split_ratios": {
+        "train": TRAIN_RATIO,
+        "validation": VALIDATION_RATIO,
+        "holdout": HOLDOUT_RATIO,
+    },
+    "outlier_quantiles": OUTLIER_QUANTILES,
     "parquet_export_enabled": PARQUET_EXPORT_ENABLED,
     "seed": SEED,
 }, indent=2))
@@ -720,7 +755,26 @@ def add_base_features(df: DataFrame) -> DataFrame:
 
 clean_train = add_base_features(normalize_categoricals(train_merged))
 clean_test = add_base_features(normalize_categoricals(test_merged))
-amount_quantiles = clean_train.approxQuantile("TransactionAmt", [0.95, 0.99, 0.25, 0.75], 0.001)
+
+# Establish chronological boundaries before fitting any data-derived
+# preprocessing statistic.  The names q70/q85 are retained as internal legacy
+# aliases, while the manifest records the configured ratios explicitly.
+temporal_boundaries = calculate_temporal_boundaries(
+    clean_train,
+    train_ratio=TRAIN_RATIO,
+    validation_ratio=VALIDATION_RATIO,
+    relative_error=OUTLIER_TRANSFORM_RELATIVE_ERROR,
+)
+q70, q85 = temporal_boundaries.train_max, temporal_boundaries.validation_max
+train_fit_base = clean_train.filter(F.col("TransactionDT") <= F.lit(q70))
+
+# Amount caps/flags are fitted only on the chronological training window.
+# Validation, holdout and Kaggle test receive the frozen thresholds below.
+amount_quantiles = train_fit_base.approxQuantile(
+    "TransactionAmt",
+    [0.95, 0.99, 0.25, 0.75],
+    OUTLIER_TRANSFORM_RELATIVE_ERROR,
+)
 amount_p95, amount_p99, amount_p25, amount_p75 = amount_quantiles
 amount_iqr = amount_p75 - amount_p25
 amount_upper_cap = amount_p75 + 1.5 * amount_iqr
@@ -744,6 +798,10 @@ write_json(
         "generated_at": utc_now_iso(),
         "processing_version": PROCESSING_VERSION,
         "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "fit_scope": "chronological_training_only",
+        "train_ratio": TRAIN_RATIO,
+        "validation_ratio": VALIDATION_RATIO,
+        "holdout_ratio": HOLDOUT_RATIO,
         "transaction_amount": {
             "p95": amount_p95,
             "p99": amount_p99,
@@ -953,10 +1011,10 @@ numeric_corr_pdf = (
 )
 numeric_corr_pdf.to_csv(EDA_REPORTS_DIR / "numeric_feature_correlation.csv")
 
-q70, q85 = clean_train.approxQuantile("TransactionDT", [0.70, 0.85], 0.001)
-train_split_base = clean_train.filter(F.col("TransactionDT") <= F.lit(q70))
-validation_split_base = clean_train.filter((F.col("TransactionDT") > F.lit(q70)) & (F.col("TransactionDT") <= F.lit(q85)))
-holdout_split_base = clean_train.filter(F.col("TransactionDT") > F.lit(q85))
+train_split_base, validation_split_base, holdout_split_base = split_by_boundaries(
+    clean_train,
+    temporal_boundaries,
+)
 
 split_counts = {
     "train": train_split_base.count(),
@@ -964,6 +1022,9 @@ split_counts = {
     "holdout": holdout_split_base.count(),
     "q70_transaction_dt": q70,
     "q85_transaction_dt": q85,
+    "train_ratio": TRAIN_RATIO,
+    "validation_ratio": VALIDATION_RATIO,
+    "holdout_ratio": HOLDOUT_RATIO,
 }
 print(json.dumps(split_counts, indent=2))
 assert sum(split_counts[k] for k in ["train", "validation", "holdout"]) == train_rows
@@ -999,6 +1060,11 @@ write_json(
         "generated_at": utc_now_iso(),
         "processing_version": PROCESSING_VERSION,
         "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "train_ratio": TRAIN_RATIO,
+        "validation_ratio": VALIDATION_RATIO,
+        "holdout_ratio": HOLDOUT_RATIO,
+        "train_boundary_transaction_dt": q70,
+        "validation_boundary_transaction_dt": q85,
         "q70_transaction_dt": q70,
         "q85_transaction_dt": q85,
         "split_counts": split_counts,
@@ -1029,24 +1095,8 @@ def build_training_lookups(train_df: DataFrame) -> dict[str, DataFrame]:
 
 
 def add_training_window_history(df: DataFrame) -> DataFrame:
-    card_order = Window.partitionBy("card_entity_key").orderBy("TransactionDT", "TransactionID")
-    card_history = card_order.rowsBetween(Window.unboundedPreceding, -1)
-    email_history = Window.partitionBy("email_entity_key").orderBy("TransactionDT", "TransactionID").rowsBetween(Window.unboundedPreceding, -1)
-    device_history = Window.partitionBy("device_entity_key").orderBy("TransactionDT", "TransactionID").rowsBetween(Window.unboundedPreceding, -1)
-    return (
-        df
-        .withColumn("prior_card_transaction_count", F.count(F.lit(1)).over(card_history).cast("long"))
-        .withColumn("prior_card_amount_sum", F.coalesce(F.sum("TransactionAmt").over(card_history), F.lit(0.0)).cast("double"))
-        .withColumn("prior_card_avg_amount", F.when(F.col("prior_card_transaction_count") > 0, F.col("prior_card_amount_sum") / F.col("prior_card_transaction_count")).otherwise(F.lit(0.0)))
-        .withColumn("prior_card_amount_stddev", F.coalesce(F.stddev_samp("TransactionAmt").over(card_history), F.lit(0.0)).cast("double"))
-        .withColumn("time_since_previous_card_transaction", (F.col("TransactionDT") - F.lag("TransactionDT").over(card_order)).cast("double"))
-        .withColumn("prior_email_transaction_count", F.count(F.lit(1)).over(email_history).cast("long"))
-        .withColumn("prior_email_amount_sum", F.coalesce(F.sum("TransactionAmt").over(email_history), F.lit(0.0)).cast("double"))
-        .withColumn("prior_email_avg_amount", F.coalesce(F.avg("TransactionAmt").over(email_history), F.lit(0.0)).cast("double"))
-        .withColumn("prior_device_transaction_count", F.count(F.lit(1)).over(device_history).cast("long"))
-        .withColumn("prior_device_amount_sum", F.coalesce(F.sum("TransactionAmt").over(device_history), F.lit(0.0)).cast("double"))
-        .withColumn("prior_device_avg_amount", F.coalesce(F.avg("TransactionAmt").over(device_history), F.lit(0.0)).cast("double"))
-    )
+    """Backward-compatible alias for the canonical point-in-time transform."""
+    return add_point_in_time_history(df)
 
 
 def apply_training_lookups(df: DataFrame, lookups: dict[str, DataFrame]) -> DataFrame:
@@ -1073,10 +1123,57 @@ def apply_training_lookups(df: DataFrame, lookups: dict[str, DataFrame]) -> Data
 lookups = build_training_lookups(train_split_base)
 for lookup_name, lookup_df in lookups.items():
     write_parquet(lookup_df, FEATURE_STORE_DIR / f"{lookup_name}_aggregates")
-train_features = add_training_window_history(train_split_base)
-validation_features = apply_training_lookups(validation_split_base, lookups)
-holdout_features = apply_training_lookups(holdout_split_base, lookups)
-test_features = apply_training_lookups(clean_test, lookups)
+
+# Compute event-history features over the chronological transaction stream.
+# Window frames end at -1, so each row can use all prior transactions but never
+# its own values or future activity.  Splits are filtered only after the
+# point-in-time computation; no label participates in these aggregates.
+train_timeline_features = add_training_window_history(clean_train)
+train_features, validation_features, holdout_features = split_by_boundaries(
+    train_timeline_features,
+    temporal_boundaries,
+)
+
+# Kaggle test transactions occur after the labeled stream.  Build the same
+# point-in-time histories from all prior labeled and earlier test events using
+# only transaction attributes, then join the derived columns back by ID.
+history_base_columns = [
+    "TransactionID",
+    "TransactionDT",
+    "TransactionAmt",
+    "card_entity_key",
+    "email_entity_key",
+    "device_entity_key",
+]
+history_feature_columns = [
+    "prior_card_transaction_count",
+    "prior_card_amount_sum",
+    "prior_card_avg_amount",
+    "prior_card_amount_stddev",
+    "time_since_previous_card_transaction",
+    "prior_email_transaction_count",
+    "prior_email_amount_sum",
+    "prior_email_avg_amount",
+    "prior_device_transaction_count",
+    "prior_device_amount_sum",
+    "prior_device_avg_amount",
+]
+test_history_stream = (
+    clean_train.select(*history_base_columns)
+    .withColumn("__history_source", F.lit("labeled"))
+    .unionByName(
+        clean_test.select(*history_base_columns).withColumn(
+            "__history_source",
+            F.lit("kaggle_test"),
+        )
+    )
+)
+test_history = (
+    add_training_window_history(test_history_stream)
+    .filter(F.col("__history_source") == "kaggle_test")
+    .select("TransactionID", *history_feature_columns)
+)
+test_features = clean_test.join(test_history, on="TransactionID", how="left")
 
 for dataset_name, df in [
     ("train_features", train_features),
@@ -1478,9 +1575,25 @@ missingness_strategy_pdf.to_csv(REPORTS_DIR / "missingness_strategy.csv", index=
 # source datasets remain Spark/Parquet; only bounded report rows use Pandas.
 outlier_rows = []
 for column in [c for c in ["TransactionAmt", "dist1", "dist2", "C1", "D1"] if c in train_features.columns]:
-    quantiles = train_features.approxQuantile(column, [0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99], 0.01)
-    if len(quantiles) == 7:
-        outlier_rows.append({"column_name": column, "p01": quantiles[0], "p05": quantiles[1], "p25": quantiles[2], "p50": quantiles[3], "p75": quantiles[4], "p95": quantiles[5], "p99": quantiles[6], "min": train_features.agg(F.min(column)).first()[0], "max": train_features.agg(F.max(column)).first()[0]})
+    configured_quantiles = sorted(set(OUTLIER_QUANTILES))
+    quantile_values = train_features.approxQuantile(
+        column,
+        configured_quantiles,
+        OUTLIER_RELATIVE_ERROR,
+    )
+    if len(quantile_values) == len(configured_quantiles):
+        row = {
+            "column_name": column,
+            "min": train_features.agg(F.min(column)).first()[0],
+            "max": train_features.agg(F.max(column)).first()[0],
+        }
+        row.update(
+            {
+                f"p{int(round(quantile * 100)):02d}": value
+                for quantile, value in zip(configured_quantiles, quantile_values)
+            }
+        )
+        outlier_rows.append(row)
 if outlier_rows:
     write_single_csv(spark.createDataFrame(pd.DataFrame(outlier_rows)), REPORTS_DIR / "numeric_outlier_profile.csv")
 
@@ -1584,7 +1697,15 @@ manifest = {
     "output_dir": str(OUTPUT_DIR),
     "input_paths": input_paths,
     "source_files": inventory_pdf.to_dict(orient="records"),
-    "split_boundaries": {"q70_transaction_dt": q70, "q85_transaction_dt": q85},
+    "split_boundaries": {
+        "train_ratio": TRAIN_RATIO,
+        "validation_ratio": VALIDATION_RATIO,
+        "holdout_ratio": HOLDOUT_RATIO,
+        "train_boundary_transaction_dt": q70,
+        "validation_boundary_transaction_dt": q85,
+        "q70_transaction_dt": q70,
+        "q85_transaction_dt": q85,
+    },
     "split_counts": split_counts,
     "imbalance": imbalance_summary,
     "class_weights": {"legitimate": legit_weight, "fraud": fraud_weight},
