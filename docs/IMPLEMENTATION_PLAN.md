@@ -32,6 +32,9 @@ Các nguyên tắc bắt buộc:
 
 ## 2. Architecture mục tiêu
 
+Bộ sơ đồ as-built được duy trì tại
+[`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTURE_DIAGRAMS.md).
+
 ### 2.1 Data Pipeline
 
 ```text

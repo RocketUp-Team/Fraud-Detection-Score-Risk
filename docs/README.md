@@ -5,6 +5,9 @@ Fraud Detection and Risk Scoring System.
 
 ## Main deliverables
 
+- [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTURE_DIAGRAMS.md) — as-built Mermaid
+  diagrams for the data pipeline, temporal boundaries, model lifecycle,
+  training runtime, Spark deployment, and promotion state machine.
 - [`SYSTEM_DOCUMENTATION.md`](SYSTEM_DOCUMENTATION.md) — detailed description of
   the current data, model, API, frontend, deployment, testing, and operational
   architecture.
