@@ -8,6 +8,8 @@ Fraud Detection and Risk Scoring System.
 - [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTURE_DIAGRAMS.md) — as-built Mermaid
   diagrams for the data pipeline, temporal boundaries, model lifecycle,
   training runtime, Spark deployment, and promotion state machine.
+- [`diagrams/IMAGE_GALLERY.md`](diagrams/IMAGE_GALLERY.md) — separate
+  high-resolution PNG exports for direct viewing and document insertion.
 - [`SYSTEM_DOCUMENTATION.md`](SYSTEM_DOCUMENTATION.md) — detailed description of
   the current data, model, API, frontend, deployment, testing, and operational
   architecture.

@@ -17,7 +17,8 @@ Mermaid source trong tài liệu này là source of truth; SVG là generated exp
 **Câu hỏi:** Dữ liệu đi từ IEEE-CIS đến candidate model và serving champion
 như thế nào?
 
-[Mở bản SVG](diagrams/01-system-overview.svg)
+[Mở bản SVG](diagrams/01-system-overview.svg) ·
+[Mở bản PNG](diagrams/png/01-system-overview.png)
 
 ```mermaid
 flowchart TB
@@ -73,7 +74,8 @@ Nguồn triển khai:
 **Câu hỏi:** Pipeline tạo model-ready data mà không học statistic từ tương lai
 như thế nào?
 
-[Mở bản SVG](diagrams/02-data-pipeline.svg)
+[Mở bản SVG](diagrams/02-data-pipeline.svg) ·
+[Mở bản PNG](diagrams/png/02-data-pipeline.png)
 
 ```mermaid
 flowchart TB
@@ -154,7 +156,8 @@ Nguồn triển khai:
 
 **Câu hỏi:** Mỗi khoảng thời gian được dùng cho quyết định nào?
 
-[Mở bản SVG](diagrams/03-temporal-windows.svg)
+[Mở bản SVG](diagrams/03-temporal-windows.svg) ·
+[Mở bản PNG](diagrams/png/03-temporal-windows.png)
 
 ```mermaid
 flowchart LR
@@ -188,7 +191,8 @@ Quy tắc đọc:
 
 **Câu hỏi:** Model team nhận những gì, và không cần làm lại những gì?
 
-[Mở bản SVG](diagrams/04-data-contract.svg)
+[Mở bản SVG](diagrams/04-data-contract.svg) ·
+[Mở bản PNG](diagrams/png/04-data-contract.png)
 
 ```mermaid
 flowchart TB
@@ -247,7 +251,8 @@ pipeline.
 
 **Câu hỏi:** Candidate được chọn, hiệu chỉnh, đánh giá và đóng gói như thế nào?
 
-[Mở bản SVG](diagrams/05-model-training-lifecycle.svg)
+[Mở bản SVG](diagrams/05-model-training-lifecycle.svg) ·
+[Mở bản PNG](diagrams/png/05-model-training-lifecycle.png)
 
 ```mermaid
 flowchart TB
@@ -306,7 +311,8 @@ Nguồn triển khai:
 
 **Câu hỏi:** Các thành phần tương tác theo thứ tự nào khi chạy workflow?
 
-[Mở bản SVG](diagrams/06-training-sequence.svg)
+[Mở bản SVG](diagrams/06-training-sequence.svg) ·
+[Mở bản PNG](diagrams/png/06-training-sequence.png)
 
 ```mermaid
 sequenceDiagram
@@ -341,7 +347,8 @@ sequenceDiagram
 **Câu hỏi:** Local mode và cluster mode khác nhau ở đâu, và cùng đọc data như
 thế nào?
 
-[Mở bản SVG](diagrams/07-spark-deployment.svg)
+[Mở bản SVG](diagrams/07-spark-deployment.svg) ·
+[Mở bản PNG](diagrams/png/07-spark-deployment.png)
 
 ```mermaid
 flowchart TB
@@ -387,7 +394,8 @@ Nguồn triển khai:
 
 **Câu hỏi:** Candidate được phép chuyển qua những trạng thái nào?
 
-[Mở bản SVG](diagrams/08-promotion-state-machine.svg)
+[Mở bản SVG](diagrams/08-promotion-state-machine.svg) ·
+[Mở bản PNG](diagrams/png/08-promotion-state-machine.png)
 
 ```mermaid
 stateDiagram-v2

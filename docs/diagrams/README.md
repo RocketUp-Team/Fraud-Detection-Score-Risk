@@ -12,6 +12,10 @@ background: transparent
 width: 1600
 ```
 
+Ngoài SVG, từng sơ đồ có bản
+[`PNG độ phân giải cao`](png/README.md) để dùng trong Word/PowerPoint.
+Xem toàn bộ ảnh theo thứ tự đọc tại [`IMAGE_GALLERY.md`](IMAGE_GALLERY.md).
+
 | File | View |
 | --- | --- |
 | `01-system-overview.svg` | Bản đồ kiến trúc tổng thể |
