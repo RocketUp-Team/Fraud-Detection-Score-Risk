@@ -136,10 +136,7 @@ flowchart TB
         PARQUET --> MANIFEST --> CONTRACT
     end
 
-    CONFIG -.->|"authoritative parameters"| SOURCE_GATE
-    CONFIG -.-> BOUNDARY
-    CONFIG -.-> FIT_CAPS
-    CONFIG -.-> BALANCED
+    CONFIG -.->|"authoritative parameters used by every stage"| SOURCE_GATE
 ```
 
 Điểm chính: split boundary được xác định trước mọi phép fit. Historical
