@@ -5,6 +5,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 $containerOutput = "/app/data/processed/candidates/$CandidateName"
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$hostOutput = Join-Path $projectRoot "data\processed\candidates\$CandidateName"
+
+if (
+    (Test-Path -LiteralPath $hostOutput -PathType Container) -and
+    (Get-ChildItem -LiteralPath $hostOutput -Force | Select-Object -First 1)
+) {
+    throw (
+        "Candidate output already contains files: $hostOutput. " +
+        "Use a new -CandidateName so a failed or older run cannot leave stale artifacts."
+    )
+}
 
 docker compose -f docker-compose.preprocessing.yml build
 if ($LASTEXITCODE -ne 0) {

@@ -31,7 +31,8 @@ services:
     image: fraud-risk-preprocessor:2.1.0
     entrypoint: ["python", "-m", "pipeline.verify_processed_data"]
     volumes:
-      - ./data/processed:/app/data/processed:ro
+      # The verifier atomically refreshes reports/verification_report.json.
+      - ./data/processed:/app/data/processed
     command: ["--output-dir", "/app/data/processed/ieee_cis_fraud_risk"]
     restart: "no"
 
