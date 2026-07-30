@@ -62,6 +62,7 @@ def main() -> None:
             manifest.get("candidate_version") == config.TRAINING_MODEL_VERSION
             and metadata.get("model_version") == config.TRAINING_MODEL_VERSION
         ),
+        "git_clean": manifest.get("git_dirty") == "false",
     }
     all_passed = all(gates.values())
     status = "eligible_for_promotion_review" if all_passed else "not_promoted"

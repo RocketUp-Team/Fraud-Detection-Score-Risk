@@ -88,6 +88,7 @@ def log_dataset_params(train_rows: int, validation_rows: int) -> None:
             "processing_version": processing_version,
             "feature_schema_version": feature_schema_version,
             "git_commit": os.environ.get("FRAUD_GIT_COMMIT", "unknown"),
+            "git_dirty": os.environ.get("FRAUD_GIT_DIRTY", "unknown"),
         }
     )
 

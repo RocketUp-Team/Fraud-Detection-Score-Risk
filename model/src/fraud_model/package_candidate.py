@@ -93,6 +93,8 @@ def main() -> None:
         "feature_count": len(artifact["feature_columns"]),
         "holdout_mlflow_run_id": artifact["holdout_mlflow_run_id"],
         "spark_master": os.environ.get("SPARK_MASTER_URL", "local[*]"),
+        "git_commit": os.environ.get("FRAUD_GIT_COMMIT", "unknown"),
+        "git_dirty": os.environ.get("FRAUD_GIT_DIRTY", "unknown"),
         "artifact_load_smoke": "passed",
         "smoke_probability": probability,
         "artifact_sha256": artifact_sha256,
