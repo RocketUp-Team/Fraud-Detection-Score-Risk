@@ -3,6 +3,7 @@
 **Phạm vi:** Data Pipeline và Model Training  
 **Trạng thái:** As-built tại ngày 31/07/2026  
 **Định dạng:** UML-like diagram-as-code bằng Mermaid 11.16.0 + SVG vector  
+**Serving champion:** V2 · LightGBM · 68 features · holdout PR-AUC `0.4582`  
 
 Tài liệu này mô tả kiến trúc đã triển khai, không phải kiến trúc đề xuất.
 Mỗi sơ đồ chỉ trả lời một câu hỏi ở một mức trừu tượng. GitHub là renderer
@@ -29,7 +30,7 @@ flowchart TB
         VERIFY{"Data contract verifier"}
         TRAIN["Model Training Workflow<br/>Spark-assisted + Python ML"]
         MLFLOW[("MLflow runs<br/>metrics + lineage")]
-        BUNDLE[("Candidate bundle<br/>model 0.0.3 + checksum")]
+        BUNDLE[("Versioned candidate bundle<br/>model + metadata + checksum")]
         GATE{"Promotion gate"}
         REVIEW["Explicit human review"]
         NOT_PROMOTED["not_promoted<br/>candidate retained for analysis"]
@@ -46,7 +47,7 @@ flowchart TB
     end
 
     subgraph ONLINE["Online serving plane"]
-        V2[["Serving champion V2"]]
+        V2[["Serving champion V2<br/>LightGBM · 68 features<br/>holdout PR-AUC 0.4582"]]
         API["Backend scoring API"]
         UI["Risk scoring dashboard"]
 
@@ -59,8 +60,8 @@ flowchart TB
 ```
 
 Điểm chính: offline workflow chỉ tạo candidate. Promotion gate không có quyền
-tự thay model đang phục vụ. Candidate `0.0.3` hiện ở trạng thái
-`not_promoted`, vì vậy V2 vẫn là champion.
+tự thay model đang phục vụ. V2 LightGBM có holdout PR-AUC cao nhất trong các
+version đã được so sánh và vẫn là champion.
 
 Nguồn triển khai:
 
@@ -280,7 +281,7 @@ flowchart TB
     CHECKSUM["SHA-256 + artifact load smoke"]
     LINEAGE[("MLflow run IDs<br/>Git + data + Spark lineage")]
     GATE{"Promotion gate"}
-    CURRENT["not_promoted<br/>V2 unchanged"]
+    CURRENT[["Keep serving champion V2<br/>LightGBM · 68 features<br/>holdout PR-AUC 0.4582"]]
 
     DATA_GATE --> INDEXER
     INDEXER --> BASELINE
@@ -289,7 +290,7 @@ flowchart TB
     TUNE --> CALIBRATION --> THRESHOLDS --> FREEZE --> HOLDOUT
     HOLDOUT --> PACKAGE --> CHECKSUM --> GATE
     BASELINE & TUNE & CALIBRATION & HOLDOUT -.-> LINEAGE
-    GATE -->|"PR-AUC 0.4342 < 0.4582"| CURRENT
+    GATE -->|"candidate 0.0.3 PR-AUC 0.4342 < V2"| CURRENT
 ```
 
 Candidate `0.0.3` đạt ROC-AUC, precision, calibration, checksum, artifact-load,
@@ -339,7 +340,7 @@ sequenceDiagram
     Driver-->>Store: Holdout metrics and final candidate bundle
     Script->>Gate: Run checksum, smoke and metric gates
     Gate-->>Store: promotion_decision_0.0.3.json
-    Gate-->>Owner: not_promoted, serving V2 unchanged
+    Gate-->>Owner: challenger rejected, serve V2 LightGBM
 ```
 
 ## 7. Deployment topology: local và standalone cluster
@@ -419,14 +420,65 @@ stateDiagram-v2
     note right of NotPromoted
         Candidate 0.0.3 is here.
         Failed gate: holdout PR-AUC.
-        Serving V2 remains unchanged.
+        V2 LightGBM remains champion.
     end note
 ```
 
 Không có transition tự động từ `CandidatePackaged` hoặc
 `EligibleForReview` sang `ServingChampion`.
 
-## 9. Traceability và cách duy trì
+## 9. Best Model V2 serving architecture
+
+**Câu hỏi:** Model tốt nhất hiện tại được load và chấm điểm một giao dịch như
+thế nào?
+
+[Mở bản SVG](diagrams/09-best-model-v2-serving.svg) ·
+[Mở bản PNG](diagrams/png/09-best-model-v2-serving.png)
+
+```mermaid
+flowchart TB
+    CONFIG["FRAUD_MODEL_SERVING_VERSION=v2<br/>software default"]
+    ARTIFACT[("final_model_v2.joblib<br/>LightGBM · 68 features")]
+    EVIDENCE["Offline evidence<br/>validation PR-AUC 0.4925<br/>holdout PR-AUC 0.4582"]
+    ROLLBACK["FRAUD_MODEL_SERVING_VERSION=v1<br/>explicit rollback"]
+
+    INPUT[/"Transaction feature dictionary"/]
+    LOAD["_load_artifact()<br/>load V2 once and cache"]
+    CONTRACT{"Validate expected<br/>68-feature contract"}
+    ENCODE["Apply train-fitted category mappings<br/>missing value → -999"]
+    PREDICT["LightGBM predict_proba"]
+    PROBA["Raw fraud probability<br/>clamped to [0, 1]"]
+    EXPLAIN["SHAP TreeExplainer<br/>top 5 absolute contributions"]
+    RESULT["Score result<br/>proba · shap · scoring_mode"]
+    API["Backend scoring API"]
+    DASHBOARD["Risk scoring dashboard"]
+
+    CONFIG --> LOAD
+    ARTIFACT --> LOAD
+    EVIDENCE -.->|"champion selection evidence"| ARTIFACT
+    ROLLBACK -.->|"operator override only"| LOAD
+    INPUT --> CONTRACT --> ENCODE --> PREDICT
+    LOAD --> PREDICT
+    PREDICT --> PROBA
+    PREDICT --> EXPLAIN
+    PROBA --> RESULT
+    EXPLAIN --> RESULT
+    RESULT --> API --> DASHBOARD
+```
+
+V2 artifact có LightGBM, 68 feature columns và train-fitted category mappings.
+Artifact này chưa chứa calibrator hoặc threshold policy; `score()` hiện trả raw
+probability, SHAP top five và scoring mode. Vì vậy sơ đồ không gán threshold
+của candidate `0.0.3` cho V2.
+
+Nguồn triển khai:
+
+- `model/src/fraud_model/config.py`
+- `model/src/fraud_model/score.py`
+- `model/artifacts/v2/training_metadata_v2.json`
+- `model/artifacts/v2/final_model_v2.joblib`
+
+## 10. Traceability và cách duy trì
 
 | View | Source of truth | Khi nào cập nhật |
 | --- | --- | --- |
@@ -438,6 +490,7 @@ Không có transition tự động từ `CandidatePackaged` hoặc
 | Runtime sequence | training scripts và tracking module | Khi orchestration hoặc lineage đổi |
 | Deployment | Dockerfile và Compose | Khi image, Spark mode hoặc mount đổi |
 | Promotion states | package candidate và promotion gate | Khi approval/promotion policy đổi |
+| V2 serving | config, score module và V2 artifact metadata | Khi serving champion hoặc scoring contract đổi |
 
 ### Accessibility và export
 

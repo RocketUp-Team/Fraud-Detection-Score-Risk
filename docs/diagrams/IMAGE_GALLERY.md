@@ -51,3 +51,9 @@ Các ảnh dưới đây được export riêng từ Mermaid source trong
 [Mở `08-promotion-state-machine.png`](png/08-promotion-state-machine.png)
 
 ![Promotion state machine](png/08-promotion-state-machine.png)
+
+## 9. Best Model V2 serving
+
+[Mở `09-best-model-v2-serving.png`](png/09-best-model-v2-serving.png)
+
+![Best Model V2 serving architecture](png/09-best-model-v2-serving.png)

@@ -24,6 +24,7 @@ scale: 2
 | `06-training-sequence.png` | Runtime sequence của training run |
 | `07-spark-deployment.png` | Spark local/standalone deployment |
 | `08-promotion-state-machine.png` | Candidate promotion state machine |
+| `09-best-model-v2-serving.png` | Best model V2 scoring architecture |
 
 PNG là generated fallback. Mermaid source và SVG tương ứng ở thư mục cha vẫn
 là nguồn chuẩn để chỉnh sửa và in vector.

@@ -26,6 +26,7 @@ Xem toàn bộ ảnh theo thứ tự đọc tại [`IMAGE_GALLERY.md`](IMAGE_GAL
 | `06-training-sequence.svg` | Runtime sequence |
 | `07-spark-deployment.svg` | Local/cluster deployment |
 | `08-promotion-state-machine.svg` | Candidate promotion states |
+| `09-best-model-v2-serving.svg` | Best model V2 serving architecture |
 
 Mermaid source là source of truth. Không chỉnh sửa SVG bằng tay; khi source
 đổi, render lại toàn bộ tám exports và review layout trước khi commit.
