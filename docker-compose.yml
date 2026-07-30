@@ -101,6 +101,7 @@ services:
     build: ./model
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
+      - FRAUD_SPARK_ARROW_ENABLED=false
       - FRAUD_MODEL_TRAINING_VERSION=v2
       - FRAUD_MODEL_DATA_ROOT=/data/processed/ieee_cis_fraud_risk
     volumes:
@@ -116,6 +117,7 @@ services:
     build: ./model
     environment:
       - SPARK_MASTER_URL=local[*]
+      - FRAUD_SPARK_ARROW_ENABLED=false
       - FRAUD_MODEL_TRAINING_VERSION=v2
       - FRAUD_MODEL_DATA_ROOT=/data/processed/ieee_cis_fraud_risk
     volumes:

@@ -36,13 +36,19 @@ def get_spark() -> SparkSession:
     os.environ.setdefault("PYSPARK_PYTHON", python_executable)
     os.environ.setdefault("PYSPARK_DRIVER_PYTHON", python_executable)
     master = os.environ.get("SPARK_MASTER_URL", "local[*]")
+    # Non-Arrow collection is the conservative default for Spark 3.5.1 across
+    # supported JDKs. It is slower, but avoids a native DirectByteBuffer crash
+    # observed with Arrow on Java 21. Controlled opt-in keeps benchmarking easy.
+    arrow_enabled = os.environ.get("FRAUD_SPARK_ARROW_ENABLED", "false").lower()
+    if arrow_enabled not in {"true", "false"}:
+        raise ValueError("FRAUD_SPARK_ARROW_ENABLED must be 'true' or 'false'")
     spark = (
         SparkSession.builder.appName("fraud-model")
         .master(master)
         .config("spark.sql.shuffle.partitions", "8")
         .config("spark.driver.memory", os.environ.get("SPARK_DRIVER_MEMORY", "8g"))
         .config("spark.driver.maxResultSize", "0")
-        .config("spark.sql.execution.arrow.pyspark.enabled", "true")
+        .config("spark.sql.execution.arrow.pyspark.enabled", arrow_enabled)
         .config("spark.sql.execution.arrow.pyspark.fallback.enabled", "true")
         .getOrCreate()
     )

@@ -68,11 +68,27 @@ function Resolve-ContainerDataRoot {
     if (-not (Test-Path -LiteralPath $hostPath -PathType Container)) {
         throw "Training data root does not exist: $hostPath"
     }
-    $relative = [System.IO.Path]::GetRelativePath($processedRoot, $hostPath)
-    if ($relative -eq ".." -or $relative.StartsWith("..$([System.IO.Path]::DirectorySeparatorChar)")) {
+
+
+    $processedPrefix = $processedRoot.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    ) + [System.IO.Path]::DirectorySeparatorChar
+    if ($hostPath.Equals($processedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $relative = ""
+    } elseif ($hostPath.StartsWith(
+        $processedPrefix,
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+        $relative = $hostPath.Substring($processedPrefix.Length)
+    } else {
         throw "Training data root must stay under $processedRoot"
     }
-    return "/data/processed/" + ($relative -replace "\\", "/")
+    $containerPath = "/data/processed"
+    if ($relative) {
+        $containerPath += "/" + ($relative -replace "\\", "/")
+    }
+    return $containerPath
 }
 
 $ContainerDataRoot = Resolve-ContainerDataRoot $DataRoot
