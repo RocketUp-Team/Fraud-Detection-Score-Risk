@@ -12,9 +12,9 @@ from typing import Any
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PIPELINE_VERSION = "2.0.0"
-PROCESSING_VERSION = "ieee-cis-preprocess-2.0.0"
-FEATURE_SCHEMA_VERSION = "ieee-cis-features-1.0.0"
+PIPELINE_VERSION = "2.1.0"
+PROCESSING_VERSION = "ieee-cis-preprocess-2.1.0"
+FEATURE_SCHEMA_VERSION = "ieee-cis-features-1.1.0"
 RISK_BAND_POLICY_VERSION = "risk-bands-1.0.0"
 
 

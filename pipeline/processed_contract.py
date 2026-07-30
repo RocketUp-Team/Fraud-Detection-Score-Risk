@@ -119,6 +119,13 @@ def normalize_spark_csv_outputs(root: Path) -> dict[str, str]:
 
 def build_manifest(root: Path) -> dict[str, Any]:
     root = root.resolve()
+    existing_manifest: dict[str, Any] = {}
+    existing_manifest_path = root / "manifest.json"
+    if existing_manifest_path.is_file():
+        try:
+            existing_manifest = _read_json(existing_manifest_path)
+        except (json.JSONDecodeError, OSError):
+            existing_manifest = {}
     reports_dir = root / "reports"
     artifacts_dir = root / "artifacts"
     preprocessing_dir = artifacts_dir / "preprocessing"
@@ -148,6 +155,18 @@ def build_manifest(root: Path) -> dict[str, Any]:
         split_thresholds_payload = _read_json(preprocessing_dir / "split_thresholds.json")
     if (preprocessing_dir / "imbalance_config.json").is_file():
         imbalance_config_payload = _read_json(preprocessing_dir / "imbalance_config.json")
+
+    processing_version = (
+        feature_order_payload.get("processing_version")
+        or existing_manifest.get("processing_version")
+        or PROCESSING_VERSION
+    )
+    feature_schema_version = (
+        feature_order_payload.get("feature_schema_version")
+        or existing_manifest.get("feature_schema_version")
+        or FEATURE_SCHEMA_VERSION
+    )
+    pipeline_version = existing_manifest.get("pipeline_version") or PIPELINE_VERSION
 
     model_ready_datasets: dict[str, Any] = {}
     for dataset_name in REQUIRED_DATASETS:
@@ -185,9 +204,9 @@ def build_manifest(root: Path) -> dict[str, Any]:
 
     manifest = {
         "project_name": "Fraud Detection / Fraud Risk Scoring",
-        "pipeline_version": PIPELINE_VERSION,
-        "processing_version": PROCESSING_VERSION,
-        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "pipeline_version": pipeline_version,
+        "processing_version": processing_version,
+        "feature_schema_version": feature_schema_version,
         "generated_at": utc_now_iso(),
         "environment": environment_metadata(),
         "input_paths": input_paths,

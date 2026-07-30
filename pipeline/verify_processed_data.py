@@ -59,6 +59,10 @@ def _read_manifest(root: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def _dataset(path: Path):
     try:
         import pyarrow.dataset as ds  # type: ignore
@@ -95,6 +99,10 @@ def _write_report(root: Path, payload: dict[str, Any]) -> None:
 def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
     root = root.resolve()
     manifest = _read_manifest(root)
+    expected_processing_version = manifest.get("processing_version") or PROCESSING_VERSION
+    expected_feature_schema_version = (
+        manifest.get("feature_schema_version") or FEATURE_SCHEMA_VERSION
+    )
     checks: list[CheckResult] = []
     model_ready = root / "model_ready"
     preprocessing_dir = root / "artifacts" / "preprocessing"
@@ -183,8 +191,8 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
             versions = set(v for v in _table_column_values(dataset_path, "processing_version") if v is not None)
             checks.append(CheckResult(
                 name=f"dataset.processing_version.{dataset_name}",
-                ok=versions == {PROCESSING_VERSION},
-                expected=PROCESSING_VERSION,
+                ok=versions == {expected_processing_version},
+                expected=expected_processing_version,
                 actual=sorted(versions),
                 path=str(dataset_path),
                 fix="Rewrite dataset metadata columns from preprocessing finalizer.",
@@ -194,8 +202,8 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
             versions = set(v for v in _table_column_values(dataset_path, "feature_schema_version") if v is not None)
             checks.append(CheckResult(
                 name=f"dataset.feature_schema_version.{dataset_name}",
-                ok=versions == {FEATURE_SCHEMA_VERSION},
-                expected=FEATURE_SCHEMA_VERSION,
+                ok=versions == {expected_feature_schema_version},
+                expected=expected_feature_schema_version,
                 actual=sorted(versions),
                 path=str(dataset_path),
                 fix="Rewrite dataset metadata columns from preprocessing finalizer.",
@@ -207,6 +215,37 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
     checks.append(CheckResult("artifact.feature_order", feature_order_path.is_file(), "feature_order.json exists", str(feature_order_path), str(feature_order_path), "Generate feature order artifact."))
     checks.append(CheckResult("artifact.numeric_medians", medians_path.is_file(), "numeric_medians.json exists", str(medians_path), str(medians_path), "Generate preprocessing median artifact."))
     checks.append(CheckResult("artifact.model_ready_schema", model_ready_schema_path.is_file(), "model_ready_schema.json exists", str(model_ready_schema_path), str(model_ready_schema_path), "Generate model_ready schema artifact."))
+
+    if feature_order_path.is_file():
+        feature_contract = _read_json(feature_order_path)
+        checks.append(CheckResult(
+            name="artifact.feature_order.processing_version",
+            ok=feature_contract.get("processing_version") == expected_processing_version,
+            expected=expected_processing_version,
+            actual=feature_contract.get("processing_version"),
+            path=str(feature_order_path),
+            fix="Regenerate feature_order.json with the dataset processing version.",
+        ))
+        checks.append(CheckResult(
+            name="artifact.feature_order.feature_schema_version",
+            ok=feature_contract.get("feature_schema_version") == expected_feature_schema_version,
+            expected=expected_feature_schema_version,
+            actual=feature_contract.get("feature_schema_version"),
+            path=str(feature_order_path),
+            fix="Regenerate feature_order.json with the dataset feature schema version.",
+        ))
+
+    if expected_processing_version == PROCESSING_VERSION:
+        outlier_path = preprocessing_dir / "outlier_thresholds.json"
+        outlier_payload = _read_json(outlier_path) if outlier_path.is_file() else {}
+        checks.append(CheckResult(
+            name="artifact.outliers.train_only_fit",
+            ok=outlier_payload.get("fit_scope") == "chronological_training_only",
+            expected="chronological_training_only",
+            actual=outlier_payload.get("fit_scope"),
+            path=str(outlier_path),
+            fix="Fit amount thresholds after chronological splitting using train only.",
+        ))
 
     for report_name in REPORT_FILES:
         report_path = reports_dir / report_name
