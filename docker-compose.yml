@@ -91,6 +91,10 @@ services:
       - SPARK_WORKER_CORES=2
     depends_on:
       - spark-master
+    volumes:
+      # Spark standalone executors must see the same absolute Parquet paths as
+      # the Python driver.
+      - ./data/processed:/data/processed:ro
     profiles: ["training"]
 
   model-training:
@@ -98,6 +102,7 @@ services:
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - FRAUD_MODEL_TRAINING_VERSION=v2
+      - FRAUD_MODEL_DATA_ROOT=/data/processed/ieee_cis_fraud_risk
     volumes:
       - ./model/data:/app/data
       - ./model/artifacts:/app/artifacts
@@ -112,6 +117,7 @@ services:
     environment:
       - SPARK_MASTER_URL=local[*]
       - FRAUD_MODEL_TRAINING_VERSION=v2
+      - FRAUD_MODEL_DATA_ROOT=/data/processed/ieee_cis_fraud_risk
     volumes:
       - ./model/data:/app/data
       - ./model/artifacts:/app/artifacts

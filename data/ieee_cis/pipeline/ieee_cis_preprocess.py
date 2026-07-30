@@ -195,6 +195,7 @@ PROFILE_BATCH_SIZE = int(os.getenv("PROFILE_BATCH_SIZE", "40"))
 TRAIN_RATIO = float(os.getenv("TRAIN_RATIO", "0.70"))
 VALIDATION_RATIO = float(os.getenv("VALIDATION_RATIO", "0.15"))
 HOLDOUT_RATIO = float(os.getenv("HOLDOUT_RATIO", "0.15"))
+SPLIT_RELATIVE_ERROR = float(os.getenv("SPLIT_RELATIVE_ERROR", "0.001"))
 OUTLIER_QUANTILES = [
     float(value)
     for value in os.getenv(
@@ -763,7 +764,7 @@ temporal_boundaries = calculate_temporal_boundaries(
     clean_train,
     train_ratio=TRAIN_RATIO,
     validation_ratio=VALIDATION_RATIO,
-    relative_error=OUTLIER_TRANSFORM_RELATIVE_ERROR,
+    relative_error=SPLIT_RELATIVE_ERROR,
 )
 q70, q85 = temporal_boundaries.train_max, temporal_boundaries.validation_max
 train_fit_base = clean_train.filter(F.col("TransactionDT") <= F.lit(q70))

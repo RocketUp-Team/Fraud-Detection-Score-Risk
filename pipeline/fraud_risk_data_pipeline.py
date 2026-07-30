@@ -51,6 +51,7 @@ def _setdefault_from_config(config: dict[str, Any]) -> None:
         "TRAIN_RATIO": str(split.get("train_ratio", 0.70)),
         "VALIDATION_RATIO": str(split.get("validation_ratio", 0.15)),
         "HOLDOUT_RATIO": str(split.get("holdout_ratio", 0.15)),
+        "SPLIT_RELATIVE_ERROR": str(split.get("relative_error", 0.001)),
         "OUTLIER_QUANTILES": ",".join(str(value) for value in quantiles),
         "OUTLIER_RELATIVE_ERROR": str(outliers.get("relative_error", 0.01)),
         "OUTLIER_TRANSFORM_RELATIVE_ERROR": str(outliers.get("transform_relative_error", 0.001)),

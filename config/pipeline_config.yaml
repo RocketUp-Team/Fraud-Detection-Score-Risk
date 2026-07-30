@@ -20,6 +20,7 @@ split:
   train_ratio: 0.70
   validation_ratio: 0.15
   holdout_ratio: 0.15
+  relative_error: 0.001
 imbalance:
   undersample_legitimate_to_fraud: 3.0
   seed: 42
