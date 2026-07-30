@@ -67,7 +67,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--master")
-    parser.add_argument("--skip-model-demo", action="store_true")
+    model_demo = parser.add_mutually_exclusive_group()
+    model_demo.add_argument("--run-model-demo", action="store_true")
+    model_demo.add_argument("--skip-model-demo", action="store_true")
     parser.add_argument("--skip-profile", action="store_true")
     return parser
 
@@ -83,7 +85,9 @@ def main(argv: list[str] | None = None) -> None:
         os.environ["IEEE_CIS_OUTPUT_DIR"] = str(args.output_dir.resolve())
     if args.master:
         os.environ["SPARK_MASTER"] = args.master
-    if args.skip_model_demo:
+    if args.run_model_demo:
+        os.environ["RUN_MODEL_DEMO"] = "true"
+    elif args.skip_model_demo:
         os.environ["RUN_MODEL_DEMO"] = "false"
     if args.skip_profile:
         os.environ["RUN_FULL_PROFILE"] = "false"

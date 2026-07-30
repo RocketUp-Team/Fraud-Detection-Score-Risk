@@ -42,6 +42,10 @@ The workflow performs source discovery and size validation, typed Spark ingestio
 
 The maintained root entrypoint is `pipeline/fraud_risk_data_pipeline.py`. The shared Spark implementation is kept at `data/ieee_cis/pipeline/ieee_cis_preprocess.py` and is copied into the image by the root Dockerfile.
 
+The legacy Spark Decision Tree demo is disabled by default. It may be enabled
+explicitly with `--run-model-demo` for teaching/reporting only; its metrics are
+not candidate-selection or promotion evidence.
+
 ## Downstream handoff
 
 Recommended starting point:

@@ -188,8 +188,8 @@ for directory in [
     directory.mkdir(parents=True, exist_ok=True)
 
 RUN_FULL_PROFILE = os.getenv("RUN_FULL_PROFILE", "true").lower() in {"1", "true", "yes"}
-RUN_MODEL_DEMO = os.getenv("RUN_MODEL_DEMO", "true").lower() in {"1", "true", "yes"}
-WRITE_WIDE_FEATURE_STORE = os.getenv("WRITE_WIDE_FEATURE_STORE", "true").lower() in {"1", "true", "yes"}
+RUN_MODEL_DEMO = os.getenv("RUN_MODEL_DEMO", "false").lower() in {"1", "true", "yes"}
+WRITE_WIDE_FEATURE_STORE = os.getenv("WRITE_WIDE_FEATURE_STORE", "false").lower() in {"1", "true", "yes"}
 IMBALANCE_RATIO = float(os.getenv("IMBALANCE_RATIO", "4.0"))
 PROFILE_BATCH_SIZE = int(os.getenv("PROFILE_BATCH_SIZE", "40"))
 TRAIN_RATIO = float(os.getenv("TRAIN_RATIO", "0.70"))
@@ -1725,10 +1725,10 @@ manifest = {
         "selected_features": str(PREPROCESSING_ARTIFACTS_DIR / "selected_features.json"),
     },
     "schema_hashes": {
-        "raw_train_transaction": schema_hash(schema_to_records(RAW_TRANSACTION_SCHEMA)),
-        "raw_train_identity": schema_hash(schema_to_records(RAW_IDENTITY_SCHEMA)),
-        "raw_test_transaction": schema_hash(schema_to_records(RAW_TRANSACTION_SCHEMA)),
-        "raw_test_identity": schema_hash(schema_to_records(RAW_IDENTITY_SCHEMA)),
+        "raw_train_transaction": schema_hash(schema_to_records(train_tx_schema)),
+        "raw_train_identity": schema_hash(schema_to_records(train_id_schema)),
+        "raw_test_transaction": schema_hash(schema_to_records(test_tx_schema)),
+        "raw_test_identity": schema_hash(schema_to_records(test_id_schema)),
         "model_ready": schema_hash(model_ready_schema_records),
     },
     "numeric_features": NUMERIC_COLUMNS,
