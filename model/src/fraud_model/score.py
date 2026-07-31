@@ -18,6 +18,7 @@ _explainer = None
 
 
 def _candidate_paths(kind: str) -> list:
+    version = config.SERVING_MODEL_VERSION
     if kind == "final":
         primary = config.SERVING_FINAL_MODEL_PATH
         legacy = config.ARTIFACTS_DIR / "final_model.joblib"
@@ -25,9 +26,11 @@ def _candidate_paths(kind: str) -> list:
         primary = config.SERVING_BASELINE_MODEL_PATH
         legacy = config.ARTIFACTS_DIR / "baseline_logreg.joblib"
     # Keep the versioned artifact first, but retain compatibility with the
-    # legacy root artifact.  This is useful for local/demo serving and for
-    # repositories upgraded before their first versioned training run.
-    return [primary, legacy]
+    # legacy root artifact only for the configured serving path.  Tests and
+    # callers may override the path to an isolated temporary location; those
+    # overrides must not accidentally load a repository-level artifact.
+    configured_primary = config._artifact_paths_for(version)[kind]
+    return [primary, legacy] if primary == configured_primary else [primary]
 
 
 def _load_artifact() -> dict:
