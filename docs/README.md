@@ -17,6 +17,18 @@ This directory contains the canonical documentation, system architecture specifi
 
 ---
 
+## 📜 Data & Pipeline Contracts
+
+| Contract File | Description |
+|---|---|
+| 📜 **[contracts/MODEL_READY_DATA_CONTRACT.md](contracts/MODEL_READY_DATA_CONTRACT.md)** | Model-ready Parquet schema, dataset partition specifications, and lineage rules. |
+| 📖 **[contracts/DATA_DICTIONARY.md](contracts/DATA_DICTIONARY.md)** | Feature definitions, data types, and missing value handling rules. |
+| 🔄 **[contracts/README_DATA_PIPELINE.md](contracts/README_DATA_PIPELINE.md)** | Spark preprocessing pipeline operations and validation guide. |
+| 🤝 **[contracts/HANDOVER_PROCESSED_DATA.md](contracts/HANDOVER_PROCESSED_DATA.md)** | Data engineering to machine learning handover contract specifications. |
+| 🎯 **[contracts/RISK_SCORE_DATA_CONTRACT.md](contracts/RISK_SCORE_DATA_CONTRACT.md)** | Risk scoring schema contract specifications. |
+
+---
+
 ## 🖼️ Visual Assets & Diagrams
 
 - 🎨 **[diagrams/final/](diagrams/final/)**: Production-ready vector SVG and high-resolution PNG architecture diagrams:
@@ -38,6 +50,7 @@ This directory contains the canonical documentation, system architecture specifi
 ```
 docs/
 ├── archive/                     # Historical draft working notes & reference templates
+├── contracts/                   # Data contracts, dictionaries & handover specs
 ├── diagrams/                    # Vector SVG & PNG architecture diagrams
 │   └── final/                   # Canonical production diagram assets
 ├── figures/                     # EDA charts & model performance plots
