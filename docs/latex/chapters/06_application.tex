@@ -33,13 +33,44 @@ The React interface presents transaction lists, score details, risk bands,
 SHAP values, review actions, imports, and partial scoring. Mock responses can
 support UI development, but they are not model evidence. The interface uses
 text and numeric alternatives to colour and displays an explicit unavailable
-state when SHAP is absent. Figure~\ref{fig:ui-dashboard} displays the operational fraud detection interface.
+state when SHAP is absent. Figure~\ref{fig:ui-overview-1} and Figure~\ref{fig:ui-overview-2} display the operational user interface components of the fraud detection system.
 
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.85\textwidth]{figures/ui_dashboard.png}
-\caption{Enterprise Fraud Detection and Risk Scoring Dashboard Interface.}
-\label{fig:ui-dashboard}
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/transactions.png}
+    \caption{Transaction monitoring queue.}
+    \label{fig:ui-transactions}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/score-result.png}
+    \caption{Risk score and SHAP feature importance.}
+    \label{fig:ui-score-result}
+  \end{subfigure}
+  \caption{Application User Interface: Transaction queue and real-time risk scoring breakdown.}
+  \label{fig:ui-overview-1}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/detail.png}
+    \caption{Transaction detail panel.}
+    \label{fig:ui-detail}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/review.png}
+    \caption{Analyst fraud review workflow.}
+    \label{fig:ui-review}
+  \end{subfigure}
+  \caption{Application User Interface: Transaction inspection and analyst review interface.}
+  \label{fig:ui-overview-2}
 \end{figure}
 
 \section{Deployment boundary}
