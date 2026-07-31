@@ -1,4 +1,8 @@
-# Fraud Detection Architecture Diagrams
+# Fraud Detection Architecture Diagrams — HISTORICAL / SUPERSEDED
+
+> **Authoritative replacement:** [`AN_FINAL_ARCHITECTURE_DIAGRAMS.md`](AN_FINAL_ARCHITECTURE_DIAGRAMS.md).
+> This file contains prior-period diagrams and must not be used as the current
+> architecture source of truth until its candidate-specific claims are reconciled.
 
 **Phạm vi:** Data Pipeline và Model Training  
 **Trạng thái:** As-built tại ngày 31/07/2026  

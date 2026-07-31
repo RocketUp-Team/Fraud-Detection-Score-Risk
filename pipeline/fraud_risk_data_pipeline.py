@@ -97,6 +97,7 @@ def main(argv: list[str] | None = None) -> None:
 
 def _finalize_contract(output_dir: Path) -> None:
     """Add stable names/metadata without duplicating large Parquet datasets."""
+    manifest_path = output_dir / "manifest.json"
     from .processed_contract import build_manifest
     from .verify_processed_data import verify
 

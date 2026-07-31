@@ -1,4 +1,9 @@
-# Báo cáo so sánh Model V1 và Model V2
+# Báo cáo so sánh Model V1 và Model V2 — HISTORICAL EVIDENCE
+
+> Current architecture interpretation is maintained in
+> [`AN_FINAL_ARCHITECTURE_REVIEW.md`](AN_FINAL_ARCHITECTURE_REVIEW.md). Metrics
+> here are not runtime-verified unless a matching versioned artifact and one
+> official evidence snapshot are available.
 
 ## 1. Technical summary
 

@@ -5,9 +5,21 @@ Fraud Detection and Risk Scoring System.
 
 ## Main deliverables
 
+- [`AN_FINAL_ARCHITECTURE_REVIEW.md`](AN_FINAL_ARCHITECTURE_REVIEW.md) — current
+  evidence-based as-built/target architecture review.
+- [`AN_FINAL_ARCHITECTURE_DIAGRAMS.md`](AN_FINAL_ARCHITECTURE_DIAGRAMS.md) —
+  eight final Mermaid diagrams and the appendix catalogue.
+- [`AN_FINAL_SYSTEM_ARCHITECTURE.md`](AN_FINAL_SYSTEM_ARCHITECTURE.md) —
+  four-plane system architecture and boundaries.
+- [`AN_FINAL_MODEL_TRAINING_ARCHITECTURE.md`](AN_FINAL_MODEL_TRAINING_ARCHITECTURE.md)
+  — training, temporal windows and governance boundary.
+- [`AN_FINAL_ARCHITECTURE_GAPS_AND_ACTIONS.md`](AN_FINAL_ARCHITECTURE_GAPS_AND_ACTIONS.md)
+  — prioritized architecture gaps.
+- [`REPORT_FACTS.json`](REPORT_FACTS.json) — current evidence snapshot and
+  unresolved evidence flags.
 - [`ARCHITECTURE_DIAGRAMS.md`](ARCHITECTURE_DIAGRAMS.md) — as-built Mermaid
-  diagrams for the data pipeline, temporal boundaries, model lifecycle,
-  training runtime, Spark deployment, and promotion state machine.
+  diagrams from the previous review; marked historical/superseded where they
+  conflict with the final architecture set.
 - [`diagrams/IMAGE_GALLERY.md`](diagrams/IMAGE_GALLERY.md) — separate
   high-resolution PNG exports for direct viewing and document insertion.
 - [`SYSTEM_DOCUMENTATION.md`](SYSTEM_DOCUMENTATION.md) — detailed description of

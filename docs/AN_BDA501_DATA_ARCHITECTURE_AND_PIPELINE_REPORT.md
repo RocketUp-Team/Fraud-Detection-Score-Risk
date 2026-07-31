@@ -1,4 +1,8 @@
-# Apache Spark Data Architecture and Processing Pipeline for IEEE-CIS Fraud Detection
+# Apache Spark Data Architecture and Processing Pipeline for IEEE-CIS Fraud Detection — HISTORICAL SOURCE
+
+> Current architecture and evidence interpretation are maintained in
+> [`AN_FINAL_ARCHITECTURE_REVIEW.md`](AN_FINAL_ARCHITECTURE_REVIEW.md) and
+> [`AN_FINAL_ARCHITECTURE_DIAGRAMS.md`](AN_FINAL_ARCHITECTURE_DIAGRAMS.md).
 
 ## 1. Introduction
 
