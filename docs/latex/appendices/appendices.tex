@@ -172,15 +172,14 @@ python -m pipeline.verify_processed_data \
 \section{Model training}
 
 \begin{lstlisting}[language=bash]
-cd model
-uv sync --frozen
-uv run python -m fraud_model.train_baseline
-uv run python -m fraud_model.train_compare
-uv run python -m fraud_model.tune_and_explain
+bash scripts/run_official_full.sh
 \end{lstlisting}
 
-The commands must run in order for one version. Holdout evaluation should occur
-only after model/parameter selection is fixed.
+The official workflow runs preprocessing, contract validation, baseline,
+comparison, tuning, calibration, threshold analysis, holdout evaluation,
+packaging, checksum generation, and the promotion gate. The current official
+decision is \texttt{not\_promoted}; the serving configuration remains unchanged.
+Holdout evaluation must occur only after model and policy selection are fixed.
 
 \section{Application}
 
@@ -218,6 +217,8 @@ FRAUD_MODEL_SERVING_VERSION=v1
 \end{lstlisting}
 
 Restart the backend and verify \texttt{/meta} before accepting traffic.
+The rollback setting is a configuration path, not evidence that V1 has been
+validated as the current champion in the official snapshot.
 
 \chapter{Test and Contribution Matrix}
 \label{app:tests}

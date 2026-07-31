@@ -3,258 +3,224 @@
 
 \section{Model-development protocol}
 
-The intended training protocol is:
+The official V2 workflow consumes the Spark/Parquet handover and executes the
+following ordered stages:
 
 \begin{enumerate}
-  \item read \texttt{train\_weighted}, validation, and holdout Parquet;
-  \item fit categorical indexers on training only;
-  \item apply the frozen indexers to later windows;
-  \item select the canonical 68-feature order and convert to pandas;
-  \item compare candidate models on validation;
-  \item tune the selected tree family on validation;
-  \item evaluate the final configuration once on holdout;
-  \item save estimator, mappings, feature order, metadata, and SHAP support.
+  \item validate the data contract and canonical feature order;
+  \item fit categorical mappings on training data only;
+  \item train a Logistic Regression baseline;
+  \item compare Logistic Regression, LightGBM, XGBoost, and CatBoost, including
+  balanced variants;
+  \item select and tune a candidate using the selection window;
+  \item fit an isotonic calibrator on the calibration window;
+  \item choose review and reject thresholds on the policy window;
+  \item freeze estimator, mappings, calibrator, and policy metadata;
+  \item evaluate the frozen package on holdout;
+  \item write candidate metadata, checksums, smoke evidence, and a promotion
+  decision.
 \end{enumerate}
 
-The exclusion of \texttt{split\_name}, processing metadata, identifiers, labels,
-and class weights from the model vector is enforced in
-\texttt{features.py}. This addresses a prior failure in which the string
+The feature loader removes \texttt{TransactionID}, \texttt{isFraud},
+\texttt{class\_weight}, \texttt{split\_name}, processing metadata, and
+\texttt{generated\_at} from the model vector. The canonical vector contains 68
+features, 61 numeric and 7 categorical, and includes \texttt{TransactionDT}.
+This prevents a previous contract failure in which the string
 \texttt{train\_weighted} entered the numeric training frame.
 
-\section{Candidate models}
+The boundary must be stated precisely as: \textbf{distributed data preparation
+with single-node Python model training}. Spark writes Parquet; Python training
+converts model matrices to pandas. There is no evidence that LightGBM, XGBoost,
+or CatBoost is distributed over Spark workers.
 
-The baseline is logistic regression. The compared tree-boosting families are
-LightGBM, XGBoost, and CatBoost. Figure~\ref{fig:model-comparison} presents the
-saved validation PR-AUC for V1 and V2.
+\input{figures/final_training_lifecycle}
 
-\input{figures/model_comparison}
+\section{Candidate models and selection}
 
-LightGBM ranks first in both saved comparison artifacts. The V2 comparison
-reports:
+The baseline is Logistic Regression. The compared gradient-boosting families
+are LightGBM, XGBoost, and CatBoost. The current official V2 comparison selects
+\texttt{catboost\_\_balanced}; the candidate manifest identifies the final
+model as CatBoost trained on the balanced variant.
 
 \begin{table}[H]
 \centering
-\caption{Saved V2 validation candidate metrics}
-\label{tab:v2-candidates}
-\begin{tabular}{lrr}
+\caption{Selected official V2 training evidence}
+\label{tab:v2-training-evidence}
+\begin{tabular}{ll}
 \toprule
-Model & ROC-AUC & PR-AUC\\
+Field & Value\\
 \midrule
-Logistic Regression & 0.8092 & 0.2518\\
-LightGBM & 0.8887 & 0.4770\\
-XGBoost & 0.8618 & 0.4538\\
-CatBoost & 0.8445 & 0.4298\\
+Model version & \texttt{v2}\\
+Selected model & CatBoost\\
+Training variant & \texttt{balanced}\\
+Feature count & 68\\
+Selection window & 44,243 rows\\
+Calibration window & 22,122 rows\\
+Policy window & 22,121 rows\\
+Calibration method & Isotonic\\
+Processing version & \texttt{ieee-cis-preprocess-2.1.0}\\
+Feature schema & \texttt{ieee-cis-features-1.1.0}\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-These are ranking metrics on one validation window. They do not define the
-precision, recall, or review volume produced by the fixed backend bands.
+The saved comparison artifact contains model-family and balanced-variant
+results. PR-AUC is the primary selection metric because the positive class is
+rare. ROC-AUC is retained as a complementary ranking metric. Accuracy is not
+used as a selection authority. Validation comparison is descriptive evidence;
+it does not establish a business operating point.
 
-\section{Tuning}
+\section{Temporal development windows}
 
-The documented V2 LightGBM grid is intentionally small:
+The validation period is divided into selection, calibration, and policy
+windows. The official V2 metadata records selection boundary
+\texttt{11713696} and calibration boundary \texttt{12438149}. Model family and
+parameters are selected in the first window, isotonic calibration is fitted in
+the second, and thresholds are selected in the third. Holdout remains the final
+evaluation window and is opened after the package is frozen.
 
-\begin{lstlisting}
-n_estimators: [200, 400]
-max_depth: [4, 6]
-learning_rate: [0.05, 0.1]
-\end{lstlisting}
+This separation is stronger than the historical V1 workflow, but it should not
+be used to rewrite V1's history. If a model is modified after holdout results
+are viewed, the modified package must receive a new candidate identity rather
+than silently reusing the same holdout.
 
-The saved best configuration is reported as 400 estimators, depth 6, and
-learning rate 0.05. A small grid is reproducible and affordable for the project,
-but it is not evidence that a broad hyperparameter optimum was found.
+\input{figures/final_temporal_windows}
 
-\section{V1-to-V2 comparison}
-
-Figure~\ref{fig:v1-v2} shows validation and holdout PR-AUC from the final saved
-artifacts.
-
-\input{figures/v1_v2_metrics}
+\section{Official V2 results}
 
 \begin{table}[H]
 \centering
-\caption{Saved final metrics by artifact version}
-\label{tab:v1-v2-metrics}
-\begin{tabular}{lrrrr}
+\caption{Official V2 validation and holdout metrics}
+\label{tab:official-v2-metrics}
+\begin{tabular}{lrrrrrr}
 \toprule
-Metric & V1 & V2 & Absolute change & Relative change\\
+Window & Threshold & PR-AUC & ROC-AUC & Precision & Recall & Brier\\
 \midrule
-Validation ROC-AUC & 0.8877 & 0.8941 & +0.0064 & +0.72\%\\
-Validation PR-AUC & 0.4820 & 0.4925 & +0.0105 & +2.18\%\\
-Holdout ROC-AUC & 0.8684 & 0.8796 & +0.0112 & +1.29\%\\
-Holdout PR-AUC & 0.4298 & 0.4582 & +0.0283 & +6.59\%\\
+Validation selection & 0.50 & 0.5805993 & 0.9081210 & 0.3969649 & 0.6220275 & --\\
+Holdout & 0.16 & 0.4266435 & 0.8780755 & 0.3820038 & 0.5181965 & 0.0248326\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-V2 improves all four saved metrics. The largest relative improvement is the
-holdout PR-AUC. Nevertheless, V1 has 53 features and V2 has 68. The change also
-includes canonical feature selection and metadata filtering. It is not an
-ablation study and cannot attribute improvement to one feature group or one
-hyperparameter.
+The holdout confusion counts are TN 83,390, FP 2,603, FN 1,496, and TP 1,609.
+The raw holdout Brier score is 0.0495279 and the calibrated Brier score is
+0.0248326. These numbers are artifact-reported from
+\texttt{reports/official-run/validation\_metrics\_v2.csv},
+\texttt{holdout\_metrics\_v2.csv}, and
+\texttt{training\_metadata\_v2.json}.
 
-\section{Unpromoted \texttt{0.0.2} candidate}
+The current official V2 package is not directly comparable to the historical
+LightGBM V1/V2 tables. The official candidate is CatBoost balanced, whereas
+older Markdown reports describe V2 as LightGBM and cite holdout PR-AUC 0.4582.
+The old values are therefore historical evidence, not current official V2
+metrics. A matching V1 final holdout artifact is not present in the current
+repository, so this chapter does not invent a V1 holdout comparison.
 
-A later XGBoost candidate on the 68-feature contract records a more complete
-evaluation workflow than V2: isotonic calibration, selected thresholds, a
-threshold table, holdout confusion counts, and five finished MLflow stage runs.
-Table~\ref{tab:candidate-002} summarizes its saved evidence.
+\section{Calibration and threshold policy}
+
+The candidate stores \texttt{calibration\_model\_v2.joblib} and records
+\texttt{calibration\_method=isotonic}. The threshold artifact selects:
 
 \begin{table}[H]
 \centering
-\caption{Saved \texttt{0.0.2} candidate metrics}
-\label{tab:candidate-002}
+\caption{Official V2 policy artifact}
+\label{tab:v2-policy}
 \begin{tabular}{lr}
 \toprule
-Metric & Value\\
+Policy field & Value\\
 \midrule
-Validation ROC-AUC & 0.8982\\
-Validation PR-AUC & 0.5050\\
-Holdout ROC-AUC & 0.8807\\
-Holdout PR-AUC & 0.4318\\
-Precision at review threshold 0.11 & 0.3275\\
-Recall at review threshold 0.11 & 0.5578\\
-F1 at review threshold 0.11 & 0.4127\\
-True negative / false positive & 82,433 / 3,556\\
-False negative / true positive & 1,373 / 1,732\\
+Review threshold & 0.16\\
+Reject threshold & 0.53\\
+Minimum review precision & 0.30\\
+Minimum reject precision & 0.60\\
+Selected review precision & 0.3371429\\
+Selected reject precision & 0.7397959\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The candidate selects review and reject thresholds of 0.11 and 0.31 under a
-minimum-precision rule of 0.30. Its holdout PR-AUC is below V2's 0.4582, so it
-is evidence that the fuller workflow executed, not evidence that the candidate
-should replace V2. Calibration and threshold selection also reuse the validation
-period after model selection used that period; a separate temporal window is
-needed before treating the operating policy as independently validated.
+The model scorer applies the calibrator when the loaded artifact contains one.
+However, the backend runtime decision authority is
+\texttt{backend/src/fraud\_backend/risk.py}: it rounds probability to a
+0--100 score, applies fixed bands, and maps those bands to approve, review, or
+reject. The backend does not load the candidate review/reject thresholds as its
+decision policy. This is duplicated ownership, not evidence that the candidate
+policy is active in serving.
 
-\section{Artifact structure and versioning}
+\section{Packaging, checksum, and promotion}
 
-The current V2 directory contains:
+The V2 candidate package includes the final joblib model, training metadata,
+calibrator, threshold configuration, validation and holdout metrics, threshold
+analysis, candidate manifest, promotion decision, and SHA-256 checksums. The
+candidate manifest records artifact-load smoke \texttt{passed}, model name
+\texttt{catboost}, feature count 68, processing/schema versions, MLflow run ID,
+Git commit, and \texttt{git\_dirty=true}.
 
-\begin{itemize}
-  \item \texttt{baseline\_logreg\_v2.joblib};
-  \item \texttt{final\_model\_v2.joblib};
-  \item \texttt{model\_comparison\_v2.json};
-  \item \texttt{training\_metadata\_v2.json}.
-\end{itemize}
+\begin{table}[H]
+\centering
+\caption{Official V2 promotion gate}
+\label{tab:v2-gates}
+\begin{tabular}{lcc}
+\toprule
+Gate & Result & Evidence\\
+\midrule
+Holdout PR-AUC $\geq$ 0.4582 & Fail & 0.4266435\\
+Holdout ROC-AUC $\geq$ 0.8746 & Pass & 0.8780755\\
+Review precision $\geq$ 0.30 & Pass & 0.3820038\\
+Calibration non-regression & Pass & Brier decreased\\
+Artifact checksum & Pass & SHA-256 match\\
+Artifact-load smoke & Pass & recorded in manifest\\
+Data contract verification & Pass & ready, 94 checks\\
+Version match & Pass & \texttt{v2}\\
+Git clean & Fail & \texttt{git\_dirty=true}\\
+\bottomrule
+\end{tabular}
+\end{table}
 
-The \texttt{0.0.2} directory additionally contains a calibration model,
-threshold configuration, threshold-analysis table, validation metrics, and
-holdout metrics. These files are candidate evidence and are not selected by the
-default serving configuration.
+The resulting decision is \texttt{not\_promoted}, with
+\texttt{serving\_version\_unchanged=true}. This is correct model governance:
+the failed candidate does not transition into V2; the serving configuration
+remains unchanged.
 
-Serving defaults to V2 in configuration. Setting
-\texttt{FRAUD\_MODEL\_SERVING\_VERSION=v1} selects the V1 path and supports the
-legacy root artifact.
+\input{figures/final_promotion_state}
 
-Training and serving targets are separate. This is a sound deployment boundary:
-training a new version need not overwrite the served artifact. The remaining
-lineage gaps are immutable checksums, external registry location, explicit
-promotion approval, and rollback smoke evidence.
+\section{Request-time scoring and explanations}
 
-\section{Request-time scoring}
+The scorer loads one artifact into a process cache and maps raw categorical
+strings using training-derived dictionaries. It aligns columns to the canonical
+order, converts missing values to the configured sentinel, calls
+\texttt{predict\_proba}, applies an available calibrator, and returns the top
+five absolute TreeSHAP contributions for supported tree models. SHAP is a local
+model attribution and not a causal explanation. When calibration changes the
+displayed probability, the current SHAP values still describe the raw model
+output unless a separate calibrated explanation method is used.
 
-The scoring module loads one artifact into a process cache and initializes a
-TreeSHAP explainer for supported tree families. For each request it:
+The response distinguishes \texttt{full\_feature} from
+\texttt{partial\_demo}. Full-feature scoring requires the canonical engineered
+vector. Partial-demo scoring defaults missing fields and is useful for UI
+continuity, but it cannot recreate card, email, and device histories from a
+small request. It must not be described as real-time full-feature scoring.
 
-\begin{enumerate}
-  \item checks missing required features;
-  \item maps raw categorical strings using training-derived dictionaries;
-  \item substitutes the configured missing sentinel;
-  \item aligns columns to the training order;
-  \item calls \texttt{predict\_proba};
-  \item optionally applies a calibrator;
-  \item computes the five largest absolute SHAP contributions;
-  \item labels the request as full-feature or partial-demo.
-\end{enumerate}
+\section{Serving configuration and MLflow}
 
-This path does not start Spark. It is suitable for a low-latency API process,
-although inference latency was not saved as evidence.
+Configuration defaults \texttt{FRAUD\_MODEL\_SERVING\_VERSION=v2}, while the
+official promotion decision remains \texttt{not\_promoted}. The safe wording is
+\textquotedblleft v2 configured software default\textquotedblright, not
+\textquotedblleft production-promoted model\textquotedblright. Setting
+\texttt{FRAUD\_MODEL\_SERVING\_VERSION=v1} remains the rollback/configuration
+path, subject to artifact compatibility.
 
-\section{Explainability}
-
-For tree models, each response can contain:
-
-\begin{lstlisting}
-[
-  {"feature": "TransactionAmt", "shap_value": 0.41},
-  {"feature": "card4", "shap_value": -0.19}
-]
-\end{lstlisting}
-
-A positive value pushes the model output toward the fraud class and a negative
-value pulls it toward legitimate. The list is local to one prediction and must
-not be interpreted as global feature importance or causal explanation.
-
-When a calibrator transforms raw model probability, the current SHAP values
-still explain the raw model. A production UI should label this distinction or
-use an explanation method aligned to the displayed output.
-
-\section{Risk scoring and operating policy}
-
-The backend maps probability to a rounded score and fixed bands. The model code
-contains threshold-analysis and optional threshold metadata paths. V2 has no
-calibration/threshold outputs; \texttt{0.0.2} has both, but the backend does not
-use model thresholds as decision authority.
-
-This is the most important distinction between model quality and operational
-readiness. Area metrics show ranking quality across thresholds. They do not show
-the reviewers needed at scores 40 and 80. The \texttt{0.0.2} confusion counts
-describe threshold 0.11 only; they do not validate the current backend bands or
-the reject threshold as a two-stage business policy.
-
-\section{Experiment tracking}
-
-The model package implements an MLflow wrapper and declares MLflow as a current
-dependency \parencite{mlflow}. The observed SQLite database contains five
-finished \texttt{0.0.2} runs:
-
-\begin{enumerate}
-  \item baseline;
-  \item candidate comparison;
-  \item tuning/model selection and validation;
-  \item calibration and threshold policy;
-  \item final holdout evaluation.
-\end{enumerate}
-
-Run parameters and metrics are queryable, but this is still local-only evidence.
-The artifact URIs point to a container-local
-\texttt{/app/artifacts/mlflow-artifacts} path, and the database has no registered
-models or model versions. A complete lineage record must additionally persist
-dataset/schema versions, code revision, artifact checksum, promotion approval,
-and rollback evidence in a durable shared store.
-
-\section{Model threats to validity}
-
-\begin{itemize}
-  \item Metrics are saved artifacts and were not all independently regenerated
-  during documentation.
-  \item The local review environment initially lacked LightGBM.
-  \item One validation window can favor a transient regime.
-  \item V1/V2 feature sets differ.
-  \item Candidate calibration and threshold selection reuse the validation
-  period after model selection.
-  \item Candidate thresholds are not enforced by the backend, and V2 has no
-  equivalent operating-point artifact.
-  \item Full data is collected to pandas for fitting.
-  \item No production shadow test or delayed-label drift study exists.
-\end{itemize}
+MLflow is implemented as local experiment tracking and lineage using SQLite
+and local artifact storage. The repository does not evidence a central Model
+Registry, registered model versions, stage transitions, or an automatic
+promotion authority. Candidate packaging and promotion JSON are evidence files,
+not a serving registry.
 
 \section{Model-readiness decision}
 
-V2 is the current software default and the saved offline champion. It should be
-described as a rollback-safe candidate rather than a fully governed production
-model until:
-
-\begin{enumerate}
-  \item a frozen environment loads and scores the artifact without heuristic
-  fallback;
-  \item candidate operating evidence is reproduced on independent windows and
-  compared with V2;
-  \item the backend policy uses an approved threshold contract;
-  \item MLflow lineage, registry/promotion records, and checksums are saved in a
-  durable shared location;
-  \item shadow behavior and rollback are tested.
-\end{enumerate}
+The official V2 package is suitable for continued academic evaluation and
+manual review of its evidence. It should not be described as a production model
+until a frozen application smoke loads the expected artifact without fallback,
+the runtime policy is explicitly approved and aligned with the candidate, a
+durable registry/checksum handover exists, and online historical feature parity
+is addressed.

@@ -66,7 +66,8 @@ confounded by transaction mix, time, or missingness.
 Figure~\ref{fig:data-pipeline} highlights the transforms whose parameters are
 fitted only on the training window.
 
-\input{figures/data_pipeline}
+\input{figures/final_detailed_pipeline}
+\input{figures/final_leakage_flow}
 
 The use of \texttt{TransactionDT} produces forward validation rather than a
 random split. This better represents the intended question: whether a model
@@ -83,8 +84,8 @@ trained on earlier transactions ranks later transactions.
 Dataset & Rows & Fraud & Fraud rate & \texttt{TransactionDT} range\\
 \midrule
 Train & 412,956 & 14,522 & 3.5166\% & 86,400--10,432,902\\
-Validation & 88,490 & 3,036 & 3.4309\% & 10,432,915--13,136,653\\
-Holdout & 89,094 & 3,105 & 3.4851\% & 13,136,664--15,811,131\\
+Validation & 88,486 & 3,036 & 3.4310\% & 10,432,915--13,136,583\\
+Holdout & 89,098 & 3,105 & 3.4849\% & 13,136,627--15,811,131\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -187,24 +188,19 @@ cases. The canonical model-ready datasets are:
 
 \section{Verification result}
 
-The saved verifier reports 82 checks passed and no failures. It validates
+The saved verifier reports 94 checks passed and no failures. It validates
 dataset presence, row counts, identifiers, labels, weights, feature order,
 schema hashes, chronological order, split overlap, and required artifacts.
 
-One lifecycle inconsistency remains. The regenerated top-level manifest records:
-
-\begin{lstlisting}
-verification_pending
-\end{lstlisting}
-
-The dedicated verification report records the later terminal value:
+The current official-run report records the terminal verifier result:
 
 \begin{lstlisting}
 ready_for_downstream_training
 \end{lstlisting}
 
-Future finalization should write this terminal verifier result back to the
-manifest atomically.
+An older persisted manifest/snapshot used \texttt{verification\_pending}; it is
+treated as historical evidence and must not be mixed with the official-run
+report when generating final metrics.
 
 \section{Data limitations}
 

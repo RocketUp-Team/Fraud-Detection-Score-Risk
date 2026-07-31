@@ -3,42 +3,33 @@
 \begin{tikzpicture}
 \begin{axis}[
   ybar,
-  width=0.95\textwidth,
+  width=0.9\textwidth,
   height=7.2cm,
-  bar width=8pt,
+  bar width=22pt,
   ymin=0,
-  ymax=0.55,
-  ylabel={PR-AUC},
-  symbolic x coords={Logistic Regression,LightGBM,XGBoost,CatBoost},
+  ymax=0.65,
+  ylabel={Validation PR-AUC},
+  symbolic x coords={V1 LightGBM,V2 CatBoost balanced},
   xtick=data,
-  x tick label style={rotate=18,anchor=east,font=\small},
+  x tick label style={rotate=12,anchor=east,font=\small},
   ymajorgrids=true,
   grid style={draw=ReportGray},
   axis line style={draw=ReportInk},
-  tick align=outside,
-  legend style={at={(0.5,1.03)},anchor=south,legend columns=2,draw=none},
   nodes near coords,
-  every node near coord/.append style={font=\scriptsize,rotate=90,anchor=west},
-  enlarge x limits=0.14
+  every node near coord/.append style={font=\small},
+  enlarge x limits=0.25
 ]
 \addplot[fill=ReportBlue!70,draw=ReportBlue] coordinates {
-  (Logistic Regression,0.2522)
-  (LightGBM,0.4739)
-  (XGBoost,0.4285)
-  (CatBoost,0.4083)
+  (V1 LightGBM,0.4739304)
+  (V2 CatBoost balanced,0.5805993)
 };
-\addplot[fill=ReportGold!75,draw=ReportGold!90!black] coordinates {
-  (Logistic Regression,0.2518)
-  (LightGBM,0.4770)
-  (XGBoost,0.4538)
-  (CatBoost,0.4298)
-};
-\legend{V1 validation,V2 validation}
 \end{axis}
 \end{tikzpicture}
-\caption[Validation PR-AUC by candidate model]{Validation PR-AUC by candidate
-model and artifact version. The chart compares validation results; it does not
-show a production operating point. Source: saved model-comparison JSON files.}
+\caption[Official V1/V2 validation comparison]{Descriptive comparison of the
+best saved V1 validation result and the selected official V2 validation result.
+V1 is LightGBM, while V2 is CatBoost trained on the balanced variant; the
+comparison is not an algorithm-only ablation. Source:
+\texttt{model\_comparison.json}, \texttt{model\_comparison\_v2.json}, and
+\texttt{reports/official-run/training\_metadata\_v2.json}.}
 \label{fig:model-comparison}
 \end{figure}
-

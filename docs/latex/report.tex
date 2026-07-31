@@ -5,8 +5,12 @@
 \IfFontExistsTF{Times New Roman}
   {\setmainfont{Times New Roman}}
   {\setmainfont{TeX Gyre Termes}}
-\setsansfont{Arial}
-\setmonofont{Courier New}
+\IfFontExistsTF{Arial}
+  {\setsansfont{Arial}}
+  {\setsansfont{TeX Gyre Heros}}
+\IfFontExistsTF{Courier New}
+  {\setmonofont{Courier New}}
+  {\setmonofont{TeX Gyre Cursor}}
 
 \usepackage{setspace}
 \onehalfspacing
@@ -70,7 +74,7 @@
   pdftitle={Fraud Detection and Risk Scoring System Using Apache Spark and Machine Learning},
   pdfauthor={Dương Bình An; Lê Quang Tuyến; Phạm Đức Long; Đỗ Quốc Trung; Dương Hồng Quân; Nguyễn Lê Hồng Nhi},
   pdfsubject={Master of Software Engineering thesis},
-  pdfkeywords={fraud detection, risk scoring, Apache Spark, LightGBM, SHAP}
+  pdfkeywords={fraud detection, risk scoring, Apache Spark, CatBoost, calibration, SHAP}
 }
 \usepackage{microtype}
 

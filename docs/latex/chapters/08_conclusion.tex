@@ -7,18 +7,19 @@
 
 The project produces chronological, non-overlapping model-ready splits and
 persists the transformation artifacts needed by downstream training. The saved
-verifier reports 82 passed checks and no failures. The only identified lifecycle
-defect is the stale terminal status in the top-level manifest.
+verifier reports 94 passed checks and no failures in the current official run.
+The official report is ready for downstream training; an older manifest/facts
+snapshot used \texttt{verification\_pending} and is treated as historical.
 
 \subsection{RQ2: model comparison}
 
-LightGBM has the highest saved validation PR-AUC in both V1 and V2 comparisons.
-The V2 final artifact reports a holdout ROC-AUC of 0.8796 and PR-AUC of 0.4582,
-improving on V1. Because V1 and V2 differ in feature contract and because
-V2 lacks operating-point metrics, it should be described as the offline champion
-rather than proof of production benefit. The later \texttt{0.0.2} XGBoost
-candidate provides calibrated thresholds and confusion counts but has a lower
-holdout PR-AUC of 0.4318 and has not been promoted.
+The current official V2 comparison selects CatBoost on the balanced training
+variant. Its validation ROC-AUC is 0.9081210 and PR-AUC is 0.5805993; holdout
+ROC-AUC is 0.8780755 and PR-AUC is 0.4266435. The package includes isotonic
+calibration, thresholds, checksums, and smoke evidence, but the promotion gate
+returns \texttt{not\_promoted} because holdout PR-AUC is below the 0.4582
+reference and the Git state is dirty. V2 remains the configured software
+default; this is not a production approval claim.
 
 \subsection{RQ3: Spark-free serving and explanations}
 
@@ -33,13 +34,14 @@ features in a real online environment.
 The principal gaps are:
 
 \begin{itemize}
-  \item local-only experiment history with no registry/promotion/checksum
-  lineage;
+  \item local-only experiment history without a central registry/stage
+  authority;
   \item candidate calibration and thresholds are not the served backend policy;
   \item fail-open heuristic fallback;
   \item no authentication, durable jobs, or migrations;
   \item no drift/latency/service monitoring;
   \item manual client contract synchronization;
+  \item split-count snapshot mismatch and an incomplete stored full-stack run;
   \item uneven CI and frontend test coverage.
 \end{itemize}
 
@@ -67,8 +69,8 @@ make V2 independently reproducible and observable:
   \item complete dependency locking and a frozen container smoke;
   \item record model checksum, image digest, data/schema versions, MLflow run,
   and promotion decision in a durable registry;
-  \item reproduce \texttt{0.0.2} operating evidence on independent windows and
-  compare it with V2;
+  \item reproduce the official V2 application smoke and operating evidence on
+  independent windows;
   \item make fallback an explicit demo mode and enforce readiness;
   \item synchronize/generated API client types and expand CI.
 \end{enumerate}

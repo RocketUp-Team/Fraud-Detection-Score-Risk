@@ -61,7 +61,8 @@ Figure~\ref{fig:system-architecture} shows the implemented batch and serving
 layers. The central contract is the verified model-ready dataset plus its
 feature and schema metadata.
 
-\input{figures/system_architecture}
+\input{figures/final_overall_system}
+\input{figures/final_layered_data}
 
 The architecture uses a direct Python dependency between model and backend.
 This avoids network serialization and a separate model service for the
@@ -140,6 +141,8 @@ between Pydantic, TypeScript, mocks, and Markdown. At the evidence snapshot, the
 TypeScript declarations omit several backend metadata fields and
 \texttt{scoring\_mode}; OpenAPI-generated types are recommended.
 
+\input{figures/final_contracts}
+
 \section{Risk and trust boundaries}
 
 The browser is untrusted input. FastAPI/Pydantic validates JSON and route
@@ -148,12 +151,14 @@ The database and processed-data mount are trusted local resources.
 
 Joblib model artifacts are also a trust boundary because Python deserialization
 can execute code. Only artifacts produced by a controlled training pipeline
-should be loaded. Current files have no saved immutable checksum registry.
+should be loaded. The official V2 candidate stores SHA-256 checksums, but the
+repository does not yet provide an external immutable registry that is the
+runtime serving authority.
 
 The fallback heuristic is a further trust concern. It keeps the demonstration
 available when the model fails, but it must not be allowed to impersonate a
 production model. The backend exposes a warning, yet readiness remains
-fail-open.
+fail-open. This is a degraded demo mode, not a production-equivalent score.
 
 \section{Architectural tradeoffs}
 
@@ -175,4 +180,3 @@ Manual TypeScript types & No generator setup & Contract drift risk\\
 \bottomrule
 \end{tabularx}
 \end{table}
-

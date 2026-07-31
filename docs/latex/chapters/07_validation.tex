@@ -22,10 +22,11 @@ completed experiment.
 
 \section{Processed-data validation}
 
-The data verifier is the strongest machine-readable quality gate. It reports:
+The data verifier is the strongest machine-readable quality gate. The current
+official-run report records:
 
 \begin{itemize}
-  \item 82 checks passed and zero failed;
+  \item 94 checks passed and zero failed;
   \item model-ready datasets are non-empty;
   \item transaction identifiers are unique;
   \item labeled and unlabeled schemas use the expected target policy;
@@ -35,9 +36,12 @@ The data verifier is the strongest machine-readable quality gate. It reports:
   \item feature order, medians, and required reports exist.
 \end{itemize}
 
-The stale \texttt{verification\_pending} value in the top-level manifest is a
-finalization defect, not a failed data check, because the later verifier report
-contains the terminal result.
+The official-run status is \texttt{ready\_for\_downstream\_training}. An older
+persisted manifest and an older facts file used
+\texttt{verification\_pending}; this is a snapshot discrepancy and should not
+be combined with the current official report.
+
+\input{figures/final_result_charts}
 
 \section{Static and runtime reports}
 
@@ -94,14 +98,18 @@ contract smoke checks, and one real-model scoring smoke.
 
 \section{Current dependency and execution constraints}
 
-At the start of the review, the repository had no local backend/model virtual
-environment or frontend \texttt{node\_modules}. The global Python environment
-contained pandas, Joblib, and PyArrow but not LightGBM. Docker engine access was
-also denied through the local named pipe.
+The official model-quality log records lint success and 14 passing model tests.
+The stored official application-build log stopped at the frontend
+\texttt{npm ci} step because the lock file was out of sync with
+\texttt{package.json}; the missing \texttt{@emnapi} optional dependencies were
+then restored in the repository lock file, and a subsequent standalone frontend
+Docker build passed. The historical application log therefore cannot be used
+as evidence of a completed full-stack run.
 
-These are environment constraints rather than direct source defects. They do,
-however, demonstrate why a frozen container smoke is required before model
-serving can be claimed independently reproducible.
+This is a reproducibility boundary rather than a model metric failure. A new
+official run should preserve the repaired lock file, rebuild both images, start
+the application, and store health/meta/full-feature scoring responses together
+with the model checksum.
 
 \section{Whole-project findings}
 
@@ -122,10 +130,10 @@ ID & Finding & Severity & Impact\\
 \endhead
 R1 & No authentication, authorization, or audit controls & Critical & Blocks external deployment\\
 R2 & Model readiness can fall back to heuristic & High & Predictions can be misidentified\\
-R3 & Decision thresholds are not evidence-based & High & Blocks policy approval\\
-R4 & Local MLflow runs exist but registry, promotion, and checksum evidence is absent & High & Blocks portable lineage claim\\
+R3 & Candidate thresholds are not the backend decision authority & High & Blocks policy approval\\
+R4 & Local MLflow runs exist but central registry/stage authority is absent & High & Blocks portable lineage claim\\
 R5 & Candidate thresholds are not the served backend policy & High & Blocks operational policy claim\\
-R6 & Manifest and verifier status differ & Medium & Handover ambiguity\\
+R6 & Copied official split summary differs from current manifest split counts & Medium & Snapshot ambiguity\\
 R7 & Jobs and schema lifecycle are non-durable & Medium & Restart/upgrade risk\\
 R8 & No automated frontend/browser tests & Medium & UI regression and accessibility risk\\
 R9 & API types are manually synchronized and stale & Medium & Client contract risk\\
@@ -155,10 +163,10 @@ merchant environment.
 
 \subsection{Reproducibility}
 
-Processed data is locally present and well contracted, but model artifacts are
-Git-ignored. Five finished \texttt{0.0.2} runs are queryable in the local SQLite
-store, but their artifact URIs are container-local and checksums, registry IDs,
-promotion approval, and rollback records are absent.
+Processed data is locally present and well contracted, and the official V2
+candidate includes SHA-256 checksums and one MLflow holdout run ID. MLflow
+remains local SQLite tracking with container-local artifact paths; a central
+registry ID, human approval record, and rollback smoke evidence are not present.
 
 \section{Production-readiness gates}
 
@@ -175,10 +183,11 @@ promotion approval, and rollback records are absent.
 \subsection{Gate 2: approved operating policy}
 
 \begin{enumerate}
-  \item reproduce \texttt{0.0.2} calibration and threshold evidence on temporal
-  windows not reused for model selection;
-  \item compare its precision, recall, false positives, false negatives, and
-  calibration with V2;
+  \item reproduce the official V2 calibration and threshold evidence on
+  temporal windows not reused for model selection;
+  \item compare the candidate operating points with the configured backend
+  policy, including precision, recall, false positives, false negatives, and
+  calibration;
   \item define review capacity and error cost;
   \item approve, store, and enforce review/reject thresholds;
   \item test exact boundaries through model, backend, and UI.

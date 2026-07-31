@@ -21,12 +21,14 @@ engineering, and Parquet export. A model pipeline compares logistic regression,
 LightGBM, XGBoost, and CatBoost using ROC-AUC and precision--recall AUC, then
 packages the selected model with categorical mappings and SHAP explanations.
 FastAPI exposes scoring, transaction exploration, imports, dataset loading, and
-human review, while a React dashboard supports investigation. The processed-data
-contract passed 82 saved verification checks. The V2 LightGBM artifact reports a
-holdout ROC-AUC of 0.8796 and PR-AUC of 0.4582. The review also identifies
-limitations: MLflow runs and calibrated thresholds exist for an unpromoted
-\texttt{0.0.2} candidate but are local-only and are not enforced by the
-backend; heuristic fallback risk, in-memory jobs, manual API type
-synchronization, and production security gaps also remain. The result is a
-coherent academic demonstration and a documented path toward production
-readiness.
+human review, while a React dashboard supports investigation. The current
+official data contract reports 94 passed verification checks. The official V2
+CatBoost balanced package reports validation ROC-AUC 0.9081210 and PR-AUC
+0.5805993, with holdout ROC-AUC 0.8780755 and PR-AUC 0.4266435. Its isotonic
+calibrator and thresholds are packaged, but the promotion gate returns
+\texttt{not\_promoted}; the configured serving version remains unchanged.
+Limitations include local-only MLflow tracking, duplicated threshold ownership,
+offline--online historical-feature mismatch, heuristic fallback risk,
+single-node Python training, in-memory jobs, and missing production security
+controls. The result is a coherent academic demonstration with explicit
+architecture gaps, not a production-readiness claim.
