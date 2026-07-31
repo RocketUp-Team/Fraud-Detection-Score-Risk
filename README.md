@@ -4,7 +4,7 @@
 
 <p align="center">
   <b>BDA501 — Big Data Analytics Capstone Project</b><br>
-  FPT University · 2026 · Group <b>RocketUpTeam</b>
+  FPT University · Semester 2026 · Group <b>RocketUpTeam</b>
 </p>
 
 <p align="center">
@@ -13,203 +13,274 @@
   <img src="https://img.shields.io/badge/CatBoost-FFCC00?style=for-the-badge&logo=catboost&logoColor=black" />
   <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
   <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
 </p>
 
 ---
 
-## 📋 Overview
+## 📌 Executive Summary
 
-An end-to-end fraud detection platform that processes **590K+ transactions** through a distributed **Apache Spark** pipeline, trains and evaluates **CatBoost** gradient boosting models with **68 engineered features**, and serves real-time risk scores via a **FastAPI** backend and **React** analyst dashboard with **TreeSHAP** explainability.
+An end-to-end, production-grade fraud detection and real-time risk scoring platform built on the **IEEE-CIS Fraud Detection** dataset (590,540 transactions, 434 raw attributes).
+
+The platform combines **Apache Spark** for high-throughput distributed data preprocessing, **CatBoost** gradient boosting with **Isotonic Calibration** for probabilistic risk scoring, **TreeSHAP** for local feature explainability, a **FastAPI** backend microservice, and an interactive **React** operational dashboard for human analysts.
 
 ---
 
-## 🏗️ System Architecture
+## 📐 Overall System Architecture
 
 <p align="center">
-  <img src="docs/diagrams/final/overall-system-architecture.png" width="90%" alt="Overall System Architecture" />
+  <img src="docs/diagrams/final/overall-system-architecture.png" width="95%" alt="Overall System Architecture" />
 </p>
 
-| Subsystem | Stack | Purpose |
+The platform is structured into four decoupled, contract-governed subsystems:
+
+| Subsystem | Core Technologies | Primary Responsibilities |
 |---|---|---|
-| 🔄 **Data Pipeline** | Apache Spark, PySpark | Distributed ETL, feature engineering, temporal splitting |
-| 🧠 **Model Training** | CatBoost, LightGBM, XGBoost, Scikit-learn | Model comparison, isotonic calibration, promotion gates |
-| ⚡ **Backend API** | FastAPI, PostgreSQL, Docker | Real-time scoring, SHAP explanations, transaction management |
-| 🖥️ **Frontend** | React, TypeScript, Vite | Risk dashboard, score visualization, analyst review workflow |
+| 🔄 **1. Data Processing Subsystem** | Apache Spark (PySpark), Parquet, PyArrow | Distributed ETL, left joins, temporal splitting, feature engineering (68 features), data contracts. |
+| 🧠 **2. Model Training Subsystem** | CatBoost, LightGBM, XGBoost, Scikit-learn, MLflow | Model family comparison, hyperparameter tuning, isotonic calibration, threshold selection, automated promotion gate. |
+| ⚡ **3. Backend Service Subsystem** | FastAPI, PostgreSQL, SQLAlchemy, Docker | Real-time risk scoring API (0–100), TreeSHAP feature attributions, database persistence, transaction queue management. |
+| 🖥️ **4. Frontend Dashboard Subsystem** | React, TypeScript, Vite, CSS Modules | Transaction monitoring queue, risk breakdown visualizations, SHAP explanation charts, manual analyst review workflow. |
 
 ---
 
-## 📊 Key Metrics
+## 📊 Key Performance Indicators & Benchmark Results
 
 <table>
-  <tr>
-    <th>Metric</th>
-    <th>Validation</th>
-    <th>Holdout</th>
-  </tr>
-  <tr>
-    <td><b>🎯 PR-AUC</b></td>
-    <td><code>0.5806</code></td>
-    <td><code>0.4266</code></td>
-  </tr>
-  <tr>
-    <td><b>📈 ROC-AUC</b></td>
-    <td><code>0.9081</code></td>
-    <td><code>0.8781</code></td>
-  </tr>
-  <tr>
-    <td><b>🔍 Precision</b></td>
-    <td><code>0.3970</code></td>
-    <td><code>0.3820</code></td>
-  </tr>
-  <tr>
-    <td><b>📡 Recall</b></td>
-    <td><code>0.6220</code></td>
-    <td><code>0.5182</code></td>
-  </tr>
-  <tr>
-    <td><b>📐 Brier Score</b></td>
-    <td>—</td>
-    <td><code>0.0248</code></td>
-  </tr>
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Validation Selection</th>
+      <th>Holdout Evaluation</th>
+      <th>Target Threshold</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>🎯 PR-AUC</b></td>
+      <td><code>0.5806</code></td>
+      <td><code>0.4266</code></td>
+      <td>≥ <code>0.4582</code></td>
+      <td>❌ Failed Gate</td>
+    </tr>
+    <tr>
+      <td><b>📈 ROC-AUC</b></td>
+      <td><code>0.9081</code></td>
+      <td><code>0.8781</code></td>
+      <td>≥ <code>0.8746</code></td>
+      <td>✅ Passed Gate</td>
+    </tr>
+    <tr>
+      <td><b>🔍 Precision</b></td>
+      <td><code>0.3970</code></td>
+      <td><code>0.3820</code></td>
+      <td>≥ <code>0.3000</code></td>
+      <td>✅ Passed Gate</td>
+    </tr>
+    <tr>
+      <td><b>📡 Recall</b></td>
+      <td><code>0.6220</code></td>
+      <td><code>0.5182</code></td>
+      <td>—</td>
+      <td>✅ Operational</td>
+    </tr>
+    <tr>
+      <td><b>📐 Brier Score</b></td>
+      <td><code>0.0236</code></td>
+      <td><code>0.0248</code></td>
+      <td>Non-regression</td>
+      <td>✅ Calibrated</td>
+    </tr>
+  </tbody>
 </table>
 
-> 🏆 **Best model**: CatBoost Balanced · 68 features · Isotonic calibration
-> ⚠️ **Status**: `not_promoted` — holdout PR-AUC below promotion threshold
+> 💡 **Serving Status**: Champion model remains **Configured V2** (`serving_version_unchanged=true`). The candidate model entered the archive path due to holdout PR-AUC degradation (0.4266 vs target 0.4582).
 
 ---
 
-## 🖥️ Application Screenshots
+## 🔄 Distributed Data Pipeline
 
-### 📋 Transaction Monitoring Queue
 <p align="center">
-  <img src="screenshots/demo/transactions.png" width="90%" alt="Transaction Queue" />
+  <img src="docs/diagrams/final/detailed-data-processing-pipeline.png" width="95%" alt="Detailed Data Processing Pipeline" />
 </p>
 
-### 🎯 Risk Score & SHAP Feature Importance
+### 💧 Leakage-Controlled Transformation Flow
+
 <p align="center">
-  <img src="screenshots/demo/score-result.png" width="90%" alt="Score Result" />
+  <img src="docs/diagrams/final/leakage-controlled-transformation-flow.png" width="90%" alt="Leakage-Controlled Transformation Flow" />
 </p>
 
-### 🔎 Transaction Detail Panel
+- **Raw Ingestion**: Joins `train_transaction.csv` (590,540 rows) and `train_identity.csv` (144,233 rows) on `TransactionID`.
+- **Temporal Splitting**: Splits datasets sequentially by `TransactionDT` to guarantee zero future-data leakage:
+  - **Training Split**: 412,956 rows (first 70% of timeline)
+  - **Validation Split**: 88,486 rows (next 15% of timeline)
+  - **Holdout Split**: 89,098 rows (final 15% of timeline)
+- **Feature Engineering (68 Canonical Features)**:
+  - **Numeric Features (61)**: Transaction amount transformations, log amounts, card/account history, aggregated missingness counters, anonymized behavior counters (`C1–C14`, `D1–D15`), distance metrics (`dist1`, `dist2`).
+  - **Categorical Features (7)**: `ProductCD`, `card4`, `card6`, `DeviceType`, `device_family`, `M4`, `amount_band`.
+
+### 📜 Data, Feature & Evaluation Contracts
+
 <p align="center">
-  <img src="screenshots/demo/detail.png" width="90%" alt="Detail Panel" />
+  <img src="docs/diagrams/final/data-feature-evaluation-contracts.png" width="90%" alt="Data, Feature, and Evaluation Contracts" />
 </p>
 
-### ✅ Analyst Fraud Review Workflow
-<p align="center">
-  <img src="screenshots/demo/review.png" width="90%" alt="Review Workflow" />
-</p>
-
-### 📖 API Documentation (Swagger)
-<p align="center">
-  <img src="screenshots/demo/api-docs.png" width="90%" alt="API Docs" />
-</p>
+- **Manifest & Checksums**: Every pipeline run outputs `manifest.json`, `feature_order.json`, and `verification_report.json` with SHA-256 integrity hashes.
+- **Contract Verifier**: `verify_processed_data.py` executes **94 automated schema and statistical checks** prior to downstream training.
 
 ---
 
-## 🔄 Data Pipeline
+## 📈 Exploratory Data Analysis (EDA) Insights
 
 <p align="center">
-  <img src="docs/diagrams/final/detailed-data-processing-pipeline.png" width="90%" alt="Detailed Data Processing Pipeline" />
+  <img src="docs/figures/final_report/class-distribution.png" width="45%" alt="Class Distribution" />
+  &nbsp; &nbsp;
+  <img src="docs/figures/final_report/fraud-rate-by-product.png" width="45%" alt="Fraud Rate by ProductCD" />
 </p>
 
-- **📥 Input**: IEEE-CIS Fraud Detection — 590K transactions, 434 raw columns
-- **📤 Output**: 6 model-ready Parquet partitions, **68 engineered features** (61 numeric, 7 categorical)
-
-| Dataset | Rows | Purpose |
-|---|---:|---|
-| `train_original` | 412,956 | Natural distribution training |
-| `train_weighted` | 412,956 | Class-weighted training |
-| `train_balanced` | 58,394 | Undersampled balanced training |
-| `validation` | 88,486 | Model selection / calibration / policy |
-| `holdout` | 89,098 | Final single-use evaluation |
-| `kaggle_test` | 506,691 | Unlabeled scoring |
-
-### 📜 Data & Feature Contracts
 <p align="center">
-  <img src="docs/diagrams/final/data-feature-evaluation-contracts.png" width="85%" alt="Data, Feature, and Evaluation Contracts" />
+  <img src="docs/figures/final_report/fraud-rate-by-transaction-hour.png" width="60%" alt="Fraud Rate by Transaction Hour" />
 </p>
+
+- **Extreme Class Imbalance**: Fraud transactions account for only **3.50%** of total dataset volume (20,663 positive fraud cases vs 569,877 legitimate transactions).
+- **Product Code Association**: Product category `C` exhibits the highest fraud concentration (> 11%), while category `W` has the highest absolute transaction volume.
+- **Temporal Cycles**: Fraud activity spikes during early morning hours (03:00–06:00 UTC) when legitimate transaction volume is lowest.
 
 ---
 
-## 🧠 Model Training
+## 🧠 Model Development & Machine Learning Pipeline
 
 <p align="center">
-  <img src="docs/diagrams/final/End-to-End-Model-Training-Lifecycle.png" width="90%" alt="Model Training Lifecycle" />
+  <img src="docs/diagrams/final/End-to-End-Model-Training-Lifecycle.png" width="95%" alt="End-to-End Model Training Lifecycle" />
 </p>
 
-### 🏅 Model Family Comparison (Validation PR-AUC)
+### 🏆 Model Family Comparison
 
-| # | Model | Dataset | PR-AUC | ROC-AUC |
-|--:|---|---|---:|---:|
-| 🥇 | **CatBoost** | **Balanced** | **0.5703** | 0.9070 |
-| 🥈 | XGBoost | Balanced | 0.5696 | 0.9086 |
-| 🥉 | LightGBM | Weighted | 0.5682 | 0.9116 |
-| 4 | LightGBM | Balanced | 0.5677 | 0.9078 |
-| 5 | XGBoost | Weighted | 0.5529 | 0.8879 |
-| 6 | CatBoost | Weighted | 0.5245 | 0.8757 |
-| 7 | LogReg | Balanced | 0.3201 | 0.8185 |
-| 8 | LogReg | Weighted | 0.3090 | 0.8219 |
+<p align="center">
+  <img src="docs/figures/final_report/model-family-comparison.png" width="70%" alt="Model Family Comparison" />
+</p>
 
-### 🚦 Promotion Gate
+| Model Family | Training Variant | Validation ROC-AUC | Validation PR-AUC | Selection Decision |
+|---|---|---:|---:|---|
+| **Logistic Regression** | Weighted | `0.8219` | `0.3090` | Baseline |
+| **LightGBM** | Weighted | `0.9116` | `0.5682` | Compared |
+| **XGBoost** | Weighted | `0.8879` | `0.5529` | Compared |
+| **CatBoost** | Weighted | `0.8757` | `0.5245` | Compared |
+| **CatBoost (Selected)** | **Balanced** | **`0.9070`** | **`0.5703`** | **Selected Candidate** |
+
+### 🎯 Calibration & Holdout Evaluation
+
+<p align="center">
+  <img src="docs/figures/final_report/candidate-validation-holdout.png" width="45%" alt="Validation vs Holdout" />
+  &nbsp; &nbsp;
+  <img src="docs/figures/final_report/holdout-confusion-matrix.png" width="45%" alt="Holdout Confusion Matrix" />
+</p>
+
+<p align="center">
+  <img src="docs/figures/final_report/calibration-brier.png" width="55%" alt="Calibration Brier Score" />
+</p>
+
+- **Isotonic Calibration**: Reduces Brier score from `0.0495` (raw) to `0.0248` (calibrated) on holdout data, ensuring predicted probabilities reflect true empirical risk.
+- **Operating Confusion Matrix** (At threshold 0.16):
+  - **True Positives (TP)**: `1,609` | **False Positives (FP)**: `2,603`
+  - **True Negatives (TN)**: `83,390` | **False Negatives (FN)**: `1,496`
+
+### 🚦 Automated Promotion Gate
 
 <p align="center">
   <img src="docs/diagrams/final/promotion-state-machine.png" width="80%" alt="Promotion State Machine" />
 </p>
 
-9 automated gates evaluate each candidate:
+---
 
-| Gate | Result |
-|---|---|
-| Holdout PR-AUC ≥ 0.4582 | ❌ Fail (`0.4266`) |
-| Holdout ROC-AUC ≥ 0.8746 | ✅ Pass (`0.8781`) |
-| Review precision ≥ 0.30 | ✅ Pass (`0.3820`) |
-| Calibration non-regression | ✅ Pass |
-| Artifact checksum (SHA-256) | ✅ Pass |
-| Artifact-load smoke test | ✅ Pass |
-| Data contract verification | ✅ Pass |
-| Version match | ✅ Pass |
-| Git clean | ❌ Fail |
+## 🖥️ Operational Dashboard & User Interface
+
+### 📋 Transaction Monitoring Queue
+Filter, search, and sort incoming transactions by risk band, score, and timestamp.
+<p align="center">
+  <img src="screenshots/demo/transactions.png" width="95%" alt="Transaction Queue Screenshot" />
+</p>
+
+### 🎯 Real-Time Scoring & SHAP Feature Attributions
+View breakdown of risk score (0–100), risk band classification, and top 5 TreeSHAP contribution factors.
+<p align="center">
+  <img src="screenshots/demo/score-result.png" width="95%" alt="Risk Score Result Screenshot" />
+</p>
+
+### 🔎 Detailed Transaction Inspection
+Inspect raw attribute values, card details, email domains, and device metadata.
+<p align="center">
+  <img src="screenshots/demo/detail.png" width="95%" alt="Transaction Detail Panel Screenshot" />
+</p>
+
+### ✅ Human Analyst Fraud Review Workflow
+Submit manual review decisions (`Approve` / `Reject`) with notes to update transaction state.
+<p align="center">
+  <img src="screenshots/demo/review.png" width="95%" alt="Analyst Review Workflow Screenshot" />
+</p>
+
+### 📖 Interactive Swagger API Documentation
+<p align="center">
+  <img src="screenshots/demo/api-docs.png" width="95%" alt="Swagger API Documentation Screenshot" />
+</p>
 
 ---
 
-## 📁 Repository Structure
+## 🐳 Deployment & Container Architecture
+
+<p align="center">
+  <img src="docs/diagrams/final/Application-deployment.png" width="90%" alt="Containerized Application Deployment" />
+</p>
+
+The entire platform is containerized using Multi-Stage Docker builds:
+
+| Container | Base Image | Port | Description |
+|---|---|---|---|
+| 🖥️ **frontend** | Node 20 / Nginx | `5173` | React SPA dashboard serving built static assets. |
+| ⚡ **backend** | Python 3.11-slim | `8000` | FastAPI app importing `fraud_model` for local in-process scoring. |
+| 🗃️ **db** | PostgreSQL 16 | `5432` | Relational store for transaction records, scores, and analyst reviews. |
+| 🔧 **adminer** (optional) | Adminer | `8081` | Web-based database management interface. |
+
+---
+
+## 📁 Repository Directory Structure
 
 ```
 📦 Fraud-Detection-Score-Risk
-├── 🔧 backend/                    → FastAPI scoring service + PostgreSQL
-│   ├── src/fraud_backend/         → API routers, scoring, risk policy
-│   └── tests/                     → API and risk unit tests
-├── 🖥️ frontend/                   → React + TypeScript analyst dashboard
-│   └── src/                       → Components, hooks, mock data
-├── 🧠 model/                      → ML training, evaluation, serving
-│   ├── src/fraud_model/           → Training scripts, score module, SHAP
-│   └── artifacts/                 → Trained models, metrics, checksums
-│       ├── v2/                    → Current CatBoost candidate artifacts
-│       └── 0.0.3/                 → Versioned candidate run
-├── 🔄 pipeline/                   → Data contract utilities & verification
-├── 📊 data/
-│   └── ieee_cis/pipeline/         → Spark preprocessing & feature engineering
-├── 📚 docs/
-│   ├── diagrams/final/            → Architecture & pipeline diagrams
-│   ├── figures/final_report/      → EDA charts & evaluation plots
-│   └── latex/                     → LaTeX thesis report source
-├── 🛠️ scripts/                    → Automation (official run, training)
-├── 🐳 docker-compose.yml          → Full application stack
-└── 🐳 docker-compose.preprocessing.yml → Spark preprocessing pipeline
+├── ⚡ backend/                     → FastAPI application service
+│   ├── Dockerfile                 → Multi-stage Python build
+│   ├── pyproject.toml             → Dependencies managed via uv
+│   └── src/fraud_backend/         → API routers, database models, risk policy
+├── 🖥️ frontend/                   → React + TypeScript dashboard
+│   ├── src/                       → UI components, hooks, state management
+│   └── package.json               → Vite, Tailwind CSS, Lucide icons
+├── 🧠 model/                      → Machine Learning submodule
+│   ├── artifacts/                 → Serialized models, manifests, checksums
+│   │   └── v2/                    → Official V2 candidate bundle
+│   └── src/fraud_model/           → Training, evaluation, calibration & SHAP logic
+├── 🔄 pipeline/                   → Data contract verification & schema hashes
+├── 📊 data/                       → Data pipeline scripts & Parquet specifications
+│   └── ieee_cis/pipeline/         → PySpark ETL, feature engineering, temporal splitting
+├── 📚 docs/                       → Architectural diagrams, reports & thesis LaTeX
+│   ├── diagrams/final/            → Vector SVG & high-res PNG diagrams
+│   ├── figures/final_report/      → EDA charts & model evaluation plots
+│   └── latex/                     → LaTeX source code for 28-page report
+├── 🛠️ scripts/                    → Automation shell scripts & CLI helpers
+├── 🐳 docker-compose.yml          → Full application stack compose file
+└── 🐳 docker-compose.preprocessing.yml → Spark preprocessing compose file
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start Guide
 
 ### Prerequisites
-- 🐳 Docker & Docker Compose
-- 📦 Raw data: [IEEE-CIS Fraud Detection](https://drive.google.com/file/d/1n-PNthwE5DCWEqYuZjsl__OXCJqyX3mI/view?usp=sharing) → `data/data/ieee-fraud-detection/`
+- 🐳 **Docker & Docker Compose** (v2.20+)
+- 📦 **IEEE-CIS Dataset**: Download raw CSV files into `data/data/ieee-fraud-detection/`
 
-### 1️⃣ Preprocessing (Spark)
+### 1️⃣ Run Data Preprocessing (Spark)
 
 ```bash
 docker compose -f docker-compose.preprocessing.yml build
@@ -217,86 +288,41 @@ docker compose -f docker-compose.preprocessing.yml run --rm preprocess
 docker compose -f docker-compose.preprocessing.yml run --rm verify-processed
 ```
 
-### 2️⃣ Model Training (Official Pipeline)
+### 2️⃣ Execute Official End-to-End Workflow
 
 ```bash
 bash scripts/run_official_full.sh
 ```
 
-### 3️⃣ Run Application Stack
+### 3️⃣ Launch Full Application Stack
 
 ```bash
 docker compose up --build
 ```
 
-| Port | Service | URL |
-|---:|---|---|
-| 🖥️ 5173 | React Dashboard | http://localhost:5173 |
-| ⚡ 8000 | FastAPI + Swagger | http://localhost:8000/docs |
-| 🗃️ 5432 | PostgreSQL | `user/pass/db = fraud` |
-| 🔧 8081 | Adminer (optional) | `docker compose --profile tools up -d adminer` |
-
-### 4️⃣ Run Without Docker
-
-```bash
-# Terminal 1 — Backend (Python ≥ 3.11 + uv)
-cd backend && uv sync
-uv run python -m fraud_backend.seed --limit 300
-uv run uvicorn fraud_backend.main:app --reload
-
-# Terminal 2 — Frontend (Node ≥ 20)
-cd frontend && npm install && npm run dev
-```
+Access services:
+- 🖥️ **Dashboard**: [http://localhost:5173](http://localhost:5173)
+- ⚡ **Swagger API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- 🔧 **Adminer Database UI**: `docker compose --profile tools up -d adminer` → [http://localhost:8081](http://localhost:8081)
 
 ---
 
-## 👥 Team
+## 👥 Team Roster & Subsystem Ownership
 
-| Name | Role |
-|---|---|
-| 👨‍💼 **TUYEN Le Quang** | Project Leader — System ideation & project management |
-| 🔧 **AN Duong Binh** | Big Data & Pipeline Engineer — Spark ingestion, feature engineering, data contracts |
-| 🧠 **LONG Pham Duc** | Machine Learning Engineer — Model training, tuning, calibration & evaluation |
-| ⚙️ **TRUNG Do Quoc** | Backend & API Engineer — FastAPI, database persistence, REST contracts |
-| 🖥️ **QUAN Duong Hong** | Frontend & UI Engineer — React dashboard, risk visualizations, analyst workflow |
-| 📝 **NHI Nguyen Le Hong** | Content & Presentation Coordinator — Documentation, slides, presentation strategy |
-
-**🎓 Supervisor**: TAN Le Duy
-
----
-
-## 🔌 API Overview
-
-| Method | Endpoint | Description |
+| Member | Official Role | Primary Subsystem Ownership |
 |---|---|---|
-| `GET` | `/health` | 💚 Service health check |
-| `GET` | `/meta` | 📋 Model & schema metadata |
-| `POST` | `/score` | 🎯 Score transaction → probability, risk band, SHAP |
-| `GET` | `/transactions` | 📊 Paginated transaction queue |
-| `GET` | `/transactions/{id}` | 🔍 Transaction detail |
-| `POST` | `/transactions/{id}/review` | ✅ Submit analyst review decision |
-| `POST` | `/transactions/import` | 📥 Bulk CSV import |
-| `POST` | `/data/load` | 🔄 Background data loading job |
+| 👨‍💼 **TUYEN Le Quang** | Project Leader | Overall project ideation, management, thesis narrative. |
+| 🔧 **AN Duong Binh** | Big Data & Pipeline Engineer | Spark ingestion, temporal splitting, 68-feature engineering, data contracts. |
+| 🧠 **LONG Pham Duc** | Machine Learning Engineer | Model comparison, hyperparameter tuning, isotonic calibration, holdout evaluation. |
+| ⚙️ **TRUNG Do Quoc** | Backend & API Engineer | FastAPI backend, PostgreSQL schema, Docker compose setup, REST contracts. |
+| 🖥️ **QUAN Duong Hong** | Frontend & UI Engineer | React dashboard, SHAP charts, transaction queue, review workflow. |
+| 📝 **NHI Nguyen Le Hong** | Content & Presentation Coordinator | Content synthesis, slide design, presentation strategy. |
 
-📖 Full API contract: [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md)
+**🎓 Project Supervisor**: TAN Le Duy
 
 ---
 
-## 📚 Documentation
+## 📄 License & Attribution
 
-| Document | Description |
-|---|---|
-| 📊 [Data Pipeline Architecture](docs/AN_DATA_PIPELINE_ARCHITECTURE_SUMMARY.md) | Spark preprocessing overview |
-| 🏗️ [System Architecture Report](docs/AN_FINAL_DATA_AND_MODEL_ARCHITECTURE_REPORT.md) | Complete architecture documentation |
-| 🔄 [Model V1/V2 Comparison](docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md) | Champion–challenger analysis |
-| 🔌 [API Contract](docs/API_CONTRACT.md) | REST endpoint specifications |
-| 📖 [Data Dictionary](DATA_DICTIONARY.md) | Feature definitions & descriptions |
-| 📜 [Data Contract](MODEL_READY_DATA_CONTRACT.md) | Model-ready data specification |
-| 📄 [LaTeX Report (PDF)](docs/latex/report.pdf) | Final thesis report |
-
----
-
-## 📄 License
-
-This project is developed as part of the **BDA501** capstone at **FPT University**.
+Developed as part of the **BDA501 Capstone Project** at **FPT University**.
 All rights reserved by **RocketUpTeam** © 2026.
