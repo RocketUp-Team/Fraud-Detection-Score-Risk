@@ -16,8 +16,16 @@ The project demonstrates an end-to-end fraud scoring system separating distribut
 
 \section{Future work}
 
+To advance the system toward enterprise production deployment, five key engineering and research directions are identified:
+
 \begin{enumerate}
-  \item Implement an online feature store for real-time aggregation parity.
-  \item Separate runtime policy configuration from offline model weights.
-  \item Integrate production audit logging, security, and automated drift monitoring.
+  \item \textbf{Real-Time Feature Store and Online-Offline Parity}: Implement a low-latency online feature store (e.g., Feast or Redis-backed stream processing engine) to calculate streaming aggregations (e.g., rolling 1-hour transaction counts per card) with sub-10ms latency, guaranteeing complete feature parity between offline Spark training and online API inference.
+  
+  \item \textbf{Decoupled Dynamic Policy and Threshold Management}: Separate operational risk decisions (\texttt{approve}, \texttt{review}, \texttt{reject}) from offline model weights. Implement a dynamic policy engine allowing risk officers to update decision thresholds and risk bands in real time without redeploying model artifacts.
+  
+  \item \textbf{Continuous MLOps, Drift Detection, and Auto-Retraining}: Deploy automated monitoring for population stability (PSI) and prediction drift (Kolmogorov-Smirnov tests). Integrate automated CI/CD re-training pipelines triggered when holdout PR-AUC drops below SLA thresholds.
+  
+  \item \textbf{Graph Neural Networks and Temporal Sequence Modeling}: Integrate Graph Neural Networks (GNNs) on transaction-device-entity bipartite graphs to detect coordinated fraud rings, combined with temporal Transformer architectures for sequential pattern analysis.
+  
+  \item \textbf{Actionable Counterfactual Recourse and Analyst UX}: Extend local TreeSHAP explanations with actionable counterfactual recourse, providing analysts with precise quantitative factors necessary to resolve flagged review cases.
 \end{enumerate}

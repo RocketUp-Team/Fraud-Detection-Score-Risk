@@ -307,6 +307,18 @@ Access services:
 
 ---
 
+## 🔮 Future Work & Engineering Roadmap
+
+To advance the platform toward enterprise-grade production deployment, five key engineering and research directions are identified:
+
+1. ⚡ **Real-Time Feature Store (Online-Offline Parity)**: Implement a low-latency online feature store (e.g., Feast or Redis-backed stream processing engine) to calculate streaming aggregations (e.g., rolling 1-hour transaction counts per card) with sub-10ms latency.
+2. 🎛️ **Decoupled Dynamic Policy Engine**: Separate operational risk decisions (`approve`, `review`, `reject`) from offline model weights, enabling compliance risk officers to dynamically adjust decision boundaries without redeploying model artifacts.
+3. 📉 **Continuous MLOps & Drift Monitoring**: Deploy automated tracking for Population Stability Index (PSI) and Kolmogorov-Smirnov prediction drift to automatically trigger CI/CD retraining pipelines when metrics drop below SLA bounds.
+4. 🕸️ **Graph Neural Networks & Temporal Transformers**: Incorporate Graph Neural Networks (GNNs) on transaction-user-device bipartite graphs to capture complex fraud rings/syndicates, alongside temporal Transformer architectures.
+5. 🔍 **Actionable Counterfactual Recourse**: Extend TreeSHAP attributions with actionable counterfactual recourse explanations for risk analysts to identify minimal feature shifts needed for decision overrides.
+
+---
+
 ## 👥 Team Roster & Subsystem Ownership
 
 | Member | Official Role | Primary Subsystem Ownership |
