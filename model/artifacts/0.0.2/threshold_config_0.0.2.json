@@ -1,0 +1,6 @@
+{
+  "review_threshold": 0.11,
+  "reject_threshold": 0.31,
+  "selection_rule": "max_recall_then_f1_with_min_precision",
+  "min_precision": 0.3
+}

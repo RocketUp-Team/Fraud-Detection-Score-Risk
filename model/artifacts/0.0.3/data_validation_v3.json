@@ -1,0 +1,89 @@
+{
+  "feature_count": 68,
+  "data_root": "/data/processed/candidates/ieee_cis_fraud_risk_2_1_0",
+  "processing_version": "ieee-cis-preprocess-2.1.0",
+  "feature_schema_version": "ieee-cis-features-1.1.0",
+  "datasets": {
+    "train_original": {
+      "rows": 412956,
+      "columns": 74,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "train_weighted": {
+      "rows": 412956,
+      "columns": 75,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "class_weight",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "train_balanced": {
+      "rows": 58394,
+      "columns": 74,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "validation": {
+      "rows": 88486,
+      "columns": 74,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "holdout": {
+      "rows": 89098,
+      "columns": 74,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "kaggle_test": {
+      "rows": 506691,
+      "columns": 73,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "processing_version",
+        "split_name"
+      ]
+    }
+  },
+  "validation_windows": {
+    "counts": {
+      "selection": 44243,
+      "calibration": 22122,
+      "policy": 22121
+    },
+    "selection_boundary": 11713696.0,
+    "calibration_boundary": 12438149.0
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "model_version": "0.0.2",
+  "results": {
+    "logreg": {
+      "roc_auc": 0.8092207102586193,
+      "pr_auc": 0.2517651573709901
+    },
+    "lightgbm": {
+      "roc_auc": 0.8887259625739824,
+      "pr_auc": 0.47702417168390465
+    },
+    "xgboost": {
+      "roc_auc": 0.861791954314972,
+      "pr_auc": 0.4538080282046056
+    },
+    "catboost": {
+      "roc_auc": 0.8445167110687385,
+      "pr_auc": 0.4298034450872024
+    },
+    "logreg__balanced": {
+      "roc_auc": 0.8045732784973373,
+      "pr_auc": 0.26461379627912296
+    },
+    "lightgbm__balanced": {
+      "roc_auc": 0.8905822918758686,
+      "pr_auc": 0.48470336088310545
+    },
+    "xgboost__balanced": {
+      "roc_auc": 0.8806562437046699,
+      "pr_auc": 0.48920489237008485
+    },
+    "catboost__balanced": {
+      "roc_auc": 0.8885086778074716,
+      "pr_auc": 0.4728962546901512
+    }
+  },
+  "best_model": "xgboost__balanced",
+  "best_dataset": "balanced"
+}

@@ -1,0 +1,10 @@
+{
+  "model_version": "0.0.2",
+  "training_dataset": "balanced",
+  "best_model": "xgboost",
+  "artifact_path": "/app/artifacts/0.0.2/final_model_0.0.2.joblib",
+  "comparison_path": "/app/artifacts/0.0.2/model_comparison_0.0.2.json",
+  "validation_roc_auc": 0.8981723881185428,
+  "validation_pr_auc": 0.5050495283987166,
+  "feature_count": 68
+}

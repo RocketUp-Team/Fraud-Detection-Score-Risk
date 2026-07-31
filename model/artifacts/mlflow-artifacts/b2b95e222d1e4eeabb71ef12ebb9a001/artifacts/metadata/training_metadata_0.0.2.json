@@ -1,0 +1,29 @@
+{
+  "model_version": "0.0.2",
+  "training_dataset": "balanced",
+  "best_model": "xgboost",
+  "artifact_path": "/app/artifacts/0.0.2/final_model_0.0.2.joblib",
+  "comparison_path": "/app/artifacts/0.0.2/model_comparison_0.0.2.json",
+  "validation_roc_auc": 0.8981723881185428,
+  "validation_pr_auc": 0.5050495283987166,
+  "feature_count": 68,
+  "calibration_method": "isotonic",
+  "threshold_config": {
+    "review_threshold": 0.11,
+    "reject_threshold": 0.31,
+    "selection_rule": "max_recall_then_f1_with_min_precision",
+    "min_precision": 0.3
+  },
+  "holdout_metrics": {
+    "threshold": 0.11,
+    "pr_auc": 0.43183218465334383,
+    "roc_auc": 0.8807072166235395,
+    "precision": 0.3275340393343419,
+    "recall": 0.5578099838969404,
+    "f1": 0.41272488978911,
+    "tn": 82433,
+    "fp": 3556,
+    "fn": 1373,
+    "tp": 1732
+  }
+}
