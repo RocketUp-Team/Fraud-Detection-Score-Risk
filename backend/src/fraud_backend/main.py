@@ -31,8 +31,9 @@ app = FastAPI(title="Fraud Detection Risk Scoring API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=[] if config.CORS_ALLOW_ALL else config.CORS_ORIGINS,
+    allow_origin_regex=".*" if config.CORS_ALLOW_ALL else None,
+    allow_credentials=not config.CORS_ALLOW_ALL,
     allow_methods=["*"],
     allow_headers=["*"],
 )

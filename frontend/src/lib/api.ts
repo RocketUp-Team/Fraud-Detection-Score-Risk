@@ -26,7 +26,7 @@ import mockStats from '../mocks/stats.json'
 import mockList from '../mocks/transactions.json'
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
+const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'false'
 
 export class ApiError extends Error {
   // Khai báo field tường minh: `erasableSyntaxOnly` không cho parameter property.
