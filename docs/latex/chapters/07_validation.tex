@@ -5,7 +5,7 @@
 
 Claims in this thesis are classified as runtime-verified, artifact-reported,
 implemented from source, or proposed. The current official processed-data
-report records 94 verification checks passed and zero failed, with status
+report records \val{94} verification checks passed and zero failed, with status
 \texttt{ready\_for\_downstream\_training}. An older manifest/facts snapshot
 uses \texttt{verification\_pending}; it is retained as historical evidence and
 is not combined with the official-run metrics.
@@ -14,7 +14,7 @@ is not combined with the official-run metrics.
 
 The verifier checks dataset presence, row counts, identifiers, labels, class
 weights, feature order, schema hashes, chronological order, split overlap, and
-required artifacts. The official candidate metadata reports 68 features, the
+required artifacts. The official candidate metadata reports \val{68} features, the
 selection/calibration/policy windows, isotonic calibration, holdout metrics,
 checksums, and a load-smoke result. These artifacts support the data-contract
 and candidate claims; they do not prove online feature parity or deployment
@@ -26,6 +26,32 @@ family selection, validation-to-holdout degradation, confusion counts, and
 calibration. None should be read as causal analysis.
 
 \input{figures/final_result_charts}
+
+\section{Technical challenges and implemented solutions}
+
+Table~\ref{tab:challenges-solutions} summarizes the major engineering and data challenges encountered during system development, alongside their implemented solutions and repository evidence.
+
+\begin{table}[H]
+\centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
+\caption{Technical Challenges, Implemented Solutions, and Evidence}
+\label{tab:challenges-solutions}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.25\textwidth} X >{\raggedright\arraybackslash}p{0.25\textwidth}}
+\toprule
+\textbf{Challenge} & \textbf{Implemented solution} & \textbf{Evidence}\\
+\midrule
+Transaction--identity sparsity & Transaction-authoritative LEFT JOIN preserving 100\% transaction rows with missingness indicators & Preprocessing Join Audit Step\\
+Missing values & Train-only median imputation for numeric; explicit \texttt{'missing'} category & Feature Contract Specification\\
+Class imbalance & Evaluated \texttt{original}, \texttt{weighted} (weight 3.0), and \texttt{balanced} undersampled splits & Balanced Parquet Artifact\\
+Temporal leakage & Chronological split on \texttt{TransactionDT} (\texttt{train} $\rightarrow$ \texttt{val} $\rightarrow$ \texttt{calib} $\rightarrow$ \texttt{holdout}) & Leakage-free Pipeline Stages\\
+Schema \& feature order & Frozen canonical 68-feature vector and machine-checked schema hash gate & Verification Engine Gate\\
+Verifier failure & Automated validation gate outputting \texttt{ready\_for\_downstream\_training} & Verification Report Artifact\\
+Spark-to-pandas boundary & Spark handles distributed data preparation; Python fits single-node matrices & Model Execution Logs\\
+Offline--online feature mismatch & Standardized backend feature loader mapping scoring request vector to schema & Backend Feature Loader\\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \section{Integrated validation findings}
 

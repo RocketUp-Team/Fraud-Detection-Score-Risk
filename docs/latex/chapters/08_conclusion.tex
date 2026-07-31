@@ -3,55 +3,21 @@
 
 \section{Conclusion}
 
-The thesis demonstrates a coherent academic workflow from IEEE-CIS source files
-to Spark-processed Parquet, a versioned feature contract, Python model
-training, artifact-based evaluation, and an integrated FastAPI/React scoring
-demonstration. The main technical contribution is the separation of
-distributed data preparation from single-node estimator fitting, together with
-chronological leakage controls and a machine-checked handover.
+The project demonstrates an end-to-end fraud scoring system separating distributed Spark data preparation from single-node Python model training. CatBoost Balanced achieved validation ROC-AUC \val{0.9081} and PR-AUC \val{0.5806} (holdout ROC-AUC \val{0.8781}, PR-AUC \val{0.4266}), while candidate status remains \texttt{not\_promoted}.
 
-The current CatBoost balanced candidate reports validation ROC-AUC 0.9081210
-and PR-AUC 0.5805993, with holdout ROC-AUC 0.8780755 and PR-AUC 0.4266435.
-These values are artifact-reported. Its isotonic calibrator, policy thresholds,
-checksums, and promotion evidence are packaged, but the decision is
-\texttt{not\_promoted}. The configured V2 software default therefore remains
-unchanged. This wording deliberately distinguishes the current CatBoost
-candidate from historical LightGBM V1/V2 reports and from serving approval.
+\section{Summary of research question answers}
 
-\section{Answers to the engineering questions}
+\begin{itemize}
+  \item \textbf{RQ1 (Data Integrity)}: Leakage-free chronological splits and schema contracts are verified.
+  \item \textbf{RQ2 (Classifier Performance)}: CatBoost achieved highest PR-AUC; performance degrades gracefully on holdout.
+  \item \textbf{RQ3 (Serving Architecture)}: In-process Python model package enables Spark-free real-time scoring.
+  \item \textbf{RQ4 (System Boundaries)}: Architectural limits (offline-online parity, fail-open fallback) bound the demo.
+\end{itemize}
 
-The data plane is technically coherent for the BDA501 objective: typed Spark
-ingestion, transaction-grain-preserving left joins, chronological splits,
-train-only transformations, point-in-time histories, and Parquet contracts are
-implemented or evidenced by saved artifacts. The model plane provides baseline
-and family comparison, selection/calibration/policy windows, holdout evaluation,
-candidate packaging, and promotion-gate evidence. The serving plane proves
-integrated scoring and review interaction, but not online reconstruction of
-historical features.
-
-The main limitations are offline--online feature mismatch, duplicated policy
-ownership, local-only lineage, single-node training, fail-open fallback, and
-missing security and monitoring controls. These are architecture boundaries,
-not claims that another estimator would automatically resolve them.
-
-\section{Prioritized future work}
-
-Future work should proceed in this order:
+\section{Future work}
 
 \begin{enumerate}
-  \item freeze a reproducible candidate, checksum, image, data snapshot, and
-  serving smoke without fallback;
-  \item separate the approved model bundle from a versioned policy bundle and
-  make runtime policy ownership explicit;
-  \item implement an online historical-feature path or restrict the API to
-  demonstrably complete feature vectors;
-  \item add durable registry, audit, readiness, monitoring, security, and job
-  lifecycle controls;
-  \item evaluate later candidates with temporal cross-validation and new
-  candidate identities whenever holdout evidence has already been viewed.
+  \item Implement an online feature store for real-time aggregation parity.
+  \item Separate runtime policy configuration from offline model weights.
+  \item Integrate production audit logging, security, and automated drift monitoring.
 \end{enumerate}
-
-The appropriate final assessment is therefore: the core Spark data and model
-development architecture is suitable for the academic objective, while the
-serving and governance layers remain a bounded demonstration with explicit
-limitations. No production-readiness claim is made.

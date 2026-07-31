@@ -61,6 +61,32 @@ or CatBoost is distributed over Spark workers. The end-to-end model development 
 
 \input{figures/final_training_lifecycle}
 
+\section{PySpark MLlib DecisionTree baseline}
+
+To satisfy BDA501 big-data machine-learning baseline requirements, the PySpark preprocessing module implements a PySpark MLlib \texttt{DecisionTreeClassifier} pipeline. The classifier evaluates the canonical \val{68}-feature vector across three dataset variants (\texttt{baseline\_tree}, \texttt{weighted\_tree}, and \texttt{undersampled\_tree}) with hyperparameters \texttt{maxDepth=8}, \texttt{maxBins=128}, and \texttt{minInstancesPerNode=50} \parencite{meng2016mllib}.
+
+Table~\ref{tab:mllib-decision-tree} records the reproducible metrics saved in the evaluation metrics report. This PySpark MLlib pipeline serves as a data-quality baseline and must not be confused with single-node Python gradient-boosting candidate comparisons (CatBoost, LightGBM, XGBoost).
+
+\begin{table}[H]
+\centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
+\caption{PySpark MLlib DecisionTree Baseline Performance}
+\label{tab:mllib-decision-tree}
+\begin{tabular}{llrrrrr}
+\toprule
+\textbf{Model variant} & \textbf{Split} & \textbf{PR-AUC} & \textbf{ROC-AUC} & \textbf{Precision} & \textbf{Recall} & \textbf{Time (s)}\\
+\midrule
+\texttt{baseline\_tree} & Validation & \val{0.0205} & \val{0.2329} & \val{0.6928} & \val{0.1574} & \val{13.5}\\
+\texttt{baseline\_tree} & Holdout & \val{0.0209} & \val{0.2366} & \val{0.6641} & \val{0.1948} & \val{13.5}\\
+\texttt{weighted\_tree} & Validation & \val{0.2666} & \val{0.6866} & \val{0.1564} & \val{0.6400} & \val{12.1}\\
+\texttt{weighted\_tree} & Holdout & \val{0.2773} & \val{0.6984} & \val{0.1494} & \val{0.6583} & \val{12.1}\\
+\texttt{undersampled\_tree} & Validation & \val{0.0284} & \val{0.4265} & \val{0.2791} & \val{0.5217} & \val{5.7}\\
+\texttt{undersampled\_tree} & Holdout & \val{0.0278} & \val{0.4163} & \val{0.2039} & \val{0.5076} & \val{5.7}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{Candidate models and selection}
 
 The baseline is Logistic Regression. The compared gradient-boosting families
@@ -70,19 +96,21 @@ model as CatBoost trained on the balanced variant.
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Current CatBoost candidate training evidence}
 \label{tab:v2-training-evidence}
 \begin{tabular}{ll}
 \toprule
-Field & Value\\
+\textbf{Field} & \textbf{Value}\\
 \midrule
 Artifact version label & \texttt{v2}\\
 Selected model & CatBoost\\
 Training variant & \texttt{balanced}\\
-Feature count & 68\\
-Selection window & 44,243 rows\\
-Calibration window & 22,122 rows\\
-Policy window & 22,121 rows\\
+Feature count & \val{68}\\
+Selection window & \val{44,243} rows\\
+Calibration window & \val{22,122} rows\\
+Policy window & \val{22,121} rows\\
 Calibration method & Isotonic\\
 Processing version & \texttt{ieee-cis-preprocess-2.1.0}\\
 Feature schema & \texttt{ieee-cis-features-1.1.0}\\
@@ -90,133 +118,98 @@ Feature schema & \texttt{ieee-cis-features-1.1.0}\\
 \end{tabular}
 \end{table}
 
-The saved comparison artifact contains model-family and balanced-variant
-results. PR-AUC is the primary selection metric because the positive class is
-rare. ROC-AUC is retained as a complementary ranking metric. Accuracy is not
-used as a selection authority. Validation comparison is descriptive evidence;
-it does not establish a business operating point.
+The saved comparison artifact records model-family and balanced-variant results. PR-AUC is the primary selection metric due to class imbalance; ROC-AUC is retained as a complementary ranking metric.
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Current model-family selection evidence}
 \label{tab:model-family-comparison}
 \begin{tabular}{llrrl}
 \toprule
-Model & Training variant & ROC-AUC & PR-AUC & Decision\\
+\textbf{Model} & \textbf{Training variant} & \textbf{ROC-AUC} & \textbf{PR-AUC} & \textbf{Decision}\\
 \midrule
-Logistic Regression & Weighted & 0.8219 & 0.3090 & Baseline\\
-LightGBM & Weighted & 0.9116 & 0.5682 & Compared\\
-XGBoost & Weighted & 0.8879 & 0.5529 & Compared\\
-CatBoost & Weighted & 0.8757 & 0.5245 & Compared\\
-CatBoost & Balanced & 0.9070 & 0.5703 & Selected\\
+Logistic Regression & Weighted & \val{0.8219} & \val{0.3090} & Baseline\\
+LightGBM & Weighted & \val{0.9116} & \val{0.5682} & Compared\\
+XGBoost & Weighted & \val{0.8879} & \val{0.5529} & Compared\\
+CatBoost & Weighted & \val{0.8757} & \val{0.5245} & Compared\\
+CatBoost & Balanced & \val{0.9070} & \val{0.5703} & Selected\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-CatBoost Balanced was selected because it achieved the highest selection-window
-PR-AUC, which was the primary metric for this imbalanced dataset.
+CatBoost Balanced was selected for achieving the highest selection-window PR-AUC.
 
 \section{Temporal development windows}
 
-The validation period is divided into selection, calibration, and policy
-windows. The current candidate metadata records selection boundary
-\texttt{11713696} and calibration boundary \texttt{12438149}. Model family and
-parameters are selected in the first window, isotonic calibration is fitted in
-the second, and thresholds are selected in the third. Holdout remains the final
-evaluation window and is opened after the package is frozen.
-
-This separation is stronger than the historical V1 workflow, but it should not
-be used to rewrite V1's history. If a model is modified after holdout results
-are viewed, the modified package must receive a new candidate identity rather
-than silently reusing the same holdout.
+The validation period is partitioned into selection, calibration, and policy windows. Model family and parameters are selected in the selection window, isotonic calibration fits in the calibration window, and decision thresholds fit in the policy window. Holdout remains isolated until final evaluation.
 
 \section{Current CatBoost candidate results}
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Current CatBoost candidate validation and holdout metrics}
 \label{tab:official-v2-metrics}
 \begin{tabular}{lrrrrrr}
 \toprule
-Window & Threshold & PR-AUC & ROC-AUC & Precision & Recall & Brier\\
+\textbf{Window} & \textbf{Threshold} & \textbf{PR-AUC} & \textbf{ROC-AUC} & \textbf{Precision} & \textbf{Recall} & \textbf{Brier}\\
 \midrule
-Validation selection & 0.50 & 0.5805993 & 0.9081210 & 0.3969649 & 0.6220275 & --\\
-Holdout & 0.16 & 0.4266435 & 0.8780755 & 0.3820038 & 0.5181965 & 0.0248326\\
+Validation selection & \val{0.50} & \val{0.5806} & \val{0.9081} & \val{0.3970} & \val{0.6220} & --\\
+Holdout & \val{0.16} & \val{0.4266} & \val{0.8781} & \val{0.3820} & \val{0.5182} & \val{0.0248}\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Figures~\ref{fig:final-candidate-validation-holdout}--\ref{fig:final-calibration-brier}
-summarize the candidate's holdout evidence. All values are artifact-reported
-from \texttt{reports/official-run/validation\_metrics\_v2.csv},
-\texttt{holdout\_metrics\_v2.csv}, and
-\texttt{training\_metadata\_v2.json}.
-
-The current CatBoost candidate is not directly comparable to the historical
-LightGBM V1/V2 tables. The official candidate is CatBoost balanced, whereas
-older Markdown reports describe V2 as LightGBM and cite holdout PR-AUC 0.4582.
-The old values are therefore historical evidence, not metrics for the current
-CatBoost candidate. A matching V1 final holdout artifact is not present in the current
-repository, so this chapter does not invent a V1 holdout comparison.
+Figures~\ref{fig:final-candidate-validation-holdout}--\ref{fig:final-calibration-brier} summarize the candidate's holdout performance.
 
 \section{Calibration and threshold policy}
 
-The current candidate stores \texttt{calibration\_model\_v2.joblib} and records
-\texttt{calibration\_method=isotonic}. The threshold artifact selects:
+The candidate uses isotonic probability calibration with threshold specifications:
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Current candidate policy artifact}
 \label{tab:v2-policy}
 \begin{tabular}{lr}
 \toprule
-Policy field & Value\\
+\textbf{Policy field} & \textbf{Value}\\
 \midrule
-Review threshold & 0.16\\
-Reject threshold & 0.53\\
-Minimum review precision & 0.30\\
-Minimum reject precision & 0.60\\
-Selected review precision & 0.3371429\\
-Selected reject precision & 0.7397959\\
+Review threshold & \val{0.16}\\
+Reject threshold & \val{0.53}\\
+Minimum review precision & \val{0.30}\\
+Minimum reject precision & \val{0.60}\\
+Selected review precision & \val{0.3371}\\
+Selected reject precision & \val{0.7398}\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The model scorer applies the calibrator when the loaded artifact contains one.
-However, the backend runtime decision authority is
-the Risk Scoring module: it rounds probability to a
-0--100 score, applies fixed bands, and maps those bands to approve, review, or
-reject. The backend does not load the candidate review/reject thresholds as its
-decision policy. This is duplicated ownership, not evidence that the candidate
-policy is active in serving.
+The backend Risk Scoring module maps probabilities to a \val{0}--\val{100} score, using fixed runtime bands:
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Candidate policy versus backend runtime policy}
 \label{tab:policy-ownership}
 \begin{tabular}{llll}
 \toprule
-Decision & Candidate policy & Backend runtime policy & Active authority\\
+\textbf{Decision} & \textbf{Candidate policy} & \textbf{Backend runtime policy} & \textbf{Active authority}\\
 \midrule
-Review starts & 0.16 & 0.40 & Backend\\
-Reject starts & 0.53 & 0.80 & Backend\\
+Review starts & \val{0.16} & \val{0.40} & Backend\\
+Reject starts & \val{0.53} & \val{0.80} & Backend\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Candidate thresholds are packaged as model evidence but are not currently the
-backend runtime decision authority. Holdout operating-point evidence is
-available for the review threshold of 0.16; reject-threshold holdout evidence
-was not available in the inspected artifacts.
-
 \section{Packaging, checksum, and promotion}
 
-The current candidate package includes the final joblib model, training metadata,
-calibrator, threshold configuration, validation and holdout metrics, threshold
-analysis, candidate manifest, promotion decision, and SHA-256 checksums. The
-candidate manifest records artifact-load smoke \texttt{passed}, model name
-\texttt{catboost}, feature count 68, processing/schema versions, MLflow run ID,
-Git commit, and \texttt{git\_dirty=true}.
+The candidate bundle packages joblib model weights, training metadata, calibrator, threshold config, metrics, manifest, promotion decision, and SHA-256 checksums.
 
 \begin{table}[H]
 \centering

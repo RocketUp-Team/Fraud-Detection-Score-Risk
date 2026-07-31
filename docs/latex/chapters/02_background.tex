@@ -1,53 +1,14 @@
 \chapter{Background and Related Work}
 \label{chap:background}
 
-\section{Fraud detection as imbalanced, temporal ranking}
+\section{Imbalanced temporal ranking}
 
-The project treats fraud detection as a binary ranking problem with a rare
-positive class. Accuracy is therefore insufficient: a majority-class predictor
-can appear strong while detecting no fraud. PR-AUC is used as the primary model
-selection metric, with ROC-AUC as a complementary ranking measure. Precision and
-recall remain relevant because the backend exposes review and reject decisions.
-These metrics describe predictive behaviour; they do not measure fraud loss,
-investigation cost, or customer impact.
+Fraud detection is framed as binary temporal ranking on rare positive cases (fraud rate $\approx$ \val{3.5\%}). Chronological splitting along \texttt{TransactionDT} preserves temporal order and prevents lookahead leakage.
 
-The second constraint is time. Labels and entity histories are associated with
-transactions ordered by \texttt{TransactionDT}. Random splitting could allow
-future distributions or histories to influence development evidence. The
-pipeline therefore uses chronological windows and train-only fitting. This is
-the methodological background needed to interpret the later leakage-control and
-holdout sections.
+\section{IEEE-CIS dataset structure}
 
-\section{IEEE-CIS data characteristics}
-
-IEEE-CIS separates transaction data from optional identity data and includes
-categorical, numeric, missingness, and anonymized behavioural fields. The
-inspected training transaction file contains 590,540 rows and the observed
-fraud prevalence is approximately 3.5\%. Because identity records are absent
-for many transactions, the project preserves the transaction table as the row
-authority and applies a left join. Identity presence and missingness are
-retained as features, but their association with fraud is not interpreted as
-causal evidence.
+The dataset contains \val{590,540} training transactions and optional identity records \parencite{ieeecis2019}. Preserving transaction row authority via LEFT JOIN prevents data loss while capturing missingness indicators.
 
 \section{Technology boundary}
 
-Apache Spark is used for typed CSV ingestion, joins, quality profiling,
-chronological splitting, feature computation, and Parquet handover. The model
-matrix is then collected to pandas for Python estimators. The correct
-architecture statement is therefore: \textbf{distributed data preparation with
-single-node Python model training}. FastAPI and React provide the integrated
-scoring demonstration; they do not constitute independent model microservices.
-
-The compared model families are Logistic Regression, LightGBM, XGBoost, and
-CatBoost. Their role in this report is methodological comparison rather than a
-claim of distributed estimator training. Tree-based SHAP values are used as
-local model attributions. They describe the model output and are not causal
-explanations; when calibration changes the displayed probability, raw-model
-SHAP should not be interpreted as an explanation of the calibrated scale.
-
-\section{Scope boundary}
-
-The thesis evaluates an academic batch-to-serving workflow. Online historical
-feature generation, immutable registry authority, production monitoring,
-authentication, and operational policy approval are treated as limitations or
-target architecture, not as implemented capabilities.
+Architecture operates via \textbf{distributed Spark data preparation with single-node Python estimator training}. CatBoost, LightGBM, XGBoost, and Logistic Regression are evaluated, using TreeSHAP for feature attribution \parencite{lundberg2017shap}.

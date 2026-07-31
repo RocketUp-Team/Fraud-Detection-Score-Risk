@@ -1,6 +1,6 @@
 \documentclass[12pt,a4paper,oneside]{report}
 
-\usepackage[a4paper,left=3.2cm,right=2.0cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage[a4paper,left=2.5cm,right=1.0cm,top=1.5cm,bottom=1.5cm,footskip=0.6cm]{geometry}
 \usepackage{fontspec}
 \IfFontExistsTF{Arial}
   {\setmainfont{Arial}\setsansfont{Arial}}
@@ -26,15 +26,20 @@
 \titlespacing*{\chapter}{0pt}{0pt}{14pt}
 \titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
 \titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection}{1em}{}
 \titlespacing*{\section}{0pt}{8pt}{4pt}
 \titlespacing*{\subsection}{0pt}{6pt}{3pt}
+\titlespacing*{\subsubsection}{0pt}{4pt}{2pt}
 
-\usepackage{xcolor}
+\usepackage[table]{xcolor}
 \definecolor{ReportBlue}{HTML}{2F5D8C}
 \definecolor{ReportGold}{HTML}{B78A2E}
 \definecolor{ReportOrange}{HTML}{C56A2D}
 \definecolor{ReportInk}{HTML}{222222}
 \definecolor{ReportGray}{HTML}{E7E9EC}
+\definecolor{MetricBlue}{HTML}{003366}
+
+\newcommand{\val}[1]{\textcolor{MetricBlue}{\textbf{#1}}}
 
 \usepackage{booktabs}
 \usepackage{longtable}
@@ -72,19 +77,19 @@
 \usepackage{pgfplotstable}
 \usepackage{url}
 \Urlmuskip=0mu plus 1mu
-\usepackage[round,authoryear]{natbib}
+\usepackage[numbers,sort&compress]{natbib}
 \newcommand{\parencite}[1]{\citep{#1}}
 \usepackage[hidelinks]{hyperref}
 \hypersetup{
   pdftitle={Fraud Detection and Risk Scoring System Using Apache Spark and Machine Learning},
-  pdfauthor={Dương Bình An; Lê Quang Tuyến; Phạm Đức Long; Đỗ Quốc Trung; Dương Hồng Quân; Nguyễn Lê Hồng Nhi},
+  pdfauthor={AN Duong Binh; TUYEN Le Quang; LONG Pham Duc; TRUNG Do Quoc; QUAN Duong Hong; NHI Nguyen Le Hong},
   pdfsubject={Master of Software Engineering thesis},
   pdfkeywords={fraud detection, risk scoring, Apache Spark, CatBoost, calibration, SHAP}
 }
 \usepackage{microtype}
 
 \newcommand{\evidence}[1]{}
-\newcommand{\systempath}[1]{\path{#1}}
+\newcommand{\systempath}[1]{\texttt{#1}}
 \newcommand{\artifactreported}{}
 
 \input{metadata}
@@ -106,14 +111,13 @@
 \vspace{0.12in}
 {\large\AuthorList\par}
 \vfill
-{\large A thesis submitted in conformity with the requirements\par}
-{\large for the degree of \DegreeName\par}
+{\large Final Group Project Report submitted for BDA501 -- Big Data\par}
 \vfill
 {\large \copyright\ Copyright by \GroupName\ \ConvocationYear\par}
 \end{center}
 \end{titlepage}
 
-% Second title page: includes supervisors, as in the supplied template.
+% Second title page: single supervisor without numbering per guidelines.
 \begin{titlepage}
 \thispagestyle{empty}
 \begin{center}
@@ -128,12 +132,10 @@
 \vspace{0.10in}
 {\large\AuthorList\par}
 \vfill
-{\large A thesis submitted in conformity with the requirements\par}
-{\large for the degree of \DegreeName\par}
+{\large Final Group Project Report submitted for BDA501 -- Big Data\par}
 \vfill
 {\large Supervisor:\par}
-{\large 1. \SupervisorOne\par}
-\ifx\SupervisorTwo\empty\else{\large 2. \SupervisorTwo\par}\fi
+{\large \SupervisorOne\par}
 \vfill
 {\large \copyright\ Copyright by \GroupName\ \ConvocationYear\par}
 \end{center}
@@ -145,7 +147,13 @@
 \clearpage
 \input{frontmatter/acknowledgments}
 \clearpage
+\input{frontmatter/abbreviations}
+\clearpage
 \tableofcontents
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
 \clearpage
 
 \input{chapters/01_introduction}
@@ -162,7 +170,7 @@
 \addcontentsline{toc}{chapter}{References}
 \begingroup
 \raggedright
-\bibliographystyle{plainnat}
+\bibliographystyle{ieeetr}
 \bibliography{references}
 \endgroup
 
