@@ -9,46 +9,37 @@ The application operates as an \textbf{in-process model-serving modular monolith
 
 The backend returns probability, risk score (\val{0}--\val{100}), risk band, decision, and TreeSHAP attributions. Scored transactions and human analyst reviews are stored as distinct database entities.
 
-\section{Frontend interface}
-
-Figures~\ref{fig:ui-overview-1}--\ref{fig:ui-overview-2} present the real operational dashboard and analyst review workflow.
-
 \begin{figure}[H]
   \centering
-  \begin{subfigure}[b]{0.48\textwidth}
+  \begin{subfigure}[b]{0.45\textwidth}
     \centering
     \includegraphics[width=\textwidth]{figures/transactions.png}
     \caption{Transaction monitoring queue.}
     \label{fig:ui-transactions}
   \end{subfigure}
   \hfill
-  \begin{subfigure}[b]{0.48\textwidth}
+  \begin{subfigure}[b]{0.45\textwidth}
     \centering
     \includegraphics[width=\textwidth]{figures/score-result.png}
     \caption{Risk score and SHAP feature importance.}
     \label{fig:ui-score-result}
   \end{subfigure}
-  \caption{Application User Interface: Transaction queue and real-time risk scoring breakdown.}
-  \label{fig:ui-overview-1}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \begin{subfigure}[b]{0.48\textwidth}
+  \\[2pt]
+  \begin{subfigure}[b]{0.45\textwidth}
     \centering
     \includegraphics[width=\textwidth]{figures/detail.png}
     \caption{Transaction detail panel.}
     \label{fig:ui-detail}
   \end{subfigure}
   \hfill
-  \begin{subfigure}[b]{0.48\textwidth}
+  \begin{subfigure}[b]{0.45\textwidth}
     \centering
     \includegraphics[width=\textwidth]{figures/review.png}
     \caption{Analyst fraud review workflow.}
     \label{fig:ui-review}
   \end{subfigure}
-  \caption{Application User Interface: Transaction inspection and analyst review interface.}
-  \label{fig:ui-overview-2}
+  \caption{Application User Interface: Real-time risk scoring, inspection queue, and analyst review workflow.}
+  \label{fig:ui-overview-all}
 \end{figure}
 
 \section{Deployment boundary}

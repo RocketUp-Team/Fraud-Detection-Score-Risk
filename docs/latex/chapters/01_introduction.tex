@@ -3,7 +3,7 @@
 
 \section{Problem context}
 
-Online transaction fraud is an imbalanced classification problem with rare positive instances and asymmetric error costs \parencite{ieeecis2019,amazonfraudbenchmark}. A production fraud scoring system requires reproducible data pipelines, temporal validation integrity, explainable predictions, and an operational human-review workflow.
+Online transaction fraud is an imbalanced classification problem with rare positive instances and asymmetric error costs \parencite{ieeecis2019,amazonfraudbenchmark}.
 
 \begin{quote}
 How can a reproducible big-data pipeline, an imbalanced-classification model, an explainable scoring API, and a human-review interface be integrated into one auditable fraud risk scoring system?
@@ -11,25 +11,19 @@ How can a reproducible big-data pipeline, an imbalanced-classification model, an
 
 \section{Objectives \& research questions}
 
-\textbf{Core Objectives:}
 \begin{itemize}
-  \item Ingest and validate the \val{1.29~GB} IEEE-CIS transaction and identity dataset via Apache Spark.
+  \item Ingest and validate the \val{1.29~GB} IEEE-CIS dataset via Apache Spark.
   \item Construct leakage-free chronological dataset splits (\texttt{train}, \texttt{val}, \texttt{holdout}).
-  \item Evaluate MLlib DecisionTree, LightGBM, XGBoost, and CatBoost classifiers.
+  \item Compare MLlib DecisionTree, LightGBM, XGBoost, and CatBoost classifiers.
   \item Serve packaged models behind a FastAPI scoring API with TreeSHAP explanations and React UI.
 \end{itemize}
 
-\textbf{Research Questions:}
 \begin{description}[style=multiline,leftmargin=1.6cm,labelwidth=1.2cm]
   \item[RQ1:] Can raw data be processed without identifier overlap or temporal leakage?
   \item[RQ2:] Which classifier achieves highest validation PR-AUC and retains holdout performance?
   \item[RQ3:] Can the model be served efficiently without a Spark dependency at request time?
   \item[RQ4:] What technical boundaries separate the academic demo from production readiness?
 \end{description}
-
-\section{Evaluation basis}
-
-Primary metrics are ROC-AUC and Precision-Recall AUC (PR-AUC). PR-AUC is authoritative for rare positive classes \parencite{davis2006pr,saito2015pr}.
 
 \section{BDA501 requirement compliance}
 
