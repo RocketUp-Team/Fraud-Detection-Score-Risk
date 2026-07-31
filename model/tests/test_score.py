@@ -94,14 +94,16 @@ def test_score_handles_unseen_categorical_value_without_crashing(tmp_path, monke
     assert 0.0 <= result["proba"] <= 1.0
 
 
-def test_score_rejects_missing_required_full_features(tmp_path, monkeypatch):
+def test_score_allows_partial_demo_scoring(tmp_path, monkeypatch):
     final_path = tmp_path / "final_model.joblib"
     _make_tree_artifact(final_path)
     monkeypatch.setattr(config, "SERVING_FINAL_MODEL_PATH", final_path)
     monkeypatch.setattr(config, "SERVING_MODEL_VERSION", "v2")
 
-    with pytest.raises(ValueError, match="Thiếu required features"):
-        score_module.score({"TransactionAmt": 50.0})
+    result = score_module.score({"TransactionAmt": 50.0})
+
+    assert 0.0 <= result["proba"] <= 1.0
+    assert result["scoring_mode"] == "partial_demo"
 
 
 def test_score_falls_back_to_baseline_when_final_model_missing(tmp_path, monkeypatch):

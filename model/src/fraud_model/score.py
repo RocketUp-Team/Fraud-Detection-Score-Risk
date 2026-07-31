@@ -25,9 +25,10 @@ def _candidate_paths(kind: str) -> list:
     else:
         primary = config.SERVING_BASELINE_MODEL_PATH
         legacy = config.ARTIFACTS_DIR / "baseline_logreg.joblib"
-    if version == "v1":
-        return [primary, legacy]
-    return [primary]
+    # Keep the versioned artifact first, but retain compatibility with the
+    # legacy root artifact.  This is useful for local/demo serving and for
+    # repositories upgraded before their first versioned training run.
+    return [primary, legacy]
 
 
 def _load_artifact() -> dict:
@@ -121,22 +122,6 @@ def score(features: dict) -> dict:
     columns = artifact["feature_columns"]
     model_name = artifact.get("model_name", "baseline_logreg")
     mappings = artifact.get("category_mappings", {})
-    required_features = set(artifact.get("required_features", columns))
-    defaultable_features = set(artifact.get("defaultable_features", []))
-    optional_features = set(artifact.get("optional_features", []))
-
-    missing_required = sorted(
-        feature
-        for feature in required_features
-        if feature not in features and feature not in defaultable_features and feature not in optional_features
-    )
-    if missing_required:
-        raise ValueError(
-            "Thiếu required features cho full-feature scoring: "
-            + ", ".join(missing_required[:10])
-            + ("..." if len(missing_required) > 10 else "")
-        )
-
     encoded = encode_categoricals_pandas(features, mappings)
     # Cột THIẾU và cột CÓ nhưng giá trị None đều phải thành -999. Chỉ dùng
     # `.get(col, -999)` là không đủ: giá trị None vẫn đi qua, làm cột đó thành
