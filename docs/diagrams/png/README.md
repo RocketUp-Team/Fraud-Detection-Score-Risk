@@ -1,5 +1,8 @@
 # High-Resolution PNG Exports
 
+> Bộ PNG cuối của architecture review nằm tại [`../final/`](../final/). Bảng
+> dưới đây mô tả các export lịch sử và được giữ lại để traceability.
+
 Thư mục này chứa từng sơ đồ kiến trúc dưới dạng PNG riêng để chèn vào Word,
 PowerPoint hoặc các công cụ không hỗ trợ SVG ổn định.
 

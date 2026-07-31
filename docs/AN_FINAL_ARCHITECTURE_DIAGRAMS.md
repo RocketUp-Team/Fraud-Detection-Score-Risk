@@ -2,6 +2,9 @@
 
 **Status:** HYBRID WITH EXPLICIT LEGEND. Mermaid trong file này là source of truth.
 
+Exports đã render nằm tại [`diagrams/final/`](diagrams/final/), gồm SVG vector
+và PNG độ phân giải cao cho cả tám sơ đồ.
+
 Legend: solid = implemented/evidenced; dashed = target/partially enforced; gray = legacy; gold = governance gate; red = known gap.
 
 ## Diagram 1 — Overall System Architecture
@@ -142,14 +145,25 @@ flowchart LR
 ```mermaid
 stateDiagram-v2
   [*] --> CREATED
-  CREATED --> DATA_VALIDATED --> TRAINED --> CALIBRATED --> POLICY_DEFINED --> HOLDOUT_EVALUATED --> PACKAGED
-  PACKAGED --> GATE_PASSED --> AWAITING_APPROVAL --> PROMOTED
+  CREATED --> DATA_VALIDATED
+  DATA_VALIDATED --> TRAINED
+  TRAINED --> CALIBRATED
+  CALIBRATED --> POLICY_DEFINED
+  POLICY_DEFINED --> HOLDOUT_EVALUATED
+  HOLDOUT_EVALUATED --> PACKAGED
+  PACKAGED --> GATE_PASSED
+  GATE_PASSED --> AWAITING_APPROVAL
+  AWAITING_APPROVAL --> PROMOTED
   CREATED --> DATA_INVALID
   TRAINED --> TRAINING_FAILED
-  PACKAGED --> GATE_FAILED --> ARCHIVED
-  AWAITING_APPROVAL --> REJECTED --> ARCHIVED
-  GATE_FAILED -->|"serving unchanged"| V2["V2 remains champion"]
-  PROMOTED --> ROLLBACK_REQUESTED --> PREVIOUS_CHAMPION_RESTORED
+  PACKAGED --> GATE_FAILED
+  GATE_FAILED --> ARCHIVED
+  AWAITING_APPROVAL --> REJECTED
+  REJECTED --> ARCHIVED
+  GATE_FAILED --> SERVING_UNCHANGED
+  SERVING_UNCHANGED --> V2_REMAINS_CHAMPION
+  PROMOTED --> ROLLBACK_REQUESTED
+  ROLLBACK_REQUESTED --> PREVIOUS_CHAMPION_RESTORED
 ```
 
 ## Appendix catalogue

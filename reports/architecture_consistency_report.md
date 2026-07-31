@@ -9,6 +9,16 @@ The core architecture is coherent, but the documentation is not yet factually sa
 
 ## Verified consistency
 
+## Mermaid và generated exports
+
+- Final Mermaid source: `docs/AN_FINAL_ARCHITECTURE_DIAGRAMS.md`.
+- Đã kiểm tra và render thành công 8 Mermaid blocks bằng
+  `@mermaid-js/mermaid-cli@11.16.0`.
+- Generated outputs: `docs/diagrams/final/01.svg` đến `08.svg` và
+  `docs/diagrams/final/01.png` đến `08.png`.
+- Các export cũ vẫn được giữ ở các thư mục hiện hữu và đã được đánh dấu là
+  historical/superseded; không dùng chúng làm source of truth.
+
 | Area | Finding | Evidence |
 |---|---|---|
 | Data preparation | Spark typed ingestion, left join, chronological split and Parquet handover exist | `data/ieee_cis/pipeline/ieee_cis_preprocess.py` |
