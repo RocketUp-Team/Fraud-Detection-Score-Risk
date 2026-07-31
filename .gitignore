@@ -44,3 +44,4 @@ data/processed/candidates/*
 !data/processed/candidates/.gitkeep
 data/processed/**/spark-local/
 *._SUCCESS*
+.DS_Store
