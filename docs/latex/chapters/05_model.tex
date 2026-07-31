@@ -3,14 +3,7 @@
 
 \section{Artifact identity and terminology}
 
-This report separates four states that are otherwise easy to conflate. The
-historical V1/V2 comparison refers to earlier LightGBM artifacts and reports.
-The configured V2 software default is the version selected by serving
-configuration, not a promotion approval. The current official candidate is a
-CatBoost balanced package whose metadata also uses the version label
-\texttt{v2}; it is therefore called the \emph{current CatBoost candidate} in
-this chapter. Its promotion decision is \texttt{not\_promoted}, so this report
-does not claim that the candidate replaced the configured serving default.
+The project evaluates four model states: Historical V2 (LightGBM), Serving Default V2 (Configured champion), and Current Candidate (CatBoost Balanced, status: \texttt{not\_promoted}) (Table~\ref{tab:model-identifiers}).
 
 \begin{table}[H]
 \centering
@@ -18,7 +11,7 @@ does not claim that the candidate replaced the configured serving default.
 \label{tab:model-identifiers}
 \begin{tabular}{llll}
 \toprule
-Identifier & Model & Role & Status\\
+\textbf{Identifier} & \textbf{Model} & \textbf{Role} & \textbf{Status}\\
 \midrule
 Historical V2 & LightGBM & Historical artifact & Historical\\
 Serving default \texttt{v2} & LightGBM & Configured champion & Unchanged\\
@@ -29,43 +22,13 @@ Current candidate & CatBoost balanced & Challenger & Not promoted\\
 
 \section{Model-development protocol}
 
-The enhanced candidate workflow consumes the Spark/Parquet handover and
-executes the following ordered stages:
-
-\begin{enumerate}
-  \item validate the data contract and canonical feature order;
-  \item fit categorical mappings on training data only;
-  \item train a Logistic Regression baseline;
-  \item compare Logistic Regression, LightGBM, XGBoost, and CatBoost, including
-  balanced variants;
-  \item select and tune a candidate using the selection window;
-  \item fit an isotonic calibrator on the calibration window;
-  \item choose review and reject thresholds on the policy window;
-  \item freeze estimator, mappings, calibrator, and policy metadata;
-  \item evaluate the frozen package on holdout;
-  \item write candidate metadata, checksums, smoke evidence, and a promotion
-  decision.
-\end{enumerate}
-
-The feature loader removes \texttt{TransactionID}, \texttt{isFraud},
-\texttt{class\_weight}, \texttt{split\_name}, processing metadata, and
-\texttt{generated\_at} from the model vector. The canonical vector contains 68
-features, 61 numeric and 7 categorical, and includes \texttt{TransactionDT}.
-This prevents a previous contract failure in which the string
-\texttt{train\_weighted} entered the numeric training frame.
-
-The boundary must be stated precisely as: \textbf{distributed data preparation
-with single-node Python model training}. Spark writes Parquet; Python training
-converts model matrices to pandas. There is no evidence that LightGBM, XGBoost,
-or CatBoost is distributed over Spark workers. The end-to-end model development lifecycle, spanning validation, hyperparameter tuning, calibration, and policy selection, is depicted in Figure~\ref{fig:final-training-lifecycle}.
+Architecture operates via \textbf{distributed Spark data preparation with single-node Python estimator training}. Figure~\ref{fig:final-training-lifecycle} illustrates the end-to-end training lifecycle.
 
 \input{figures/final_training_lifecycle}
 
 \section{PySpark MLlib DecisionTree baseline}
 
-To satisfy BDA501 big-data machine-learning baseline requirements, the PySpark preprocessing module implements a PySpark MLlib \texttt{DecisionTreeClassifier} pipeline. The classifier evaluates the canonical \val{68}-feature vector across three dataset variants (\texttt{baseline\_tree}, \texttt{weighted\_tree}, and \texttt{undersampled\_tree}) with hyperparameters \texttt{maxDepth=8}, \texttt{maxBins=128}, and \texttt{minInstancesPerNode=50} \parencite{meng2016mllib}.
-
-Table~\ref{tab:mllib-decision-tree} records the reproducible metrics saved in the evaluation metrics report. This PySpark MLlib pipeline serves as a data-quality baseline and must not be confused with single-node Python gradient-boosting candidate comparisons (CatBoost, LightGBM, XGBoost).
+To satisfy BDA501 big-data ML baseline requirements, a PySpark MLlib \texttt{DecisionTreeClassifier} pipeline evaluates the \val{68}-feature vector across three dataset variants (Table~\ref{tab:mllib-decision-tree}).
 
 \begin{table}[H]
 \centering
@@ -89,36 +52,7 @@ Table~\ref{tab:mllib-decision-tree} records the reproducible metrics saved in th
 
 \section{Candidate models and selection}
 
-The baseline is Logistic Regression. The compared gradient-boosting families
-are LightGBM, XGBoost, and CatBoost. The current CatBoost candidate comparison selects
-\texttt{catboost\_\_balanced}; the candidate manifest identifies the final
-model as CatBoost trained on the balanced variant.
-
-\begin{table}[H]
-\centering
-\small
-\rowcolors{2}{ReportGray!25}{white}
-\caption{Current CatBoost candidate training evidence}
-\label{tab:v2-training-evidence}
-\begin{tabular}{ll}
-\toprule
-\textbf{Field} & \textbf{Value}\\
-\midrule
-Artifact version label & \texttt{v2}\\
-Selected model & CatBoost\\
-Training variant & \texttt{balanced}\\
-Feature count & \val{68}\\
-Selection window & \val{44,243} rows\\
-Calibration window & \val{22,122} rows\\
-Policy window & \val{22,121} rows\\
-Calibration method & Isotonic\\
-Processing version & \texttt{ieee-cis-preprocess-2.1.0}\\
-Feature schema & \texttt{ieee-cis-features-1.1.0}\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The saved comparison artifact records model-family and balanced-variant results. PR-AUC is the primary selection metric due to class imbalance; ROC-AUC is retained as a complementary ranking metric.
+Evaluation compares Logistic Regression, LightGBM, XGBoost, and CatBoost (Table~\ref{tab:model-family-comparison}). CatBoost Balanced achieved highest PR-AUC.
 
 \begin{table}[H]
 \centering
@@ -139,13 +73,9 @@ CatBoost & Balanced & \val{0.9070} & \val{0.5703} & Selected\\
 \end{tabular}
 \end{table}
 
-CatBoost Balanced was selected for achieving the highest selection-window PR-AUC.
-
-\section{Temporal development windows}
-
-The validation period is partitioned into selection, calibration, and policy windows. Model family and parameters are selected in the selection window, isotonic calibration fits in the calibration window, and decision thresholds fit in the policy window. Holdout remains isolated until final evaluation.
-
 \section{Current CatBoost candidate results}
+
+Table~\ref{tab:official-v2-metrics} records candidate performance across validation and holdout splits.
 
 \begin{table}[H]
 \centering
@@ -163,120 +93,35 @@ Holdout & \val{0.16} & \val{0.4266} & \val{0.8781} & \val{0.3820} & \val{0.5182}
 \end{tabular}
 \end{table}
 
-Figures~\ref{fig:final-candidate-validation-holdout}--\ref{fig:final-calibration-brier} summarize the candidate's holdout performance.
-
-\section{Calibration and threshold policy}
-
-The candidate uses isotonic probability calibration with threshold specifications:
-
-\begin{table}[H]
-\centering
-\small
-\rowcolors{2}{ReportGray!25}{white}
-\caption{Current candidate policy artifact}
-\label{tab:v2-policy}
-\begin{tabular}{lr}
-\toprule
-\textbf{Policy field} & \textbf{Value}\\
-\midrule
-Review threshold & \val{0.16}\\
-Reject threshold & \val{0.53}\\
-Minimum review precision & \val{0.30}\\
-Minimum reject precision & \val{0.60}\\
-Selected review precision & \val{0.3371}\\
-Selected reject precision & \val{0.7398}\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The backend Risk Scoring module maps probabilities to a \val{0}--\val{100} score, using fixed runtime bands:
-
-\begin{table}[H]
-\centering
-\small
-\rowcolors{2}{ReportGray!25}{white}
-\caption{Candidate policy versus backend runtime policy}
-\label{tab:policy-ownership}
-\begin{tabular}{llll}
-\toprule
-\textbf{Decision} & \textbf{Candidate policy} & \textbf{Backend runtime policy} & \textbf{Active authority}\\
-\midrule
-Review starts & \val{0.16} & \val{0.40} & Backend\\
-Reject starts & \val{0.53} & \val{0.80} & Backend\\
-\bottomrule
-\end{tabular}
-\end{table}
-
 \section{Packaging, checksum, and promotion}
 
-The candidate bundle packages joblib model weights, training metadata, calibrator, threshold config, metrics, manifest, promotion decision, and SHA-256 checksums.
+The candidate promotion gate evaluated \val{9} criteria (Table~\ref{tab:v2-gates}). Due to holdout PR-AUC degradation (\val{0.4266} vs target \val{0.4582}), the promotion decision remains \texttt{not\_promoted}.
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Current candidate promotion gate}
 \label{tab:v2-gates}
 \begin{tabular}{lcc}
 \toprule
-Gate & Result & Evidence\\
+\textbf{Gate} & \textbf{Result} & \textbf{Evidence}\\
 \midrule
-Holdout PR-AUC $\geq$ 0.4582 & Fail & 0.4266435\\
-Holdout ROC-AUC $\geq$ 0.8746 & Pass & 0.8780755\\
-Review precision $\geq$ 0.30 & Pass & 0.3820038\\
+Holdout PR-AUC $\geq$ 0.4582 & Fail & \val{0.4266}\\
+Holdout ROC-AUC $\geq$ 0.8746 & Pass & \val{0.8781}\\
+Review precision $\geq$ 0.30 & Pass & \val{0.3820}\\
 Calibration non-regression & Pass & Brier decreased\\
 Artifact checksum & Pass & SHA-256 match\\
-Artifact-load smoke & Pass & recorded in manifest\\
-Data contract verification & Pass & ready, 94 checks\\
+Artifact-load smoke & Pass & Manifest verified\\
+Data contract verification & Pass & \val{94} checks ready\\
 Version match & Pass & \texttt{v2}\\
 Git clean & Fail & \texttt{git\_dirty=true}\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The resulting decision is \texttt{not\_promoted}, with
-\texttt{serving\_version\_unchanged=true}. The current candidate therefore did
-not replace the configured V2 software default. This is a governance outcome,
-not a claim that the candidate became V2 or that the historical LightGBM V2
-artifact is identical to the current CatBoost candidate.
-
 \input{figures/final_promotion_state}
 
-\section{Request-time scoring and explanations}
+\section{Request-time scoring}
 
-The scorer loads one artifact into a process cache and maps raw categorical
-strings using training-derived dictionaries. It aligns columns to the canonical
-order, converts missing values to the configured sentinel, calls
-\texttt{predict\_proba}, applies an available calibrator, and returns the top
-five absolute TreeSHAP contributions for supported tree models. SHAP is a local
-model attribution and not a causal explanation. When calibration changes the
-displayed probability, the current SHAP values still describe the raw model
-output unless a separate calibrated explanation method is used.
-
-The response distinguishes \texttt{full\_feature} from
-\texttt{partial\_demo}. Full-feature scoring requires the canonical engineered
-vector. Partial-demo scoring defaults missing fields and is useful for UI
-continuity, but it cannot recreate card, email, and device histories from a
-small request. It must not be described as real-time full-feature scoring.
-
-\section{Serving configuration and MLflow}
-
-Configuration defaults \texttt{FRAUD\_MODEL\_SERVING\_VERSION=v2}, while the
-current candidate decision remains \texttt{not\_promoted}. The safe wording is
-\textquotedblleft v2 configured software default\textquotedblright, not
-\textquotedblleft production-promoted model\textquotedblright. Setting
-\texttt{FRAUD\_MODEL\_SERVING\_VERSION=v1} remains the rollback/configuration
-path, subject to artifact compatibility.
-
-MLflow is implemented as local experiment tracking and lineage using SQLite
-and local artifact storage. The repository does not evidence a central Model
-Registry, registered model versions, stage transitions, or an automatic
-promotion authority. Candidate packaging and promotion JSON are evidence files,
-not a serving registry.
-
-\section{Model-readiness decision}
-
-The current CatBoost candidate is suitable for continued academic evaluation and
-manual review of its evidence. It should not be described as a production model
-until a frozen application smoke loads the expected artifact without fallback,
-the runtime policy is explicitly approved and aligned with the candidate, a
-durable registry/checksum handover exists, and online historical feature parity
-is addressed.
+Real-time scoring maps categoricals via persisted indexers, applies isotonic calibration, and computes TreeSHAP feature attributions \parencite{lundberg2017shap}. Responses support \texttt{full\_feature} and \texttt{partial\_demo} modes.

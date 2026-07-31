@@ -3,37 +3,15 @@
 
 \section{Integrated serving architecture}
 
-The application is an \textbf{in-process model-serving modular monolith}.
-FastAPI imports the scoring package directly, persists scored transactions and
-review outcomes in PostgreSQL or SQLite, and exposes them to a React dashboard.
-This removes a network model-service boundary and is suitable for the
-demonstration. The tradeoff is coupling between API startup, model dependencies,
-image size, and scaling.
+The application operates as an \textbf{in-process model-serving modular monolith}. FastAPI imports the scoring package directly, persisting scored transactions in PostgreSQL/SQLite and serving a React dashboard.
 
 \section{Scoring and review workflow}
 
-The backend validates requests, loads the configured scoring artifact, returns
-probability, risk score, fixed risk band, automatic decision, model metadata,
-and optional TreeSHAP values. Transactions retain the raw feature payload,
-score, timestamp, and model version. A separate review record stores reviewer
-status, fraud/legitimate label, and notes, so automatic decisions remain
-distinct from human outcomes.
+The backend returns probability, risk score (\val{0}--\val{100}), risk band, decision, and TreeSHAP attributions. Scored transactions and human analyst reviews are stored as distinct database entities.
 
-The HTTP contract covers scoring, transaction exploration, CSV import, processed
-dataset loading, background jobs, and review. Endpoint-level paths and response
-fields are preserved in Appendix~\ref{app:api} and in the repository API
-contract. The main architecture issue is feature availability: full-feature
-scoring requires the canonical engineered vector, while partial-demo scoring
-defaults missing fields. The latter cannot recreate card, email, or device
-history from a small request and is not production-equivalent scoring.
+\section{Frontend interface}
 
-\section{Frontend integration}
-
-The React interface presents transaction lists, score details, risk bands,
-SHAP values, review actions, imports, and partial scoring. Mock responses can
-support UI development, but they are not model evidence. The interface uses
-text and numeric alternatives to colour and displays an explicit unavailable
-state when SHAP is absent. Figure~\ref{fig:ui-overview-1} and Figure~\ref{fig:ui-overview-2} display the operational user interface components of the fraud detection system.
+Figures~\ref{fig:ui-overview-1}--\ref{fig:ui-overview-2} present the real operational dashboard and analyst review workflow.
 
 \begin{figure}[H]
   \centering
@@ -75,19 +53,4 @@ state when SHAP is absent. Figure~\ref{fig:ui-overview-1} and Figure~\ref{fig:ui
 
 \section{Deployment boundary}
 
-Docker Compose separates preprocessing, training, and application profiles.
-The backend receives processed Parquet through a read-only mount and installs
-the model package as a path dependency. Spark workers support distributed data
-preparation; estimator fitting remains single-node after the Parquet-to-pandas
-boundary. The deployment diagram is retained in Appendix~\ref{app:deployment}
-because it is implementation-level detail rather than a main architecture
-decision.
-
-\section{Operational limitations}
-
-The application currently has fail-open heuristic fallback, in-memory job
-state, synchronous CSV import, coupled backend/model dependencies, no
-authentication or audit event log, and no automated browser test suite. These
-limitations are consolidated with data and governance gaps in
-Chapter~\ref{chap:validation}; they are not repeated as separate readiness
-claims throughout the thesis.
+Docker Compose orchestrates preprocessing, training, backend, and React UI profiles, mounting processed Parquet artifacts into the backend container.

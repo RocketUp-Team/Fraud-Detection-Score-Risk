@@ -3,7 +3,7 @@
 
 \section{Source validation and typed ingestion}
 
-The raw inventory contains four required IEEE-CIS files totaling \val{1.29~GB}. The pipeline validates discovery, file names, sizes, headers, and schemas prior to Spark execution.
+The raw IEEE-CIS dataset contains \val{4} CSV files totaling \val{1.29~GB} (Table~\ref{tab:source-files}). The Spark pipeline applies explicit schemas and file discovery checks.
 
 \begin{table}[H]
 \centering
@@ -23,11 +23,9 @@ The raw inventory contains four required IEEE-CIS files totaling \val{1.29~GB}. 
 \end{tabularx}
 \end{table}
 
-Explicit Spark schemas prevent type inference discrepancies and ensure measurable conversion failures. Identity column names are normalized prior to joining.
-
 \section{Join integrity}
 
-The transaction table serves as row authority, joined with identity via a left join on \texttt{TransactionID}. Table~\ref{tab:join-audit} confirms row count preservation.
+Row authority is preserved via a LEFT JOIN on \texttt{TransactionID} (Table~\ref{tab:join-audit}).
 
 \begin{table}[H]
 \centering
@@ -45,21 +43,15 @@ Test & \val{506,691} & \val{141,907} & \val{364,784} & \val{0}\\
 \end{tabular}
 \end{table}
 
-Missing identity records are expected; presence flags preserve information without row loss.
-
-\section{Exploratory analysis and quality controls}
-
-The pipeline generates source inventory, key audits, duplicate records, missingness profiles, class distributions, and outlier reports. These reports are strictly descriptive and non-causal.
-
 \section{Leakage-controlled transformation order}
 
-To prevent data leakage, all learned transformations and aggregations fit strictly on training partitions and apply forward to validation and holdout sets. Figure~\ref{fig:final-detailed-pipeline} depicts stage-by-stage transformations and output contracts.
+Transformations fit strictly on training partitions and apply forward to validation and holdout. Figure~\ref{fig:final-detailed-pipeline} details the execution pipeline.
 
 \input{figures/final_detailed_pipeline}
 
-Sorting by \texttt{TransactionDT} creates forward temporal validation, reflecting real-world chronological scoring.
-
 \section{Chronological split}
+
+Sorting by \texttt{TransactionDT} creates non-overlapping chronological splits (Table~\ref{tab:chronological-splits}).
 
 \begin{table}[H]
 \centering
@@ -78,33 +70,9 @@ Holdout & \val{89,098} & \val{3,105} & \val{3.4849\%} & \val{13,136,627}--\val{1
 \end{tabular}
 \end{table}
 
-The verifier confirms zero identifier overlap between splits and stable fraud prevalence across chronological windows.
+\section{Feature engineering \& class balance}
 
-\section{Feature engineering}
-
-\subsection{Time features}
-Time features capture transaction day, week, hour, day-of-week, age, and night flags. Raw \texttt{TransactionDT} is retained in canonical feature order.
-
-\subsection{Amount features}
-Amount features include raw value, logarithm, capped value, decimal part, amount band, and card history deviations. Outlier thresholds fit on training only.
-
-\subsection{Missingness and presence}
-Missingness counts/ratios and presence flags cover identity, device, email, distance, address, and domain presence.
-
-\subsection{Anonymized behavior fields}
-Selected \texttt{C1--C14}, \texttt{D1--D15}, and distance attributes are retained as anonymized behavioral indicators.
-
-\subsection{Historical entity features}
-Card, email, and device keys provide prior transaction counts, amounts, standard deviations, and recency, fitted strictly from training.
-
-\subsection{Categorical features}
-Seven categorical fields (\texttt{ProductCD}, \texttt{card4}, \texttt{card6}, \texttt{DeviceType}, \texttt{device\_family}, \texttt{M4}, \texttt{amount\_band}) use training-fitted string indexers serialized with the model.
-
-\section{Missing-value and class-imbalance strategies}
-
-Numeric medians and categorical missing policies are persisted. Serving uses numeric sentinels compatible with tree models.
-
-Primary training uses class weights across all \val{412,956} rows. A secondary set undersamples legitimate cases:
+The canonical \val{68}-feature vector includes Time, Amount, Missingness, Anonymized behavior (\texttt{C1--C14}, \texttt{D1--D15}), Historical entity aggregates, and Categoricals.
 
 \begin{table}[H]
 \centering
@@ -125,33 +93,10 @@ Primary training uses class weights across all \val{412,956} rows. A secondary s
 \end{tabular}
 \end{table}
 
-Validation and holdout prevalence remains untouched to preserve precision and calibration evaluation integrity.
-
-\section{Output contract}
-
-The pipeline exports curated Parquet splits: \texttt{train\_original}, \texttt{train\_weighted}, \texttt{train\_balanced}, \texttt{validation}, \texttt{holdout}, and \texttt{kaggle\_test}.
-
 \section{Verification result}
 
-The automated verifier passes \val{94} validation checks with zero failures, confirming dataset integrity, schema hashes, and split isolation, returning status:
+The automated verifier passes \val{94} checks with zero failures, confirming handoff readiness:
 
 \begin{lstlisting}
 ready_for_downstream_training
 \end{lstlisting}
-
-An older persisted manifest/snapshot used \texttt{verification\_pending}; it is
-treated as historical evidence and must not be mixed with the official-run
-report when generating final metrics.
-
-\section{Data limitations}
-
-\begin{itemize}
-  \item Feature semantics are partly anonymized.
-  \item Entity aggregates are batch features; a production online path is not
-  implemented.
-  \item The training matrix is collected to pandas before estimator fitting.
-  \item There is one chronological validation window rather than temporal
-  cross-validation.
-  \item Native Windows is not the canonical full Parquet execution path.
-  \item The local processed tree is large and intentionally excluded from Git.
-\end{itemize}
