@@ -1,24 +1,6 @@
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  node distance=5mm,
-  layer/.style={draw=ReportInk, rounded corners=2pt, align=center,
-    minimum height=8mm, text width=105mm, fill=ReportBlue!8},
-  physical/.style={layer, fill=ReportBlue!15},
-  handover/.style={layer, fill=ReportGold!18},
-  arrow/.style={-{Latex[length=2mm]}, thick}
-]
-\node[layer] (source) {Source Layer — logical external IEEE-CIS CSV};
-\node[physical, below=of source] (raw) {Raw Data Layer — \texttt{data/data/ieee-fraud-detection}};
-\node[layer, below=of raw] (validation) {Validation Layer — schema, key, and data-quality checks};
-\node[physical, below=of validation] (curated) {Curated Data Layer — joined and cleaned transaction-grain data};
-\node[physical, below=of curated] (temporal) {Temporal Split Layer — chronological train, validation, and holdout membership};
-\node[physical, below=of temporal] (feature) {Feature Layer — batch feature-store tables and engineered features};
-\node[physical, below=of feature] (modelready) {Model-Ready Layer — six Parquet datasets};
-\node[handover, below=of modelready] (handover) {Handover / Contract Layer — manifest, schema, verifier, and preprocessing artifacts};
-\foreach \a/\b in {source/raw,raw/validation,validation/curated,curated/temporal,temporal/feature,feature/modelready,modelready/handover}
-  \draw[arrow] (\a) -- (\b);
-\end{tikzpicture}
+\includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{../../docs/diagrams/final/Layered data architecture.png}
 \caption[Layered data architecture]{Layered data architecture (AS-BUILT). Curated data and temporal split membership are separate layers; preprocessing artifacts belong to the handover/contract layer rather than the feature layer.}
 \label{fig:final-layered-data}
 \end{figure}

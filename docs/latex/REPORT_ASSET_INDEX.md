@@ -18,17 +18,17 @@ Mục đích: đối soát nhanh các hình, sơ đồ, source LaTeX, pipeline v
 | Figure | Chapter | LaTeX source | Rendered asset / source evidence |
 |---|---:|---|---|
 | Overall system architecture | 3 | `docs/latex/figures/final_overall_system.tex` | `docs/diagrams/final/overall-system-architecture.png` |
-| Layered data architecture | 3 | `docs/latex/figures/final_layered_data.tex` | TikZ trong thesis; Mermaid source: `docs/AN_FINAL_ARCHITECTURE_DIAGRAMS.md` |
-| Data, feature, evaluation contracts | 3 | `docs/latex/figures/final_contracts.tex` | TikZ trong thesis; Mermaid source: `docs/AN_FINAL_ARCHITECTURE_DIAGRAMS.md` |
-| Detailed data processing pipeline | 4 | `docs/latex/figures/final_detailed_pipeline.tex` | `docs/diagrams/final/detailed-data-processing-pipeline.png` |
+| Layered data architecture | 3 | `docs/latex/figures/final_layered_data.tex` | `docs/diagrams/final/Layered data architecture.png` |
+| Data, feature, evaluation contracts | 3 | `docs/latex/figures/final_contracts.tex` | Corrected TikZ in thesis; PNG retained as visual reference pending semantic correction |
+| Detailed data processing pipeline | 4 | `docs/latex/figures/final_detailed_pipeline.tex` | Corrected TikZ with canonical dataset names; PNG retained as visual reference pending semantic correction |
 | Leakage-controlled transformation flow | 4 | `docs/latex/figures/final_leakage_flow.tex` | `docs/diagrams/final/leakage-controlled-transformation-flow.png` |
-| Model training lifecycle | 5 | `docs/latex/figures/final_training_lifecycle.tex` | `docs/diagrams/final/model-training-lifecycle.png` |
+| Model training lifecycle | 5 | `docs/latex/figures/final_training_lifecycle.tex` | `docs/diagrams/final/End-to-End-Model-Training-Lifecycle.png` |
 | Temporal development windows | 5 | `docs/latex/figures/final_temporal_windows.tex` | `docs/diagrams/final/temporal-development-windows.png` |
 | Promotion state machine | 5 | `docs/latex/figures/final_promotion_state.tex` | `docs/diagrams/final/promotion-state-machine.png` |
 
 Các Mermaid/SVG/PNG exports của tám sơ đồ nằm tại `docs/diagrams/final/`. Source of truth của bộ diagram là `docs/AN_FINAL_ARCHITECTURE_DIAGRAMS.md`.
 
-## 3. Năm chart trong phần thân report
+## 3. Charts trong phần thân report
 
 | Chart | Chapter | LaTeX source | Image |
 |---|---:|---|---|
@@ -36,7 +36,18 @@ Các Mermaid/SVG/PNG exports của tám sơ đồ nằm tại `docs/diagrams/fin
 | Fraud rate by ProductCD | 7 | `docs/latex/figures/final_result_charts.tex` | `docs/figures/final_report/fraud-rate-by-product.png` |
 | Fraud rate by identity presence | 7 | `docs/latex/figures/final_result_charts.tex` | `docs/figures/final_report/fraud-rate-by-identity-presence.png` |
 | Fraud rate by transaction hour | 7 | `docs/latex/figures/final_result_charts.tex` | `docs/figures/final_report/fraud-rate-by-transaction-hour.png` |
-| V1/V2 validation performance | 7 | `docs/latex/figures/final_result_charts.tex` | `docs/figures/final_report/v1-v2-validation-performance.png` |
+
+Các charts evidence mới trong phần model:
+
+| Chart | Chapter | Image |
+|---|---:|---|
+| Model-family comparison | 5 | `docs/figures/final_report/model-family-comparison.png` |
+| Current candidate validation vs holdout | 5 | `docs/figures/final_report/candidate-validation-holdout.png` |
+| Holdout confusion matrix | 5 | `docs/figures/final_report/holdout-confusion-matrix.png` |
+| Raw vs isotonic Brier score | 5 | `docs/figures/final_report/calibration-brier.png` |
+
+Historical V1/V2 comparison is now placed in the appendix and is not used as
+the current candidate performance figure.
 
 Chart generation script: `scripts/build_final_report_figures.py`.
 

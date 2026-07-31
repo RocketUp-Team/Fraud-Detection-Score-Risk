@@ -124,6 +124,73 @@ def model_performance() -> None:
     save(fig, "v1-v2-validation-performance")
 
 
+def model_family_comparison() -> None:
+    """Plot the current selection-window comparison from the saved artifact."""
+    comparison = json.loads((ARTIFACTS / "v2/model_comparison_v2.json").read_text(encoding="utf-8"))
+    keys = ["logreg", "lightgbm", "xgboost", "catboost", "catboost__balanced"]
+    labels = ["LogReg", "LightGBM", "XGBoost", "CatBoost", "CatBoost\nbalanced"]
+    values = [comparison["results"][key]["pr_auc"] for key in keys]
+    colors = ["#64748b", "#2563eb", "#0f766e", "#7c3aed", "#d97706"]
+    fig, ax = plt.subplots(figsize=(8.0, 4.5))
+    bars = ax.bar(labels, values, color=colors, width=0.62)
+    style(ax, "Selection-window PR-AUC")
+    ax.set_ylim(0, max(values) * 1.22)
+    ax.set_title("Model-family comparison", loc="left", weight="bold")
+    for bar, value in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2, value, f"{value:.4f}", ha="center", va="bottom", fontsize=9)
+    ax.text(0, -0.23, "Source: model/artifacts/v2/model_comparison_v2.json; PR-AUC is the primary selection metric.", transform=ax.transAxes, fontsize=8.5, color="#5b6573")
+    save(fig, "model-family-comparison")
+
+
+def candidate_validation_holdout() -> None:
+    validation = read_csv(ROOT / "reports/official-run/validation_metrics_v2.csv")[0]
+    holdout = read_csv(ROOT / "reports/official-run/holdout_metrics_v2.csv")[0]
+    metrics = ["roc_auc", "pr_auc", "precision", "recall"]
+    labels = ["ROC-AUC", "PR-AUC", "Precision", "Recall"]
+    v_values = [float(validation[key]) for key in metrics]
+    h_values = [float(holdout[key]) for key in metrics]
+    positions = list(range(len(metrics)))
+    width = 0.36
+    fig, ax = plt.subplots(figsize=(8.0, 4.5))
+    ax.bar([p - width / 2 for p in positions], v_values, width, label="Validation", color="#2563eb")
+    ax.bar([p + width / 2 for p in positions], h_values, width, label="Holdout", color="#d97706")
+    style(ax, "Metric value")
+    ax.set_ylim(0, 1)
+    ax.set_xticks(positions, labels)
+    ax.set_title("Current CatBoost candidate: validation and holdout", loc="left", weight="bold")
+    ax.legend(frameon=False, ncols=2, loc="upper right")
+    save(fig, "candidate-validation-holdout")
+
+
+def holdout_confusion_matrix() -> None:
+    row = read_csv(ROOT / "reports/official-run/holdout_metrics_v2.csv")[0]
+    matrix = [[int(row["tn"]), int(row["fp"])], [int(row["fn"]), int(row["tp"])]]
+    fig, ax = plt.subplots(figsize=(6.2, 4.8))
+    image = ax.imshow(matrix, cmap="Blues")
+    ax.set_xticks([0, 1], ["Predicted\nLegitimate", "Predicted\nFraud"])
+    ax.set_yticks([0, 1], ["Actual\nLegitimate", "Actual\nFraud"])
+    ax.set_title("Holdout confusion matrix", loc="left", weight="bold")
+    for i in range(2):
+        for j in range(2):
+            ax.text(j, i, f"{matrix[i][j]:,}", ha="center", va="center", fontsize=14, color="#0f172a")
+    ax.set_xlabel("Threshold: 0.16")
+    fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04, label="Transactions")
+    save(fig, "holdout-confusion-matrix")
+
+
+def calibration_brier() -> None:
+    row = read_csv(ROOT / "reports/official-run/holdout_metrics_v2.csv")[0]
+    labels = ["Raw", "Isotonic\ncalibrated"]
+    values = [float(row["raw_brier_score"]), float(row["brier_score"])]
+    fig, ax = plt.subplots(figsize=(6.4, 4.0))
+    bars = ax.bar(labels, values, color=["#64748b", "#0f766e"], width=0.58)
+    style(ax, "Brier score (lower is better)")
+    ax.set_title("Probability calibration", loc="left", weight="bold")
+    for bar, value in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2, value, f"{value:.4f}", ha="center", va="bottom")
+    save(fig, "calibration-brier")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     class_distribution()
@@ -131,6 +198,10 @@ def main() -> None:
     identity_rate()
     hour_rate()
     model_performance()
+    model_family_comparison()
+    candidate_validation_holdout()
+    holdout_confusion_matrix()
+    calibration_brier()
 
 
 if __name__ == "__main__":

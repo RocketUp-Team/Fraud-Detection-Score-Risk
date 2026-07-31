@@ -12,6 +12,21 @@ CatBoost balanced package whose metadata also uses the version label
 this chapter. Its promotion decision is \texttt{not\_promoted}, so this report
 does not claim that the candidate replaced the configured serving default.
 
+\begin{table}[H]
+\centering
+\caption{Model identifiers and runtime roles}
+\label{tab:model-identifiers}
+\begin{tabular}{llll}
+\toprule
+Identifier & Model & Role & Status\\
+\midrule
+Historical V2 & LightGBM & Historical artifact & Historical\\
+Serving default \texttt{v2} & LightGBM & Configured champion & Unchanged\\
+Current candidate & CatBoost balanced & Challenger & Not promoted\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{Model-development protocol}
 
 The enhanced candidate workflow consumes the Spark/Parquet handover and
@@ -81,6 +96,26 @@ rare. ROC-AUC is retained as a complementary ranking metric. Accuracy is not
 used as a selection authority. Validation comparison is descriptive evidence;
 it does not establish a business operating point.
 
+\begin{table}[H]
+\centering
+\caption{Current model-family selection evidence}
+\label{tab:model-family-comparison}
+\begin{tabular}{llrrl}
+\toprule
+Model & Training variant & ROC-AUC & PR-AUC & Decision\\
+\midrule
+Logistic Regression & Weighted & 0.8219 & 0.3090 & Baseline\\
+LightGBM & Weighted & 0.9116 & 0.5682 & Compared\\
+XGBoost & Weighted & 0.8879 & 0.5529 & Compared\\
+CatBoost & Weighted & 0.8757 & 0.5245 & Compared\\
+CatBoost & Balanced & 0.9070 & 0.5703 & Selected\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+CatBoost Balanced was selected because it achieved the highest selection-window
+PR-AUC, which was the primary metric for this imbalanced dataset.
+
 \section{Temporal development windows}
 
 The validation period is divided into selection, calibration, and policy
@@ -113,10 +148,9 @@ Holdout & 0.16 & 0.4266435 & 0.8780755 & 0.3820038 & 0.5181965 & 0.0248326\\
 \end{tabular}
 \end{table}
 
-The holdout confusion counts are TN 83,390, FP 2,603, FN 1,496, and TP 1,609.
-The raw holdout Brier score is 0.0495279 and the calibrated Brier score is
-0.0248326. These numbers are artifact-reported from
-\texttt{reports/official-run/validation\_metrics\_v2.csv},
+Figures~\ref{fig:final-candidate-validation-holdout}--\ref{fig:final-calibration-brier}
+summarize the candidate's holdout evidence. All values are artifact-reported
+from \texttt{reports/official-run/validation\_metrics\_v2.csv},
 \texttt{holdout\_metrics\_v2.csv}, and
 \texttt{training\_metadata\_v2.json}.
 
@@ -157,6 +191,25 @@ However, the backend runtime decision authority is
 reject. The backend does not load the candidate review/reject thresholds as its
 decision policy. This is duplicated ownership, not evidence that the candidate
 policy is active in serving.
+
+\begin{table}[H]
+\centering
+\caption{Candidate policy versus backend runtime policy}
+\label{tab:policy-ownership}
+\begin{tabular}{llll}
+\toprule
+Decision & Candidate policy & Backend runtime policy & Active authority\\
+\midrule
+Review starts & 0.16 & 0.40 & Backend\\
+Reject starts & 0.53 & 0.80 & Backend\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Candidate thresholds are packaged as model evidence but are not currently the
+backend runtime decision authority. Holdout operating-point evidence is
+available for the review threshold of 0.16; reject-threshold holdout evidence
+was not available in the inspected artifacts.
 
 \section{Packaging, checksum, and promotion}
 

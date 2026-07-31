@@ -28,7 +28,28 @@
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/v1-v2-validation-performance.png}
-\caption[V1 and V2 validation performance]{V1 and V2 validation performance (HISTORICAL/ARTIFACT-REPORTED). The comparison is retained as historical evidence and is not treated as a controlled algorithm-only ablation.}
-\label{fig:final-v1-v2}
+\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/model-family-comparison.png}
+\caption[Model-family comparison]{Model-family comparison (ARTIFACT-REPORTED). CatBoost balanced has the highest selection-window PR-AUC in the saved comparison artifact.}
+\label{fig:final-model-family}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/candidate-validation-holdout.png}
+\caption[Current CatBoost candidate validation and holdout performance]{Current CatBoost candidate validation and holdout performance (ARTIFACT-REPORTED). Holdout ranking performance is lower than validation performance, with the largest decrease in PR-AUC.}
+\label{fig:final-candidate-validation-holdout}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.70\textwidth]{../../docs/figures/final_report/holdout-confusion-matrix.png}
+\caption[Holdout confusion matrix]{Holdout confusion matrix at the review threshold of 0.16 (ARTIFACT-REPORTED). The candidate detects 1,609 fraud cases and misses 1,496, while 2,603 legitimate transactions are flagged as positive.}
+\label{fig:final-holdout-confusion}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.70\textwidth]{../../docs/figures/final_report/calibration-brier.png}
+\caption[Probability calibration]{Raw versus isotonic-calibrated holdout Brier score (ARTIFACT-REPORTED). The lower calibrated score indicates improved probability calibration.}
+\label{fig:final-calibration-brier}
 \end{figure}
