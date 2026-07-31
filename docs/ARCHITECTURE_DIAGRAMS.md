@@ -455,6 +455,7 @@ flowchart TB
 
     CONFIG --> LOAD
     ARTIFACT --> LOAD
+    LOAD -->|"feature_columns"| CONTRACT
     EVIDENCE -.->|"champion selection evidence"| ARTIFACT
     ROLLBACK -.->|"operator override only"| LOAD
     INPUT --> CONTRACT --> ENCODE --> PREDICT

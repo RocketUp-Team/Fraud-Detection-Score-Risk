@@ -1,6 +1,6 @@
 # Architecture Diagram Exports
 
-Các file SVG trong thư mục này được sinh từ tám Mermaid blocks tại
+Các file SVG trong thư mục này được sinh từ chín Mermaid blocks tại
 [`../ARCHITECTURE_DIAGRAMS.md`](../ARCHITECTURE_DIAGRAMS.md).
 
 Renderer chuẩn:
@@ -29,4 +29,4 @@ Xem toàn bộ ảnh theo thứ tự đọc tại [`IMAGE_GALLERY.md`](IMAGE_GAL
 | `09-best-model-v2-serving.svg` | Best model V2 serving architecture |
 
 Mermaid source là source of truth. Không chỉnh sửa SVG bằng tay; khi source
-đổi, render lại toàn bộ tám exports và review layout trước khi commit.
+đổi, render lại toàn bộ chín exports và review layout trước khi commit.
