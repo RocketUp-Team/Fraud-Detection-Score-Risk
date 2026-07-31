@@ -73,6 +73,17 @@ POST & \path|/jobs/{id}/cancel| & Updated job\\
 The normative, implementation-aligned contract is maintained in
 \systempath{docs/API_CONTRACT.md}.
 
+\chapter{Deployment and Implementation Diagrams}
+\label{app:deployment}
+
+\section{Application deployment}
+
+\input{figures/deployment}
+
+The application diagram is implementation-level evidence for the modular
+monolith. Spark preprocessing and Python model training are separate profiles;
+the diagram does not imply distributed estimator fitting.
+
 \chapter{Feature and Risk Contracts}
 \label{app:contracts}
 

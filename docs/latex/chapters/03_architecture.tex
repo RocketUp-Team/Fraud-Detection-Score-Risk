@@ -57,7 +57,7 @@ QR-10 & Production monitoring and service objectives. & Not implemented\\
 
 \section{Integrated architecture}
 
-Figure~\ref{fig:system-architecture} shows the implemented batch and serving
+Figure~\ref{fig:final-overall-system} shows the implemented batch and serving
 layers. The central contract is the verified model-ready dataset plus its
 feature and schema metadata.
 
@@ -151,7 +151,7 @@ The database and processed-data mount are trusted local resources.
 
 Joblib model artifacts are also a trust boundary because Python deserialization
 can execute code. Only artifacts produced by a controlled training pipeline
-should be loaded. The official V2 candidate stores SHA-256 checksums, but the
+should be loaded. The current CatBoost candidate stores SHA-256 checksums, but the
 repository does not yet provide an external immutable registry that is the
 runtime serving authority.
 

@@ -1,111 +1,57 @@
 \chapter{Conclusion and Future Work}
 \label{chap:conclusion}
 
-\section{Answers to the research questions}
+\section{Conclusion}
 
-\subsection{RQ1: leakage-controlled data handoff}
+The thesis demonstrates a coherent academic workflow from IEEE-CIS source files
+to Spark-processed Parquet, a versioned feature contract, Python model
+training, artifact-based evaluation, and an integrated FastAPI/React scoring
+demonstration. The main technical contribution is the separation of
+distributed data preparation from single-node estimator fitting, together with
+chronological leakage controls and a machine-checked handover.
 
-The project produces chronological, non-overlapping model-ready splits and
-persists the transformation artifacts needed by downstream training. The saved
-verifier reports 94 passed checks and no failures in the current official run.
-The official report is ready for downstream training; an older manifest/facts
-snapshot used \texttt{verification\_pending} and is treated as historical.
+The current CatBoost balanced candidate reports validation ROC-AUC 0.9081210
+and PR-AUC 0.5805993, with holdout ROC-AUC 0.8780755 and PR-AUC 0.4266435.
+These values are artifact-reported. Its isotonic calibrator, policy thresholds,
+checksums, and promotion evidence are packaged, but the decision is
+\texttt{not\_promoted}. The configured V2 software default therefore remains
+unchanged. This wording deliberately distinguishes the current CatBoost
+candidate from historical LightGBM V1/V2 reports and from serving approval.
 
-\subsection{RQ2: model comparison}
+\section{Answers to the engineering questions}
 
-The current official V2 comparison selects CatBoost on the balanced training
-variant. Its validation ROC-AUC is 0.9081210 and PR-AUC is 0.5805993; holdout
-ROC-AUC is 0.8780755 and PR-AUC is 0.4266435. The package includes isotonic
-calibration, thresholds, checksums, and smoke evidence, but the promotion gate
-returns \texttt{not\_promoted} because holdout PR-AUC is below the 0.4582
-reference and the Git state is dirty. V2 remains the configured software
-default; this is not a production approval claim.
+The data plane is technically coherent for the BDA501 objective: typed Spark
+ingestion, transaction-grain-preserving left joins, chronological splits,
+train-only transformations, point-in-time histories, and Parquet contracts are
+implemented or evidenced by saved artifacts. The model plane provides baseline
+and family comparison, selection/calibration/policy windows, holdout evaluation,
+candidate packaging, and promotion-gate evidence. The serving plane proves
+integrated scoring and review interaction, but not online reconstruction of
+historical features.
 
-\subsection{RQ3: Spark-free serving and explanations}
+The main limitations are offline--online feature mismatch, duplicated policy
+ownership, local-only lineage, single-node training, fail-open fallback, and
+missing security and monitoring controls. These are architecture boundaries,
+not claims that another estimator would automatically resolve them.
 
-The model package serializes categorical mappings and feature order so FastAPI
-can score without Spark. Supported tree artifacts return local SHAP
-contributions. This design successfully separates batch feature preparation
-from request-time inference, subject to the availability of the same engineered
-features in a real online environment.
+\section{Prioritized future work}
 
-\subsection{RQ4: production-readiness gaps}
-
-The principal gaps are:
-
-\begin{itemize}
-  \item local-only experiment history without a central registry/stage
-  authority;
-  \item candidate calibration and thresholds are not the served backend policy;
-  \item fail-open heuristic fallback;
-  \item no authentication, durable jobs, or migrations;
-  \item no drift/latency/service monitoring;
-  \item manual client contract synchronization;
-  \item split-count snapshot mismatch and an incomplete stored full-stack run;
-  \item uneven CI and frontend test coverage.
-\end{itemize}
-
-\section{Technical contributions}
-
-The system demonstrates a complete flow from multi-gigabyte source data to a
-human review decision:
+Future work should proceed in this order:
 
 \begin{enumerate}
-  \item Spark performs typed ingestion, audits, EDA, chronological splitting,
-  and leakage-controlled feature engineering.
-  \item Explicit contracts make the data--model handoff inspectable.
-  \item Multiple classifiers are compared under an imbalanced metric.
-  \item The selected estimator is packaged with categorical mappings and SHAP.
-  \item FastAPI, SQLAlchemy, and React implement an explainable review workflow.
-  \item Docker Compose provides local application and training profiles.
+  \item freeze a reproducible candidate, checksum, image, data snapshot, and
+  serving smoke without fallback;
+  \item separate the approved model bundle from a versioned policy bundle and
+  make runtime policy ownership explicit;
+  \item implement an online historical-feature path or restrict the API to
+  demonstrably complete feature vectors;
+  \item add durable registry, audit, readiness, monitoring, security, and job
+  lifecycle controls;
+  \item evaluate later candidates with temporal cross-validation and new
+  candidate identities whenever holdout evidence has already been viewed.
 \end{enumerate}
 
-\section{Immediate future work}
-
-The first release-hardening milestone should not train a new model. It should
-make V2 independently reproducible and observable:
-
-\begin{enumerate}
-  \item complete dependency locking and a frozen container smoke;
-  \item record model checksum, image digest, data/schema versions, MLflow run,
-  and promotion decision in a durable registry;
-  \item reproduce the official V2 application smoke and operating evidence on
-  independent windows;
-  \item make fallback an explicit demo mode and enforce readiness;
-  \item synchronize/generated API client types and expand CI.
-\end{enumerate}
-
-\section{Model-development future work}
-
-After reproducibility:
-
-\begin{itemize}
-  \item perform temporal cross-validation;
-  \item separate model selection, calibration, threshold selection, and holdout;
-  \item run feature-group ablations;
-  \item evaluate paired V1/V2 errors by segment;
-  \item measure inference latency and resource consumption;
-  \item monitor delayed-label performance and drift.
-\end{itemize}
-
-\section{Platform future work}
-
-A deployable platform requires:
-
-\begin{itemize}
-  \item authentication, authorization, secrets, and immutable audit events;
-  \item Alembic migrations and durable background queues;
-  \item a serving-only model dependency profile;
-  \item production metrics, logs, tracing, readiness, and alerts;
-  \item bulk re-scoring or version-isolated reporting;
-  \item retention, privacy, and incident-response policies.
-\end{itemize}
-
-\section{Final statement}
-
-The project is a coherent and well-integrated academic fraud risk scoring
-demonstration. Its strongest contribution is not a single metric; it is the
-connection of data contracts, a trained model, explanations, API behavior,
-persistence, and human review. The whole-project audit defines the additional
-evidence and controls required to turn that demonstration into a trustworthy
-deployment candidate.
+The appropriate final assessment is therefore: the core Spark data and model
+development architecture is suitable for the academic objective, while the
+serving and governance layers remain a bounded demonstration with explicit
+limitations. No production-readiness claim is made.

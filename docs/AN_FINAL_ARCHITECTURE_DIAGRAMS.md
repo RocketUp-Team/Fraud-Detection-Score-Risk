@@ -42,11 +42,12 @@ Candidate fail never transitions into V2; it leaves serving configuration unchan
 ```mermaid
 flowchart TB
   S["Source Layer\nlogical external IEEE-CIS"] -.-> R[("Raw Data Layer\ndata/data/ieee-fraud-detection")]
-  R --> V["Validation Layer\nschema/key/quality checks"] --> C[("Curated Layer\ncurated/ and splits/")]
+  R --> V["Validation Layer\nschema/key/quality checks"] --> C[("Curated Layer\ncurated/")]
+  C --> T[("Temporal Split Layer\nsplits/ by TransactionDT")]
   C --> A[("Analytics Layer\nreports/ and figures")]
-  C --> F[("Feature Layer\nfeature_store/ + preprocessing artifacts")]
+  T --> F[("Feature Layer\nfeature_store/")]
   F --> M[("Model-Ready Layer\nmodel_ready/*. Parquet")]
-  M --> H[("Handover Layer\nmanifest/schema/verifier")]
+  M --> H[("Handover / Contract Layer\nmanifest, schema, verifier, preprocessing artifacts")]
 ```
 
 ## Diagram 3 — Detailed Data Processing Pipeline
@@ -90,7 +91,7 @@ flowchart LR
 
 ## Diagram 5 — Data, Feature and Evaluation Contracts
 
-**Status:** AS-BUILT.
+**Status:** AS-BUILT, with evidence separated from contract definition.
 
 ```mermaid
 flowchart TB
@@ -99,11 +100,12 @@ flowchart TB
   EVAL["Evaluation Contract\ntrain roles; validation windows; holdout restriction"]
   OUT[("model_ready Parquet")]
   ART[("feature_order, selected_features, schema, medians, policies")]
-  EVID[("manifest + reports + verification")]
+  EVID[("manifest + reports + verification evidence")]
+  CONFIG[("split configuration + training protocol")]
   OUT --> DATA
   ART --> FEATURE
   EVID --> DATA
-  EVID --> EVAL
+  CONFIG --> EVAL
   DATA --> GATE{{"Model training contract gate"}}
   FEATURE --> GATE
   EVAL --> GATE
@@ -118,9 +120,9 @@ flowchart TB
   VALIDATE["Validate contract"] --> MAP["Fit categorical mappings on train only"]
   MAP --> BASE["LogReg baseline"]
   MAP --> COMP["Compare LogReg, LightGBM, XGBoost, CatBoost"] --> SELECT["Select on validation"]
-  SELECT --> TUNE["Tune selected family"] --> CAL["Fit calibrator"] --> POLICY["Select review/reject thresholds"]
+  SELECT --> TUNE["Tune selected family\n(selection window)"] --> CAL["Fit calibrator\n(calibration window)"] --> POLICY["Select review/reject thresholds\n(policy window)"]
   POLICY --> FREEZE["Freeze estimator + mappings + calibrator + policy"]
-  FREEZE --> HOLD["Evaluate holdout once"] --> PACKAGE["Package bundle"] --> CHECK["Checksum + load smoke"] --> GATE{{"Gates"}}
+  FREEZE --> HOLD["Evaluate final holdout once"] --> PACKAGE["Package bundle"] --> CHECK["Checksum + load smoke"] --> GATE{{"Gates"}}
   NOTE["Distributed data preparation\n→ single-node Python ML via .toPandas()"]:::note -.-> COMP
   classDef note fill:#fff7ed,stroke:#c2410c,color:#7c2d12
 ```

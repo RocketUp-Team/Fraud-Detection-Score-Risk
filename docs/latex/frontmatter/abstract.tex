@@ -14,21 +14,19 @@
 \end{center}
 \addcontentsline{toc}{chapter}{Abstract}
 
-This thesis presents an end-to-end fraud risk scoring system built on the
-IEEE-CIS transaction dataset. Apache Spark performs typed ingestion, quality
-auditing, chronological splitting, leakage-controlled preprocessing, feature
-engineering, and Parquet export. A model pipeline compares logistic regression,
-LightGBM, XGBoost, and CatBoost using ROC-AUC and precision--recall AUC, then
-packages the selected model with categorical mappings and SHAP explanations.
-FastAPI exposes scoring, transaction exploration, imports, dataset loading, and
-human review, while a React dashboard supports investigation. The current
-official data contract reports 94 passed verification checks. The official V2
-CatBoost balanced package reports validation ROC-AUC 0.9081210 and PR-AUC
-0.5805993, with holdout ROC-AUC 0.8780755 and PR-AUC 0.4266435. Its isotonic
-calibrator and thresholds are packaged, but the promotion gate returns
-\texttt{not\_promoted}; the configured serving version remains unchanged.
-Limitations include local-only MLflow tracking, duplicated threshold ownership,
-offline--online historical-feature mismatch, heuristic fallback risk,
-single-node Python training, in-memory jobs, and missing production security
-controls. The result is a coherent academic demonstration with explicit
-architecture gaps, not a production-readiness claim.
+This thesis presents an academic fraud risk scoring workflow for the IEEE-CIS
+dataset. Apache Spark performs typed ingestion, transaction--identity joining,
+quality auditing, chronological leakage-controlled processing, feature
+engineering, and Parquet handover. Python model training compares Logistic
+Regression, LightGBM, XGBoost, and CatBoost after the Spark-to-pandas boundary.
+The system packages feature mappings, calibration, thresholds, and explanations
+for an in-process FastAPI service with a React review interface.
+
+The current CatBoost balanced candidate reports validation ROC-AUC 0.9081210 and
+PR-AUC 0.5805993, with holdout ROC-AUC 0.8780755 and PR-AUC 0.4266435. The current
+CatBoost candidate is labelled \texttt{v2} in its metadata, but its promotion decision is
+\texttt{not\_promoted}; the configured V2 software default remains unchanged.
+The principal limitations are offline--online historical-feature mismatch,
+duplicated policy ownership, local lineage, single-node training, fail-open
+fallback, and incomplete security and monitoring controls. The result is a
+bounded academic demonstration, not a production-readiness claim.

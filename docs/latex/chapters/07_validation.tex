@@ -1,218 +1,80 @@
 \chapter{Validation and Whole-System Review}
 \label{chap:validation}
 
-\section{Validation strategy}
+\section{Evidence status}
 
-The review distinguishes five evidence states:
+Claims in this thesis are classified as runtime-verified, artifact-reported,
+implemented from source, or proposed. The current official processed-data
+report records 94 verification checks passed and zero failed, with status
+\texttt{ready\_for\_downstream\_training}. An older manifest/facts snapshot
+uses \texttt{verification\_pending}; it is retained as historical evidence and
+is not combined with the official-run metrics.
 
-\begin{description}[style=multiline,leftmargin=4.2cm,labelwidth=3.9cm]
-  \item[Verified now:] a command completed successfully during the documentation
-  task.
-  \item[Artifact-reported:] a value was read from a saved machine-readable
-  artifact.
-  \item[Previously validated:] a dated report records a successful prior run.
-  \item[Implemented:] source code provides the capability but it was not
-  exercised end to end.
-  \item[Not evidenced:] neither a successful run nor adequate saved artifact was
-  found.
-\end{description}
+\section{Data and result evidence}
 
-This prevents the presence of a script or dependency from being reported as a
-completed experiment.
+The verifier checks dataset presence, row counts, identifiers, labels, class
+weights, feature order, schema hashes, chronological order, split overlap, and
+required artifacts. The official candidate metadata reports 68 features, the
+selection/calibration/policy windows, isotonic calibration, holdout metrics,
+checksums, and a load-smoke result. These artifacts support the data-contract
+and candidate claims; they do not prove online feature parity or deployment
+readiness.
 
-\section{Processed-data validation}
-
-The data verifier is the strongest machine-readable quality gate. The current
-official-run report records:
-
-\begin{itemize}
-  \item 94 checks passed and zero failed;
-  \item model-ready datasets are non-empty;
-  \item transaction identifiers are unique;
-  \item labeled and unlabeled schemas use the expected target policy;
-  \item class weights appear only in the weighted training variant;
-  \item split order is chronological and split intersections are empty;
-  \item manifest row counts and schema hashes match;
-  \item feature order, medians, and required reports exist.
-\end{itemize}
-
-The official-run status is \texttt{ready\_for\_downstream\_training}. An older
-persisted manifest and an older facts file used
-\texttt{verification\_pending}; this is a snapshot discrepancy and should not
-be combined with the current official report.
+The following charts are descriptive evidence from the saved EDA and comparison
+artifacts. They show class imbalance, selected group rates, and historical
+validation performance. None should be read as causal analysis, and the V1/V2
+chart is not an algorithm-only ablation because the historical artifacts differ
+in feature and preprocessing contracts.
 
 \input{figures/final_result_charts}
 
-\section{Static and runtime reports}
+\section{Integrated validation findings}
 
-The dated static report records successful Python compilation, YAML/JSON
-parsing, Compose configuration validation, leakage-pattern inspection, contract
-artifact presence, and Docker build-context correction.
+The strongest verified boundary is the Spark-to-Parquet handover: schemas,
+split membership, and learned preprocessing artifacts are available for
+downstream training. The strongest model evidence is the current CatBoost
+balanced candidate's artifact-reported validation and holdout metrics. The
+strongest governance evidence is the explicit \texttt{not\_promoted} decision
+and \texttt{serving\_version\_unchanged=true}; a failed candidate did not alter
+the configured V2 software default.
 
-The runtime report records the failure/remediation history rather than only the
-final pass:
+The application evidence is narrower. Source and subsystem tests cover model
+feature alignment, unseen categories, missing values, backend risk bands, and
+selected API behaviours. The stored full-stack execution history includes
+dependency and build remediation, but it is not a complete production smoke.
+Frontend lint/build evidence and model tests should therefore be described as
+subsystem evidence, not as proof of an end-to-end operational service.
 
-\begin{enumerate}
-  \item Windows Spark report paths conflicted with existing directories;
-  \item Matplotlib attempted to use a GUI backend;
-  \item Docker build context excluded required source;
-  \item a long run left an incomplete/stale manifest;
-  \item normalization and contract regeneration repaired the output;
-  \item the verifier reached \texttt{ready\_for\_downstream\_training}.
-\end{enumerate}
+\section{Consolidated limitations}
 
-This history is valuable evidence because it documents why Docker Linux is the
-canonical Parquet path and why the contract-finalization utility exists.
-
-\section{Automated tests}
-
-\begin{longtable}{
-  >{\raggedright\arraybackslash}p{0.22\textwidth}
-  >{\raggedright\arraybackslash}p{0.48\textwidth}
-  >{\raggedright\arraybackslash}p{0.20\textwidth}}
-\caption{Automated and manual test coverage}
-\label{tab:test-coverage}\\
-\toprule
-Area & Covered behavior & Gap\\
-\midrule
-\endfirsthead
-\toprule
-Area & Covered behavior & Gap\\
-\midrule
-\endhead
-Data verifier & Schema, rows, IDs, split order/overlap, artifacts & Full pipeline is expensive\\
-Model features & Training-only indexer, unseen category, alignment & No multi-window validation\\
-Model scoring & Probability, SHAP, missing values, fallback & No latency/calibration test\\
-Model quality & Minimum holdout threshold if artifact is loadable & Can skip without artifact\\
-MLflow configuration & Local-directory creation and remote-URI behavior & Full server not exercised\\
-Backend risk & Every band boundary and 0--100 coverage & Fixed-policy only\\
-Backend API & Health, metadata, list/stats/detail, review, score, import & Real model may be replaced\\
-Frontend build/lint & Static typing and source lint & No component or browser tests\\
-Frontend manual QA & Contrast, focus, motion, responsive widths & Not CI-enforced\\
-\bottomrule
-\end{longtable}
-
-Only model tests have a GitHub Actions workflow. A whole-system CI gate should
-also run backend tests, frontend lint/build, API contract generation, processed
-contract smoke checks, and one real-model scoring smoke.
-
-\section{Current dependency and execution constraints}
-
-The official model-quality log records lint success and 14 passing model tests.
-The stored official application-build log stopped at the frontend
-\texttt{npm ci} step because the lock file was out of sync with
-\texttt{package.json}; the missing \texttt{@emnapi} optional dependencies were
-then restored in the repository lock file, and a subsequent standalone frontend
-Docker build passed. The historical application log therefore cannot be used
-as evidence of a completed full-stack run.
-
-This is a reproducibility boundary rather than a model metric failure. A new
-official run should preserve the repaired lock file, rebuild both images, start
-the application, and store health/meta/full-feature scoring responses together
-with the model checksum.
-
-\section{Whole-project findings}
-
-\begin{longtable}{
-  >{\raggedright\arraybackslash}p{0.06\textwidth}
-  >{\raggedright\arraybackslash}p{0.43\textwidth}
-  >{\raggedright\arraybackslash}p{0.13\textwidth}
-  >{\raggedright\arraybackslash}p{0.22\textwidth}}
-\caption{Whole-project severity matrix}
-\label{tab:severity}\\
-\toprule
-ID & Finding & Severity & Impact\\
-\midrule
-\endfirsthead
-\toprule
-ID & Finding & Severity & Impact\\
-\midrule
-\endhead
-R1 & No authentication, authorization, or audit controls & Critical & Blocks external deployment\\
-R2 & Model readiness can fall back to heuristic & High & Predictions can be misidentified\\
-R3 & Candidate thresholds are not the backend decision authority & High & Blocks policy approval\\
-R4 & Local MLflow runs exist but central registry/stage authority is absent & High & Blocks portable lineage claim\\
-R5 & Candidate thresholds are not the served backend policy & High & Blocks operational policy claim\\
-R6 & Copied official split summary differs from current manifest split counts & Medium & Snapshot ambiguity\\
-R7 & Jobs and schema lifecycle are non-durable & Medium & Restart/upgrade risk\\
-R8 & No automated frontend/browser tests & Medium & UI regression and accessibility risk\\
-R9 & API types are manually synchronized and stale & Medium & Client contract risk\\
-R10 & Training collects full data to pandas & Medium & Driver-memory ceiling\\
-R11 & No bulk re-score/version-isolated views & Medium & Mixed-version analytics\\
-\bottomrule
-\end{longtable}
-
-\section{Threats to validity}
-
-\subsection{Construct validity}
-
-ROC-AUC and PR-AUC measure ranking, not business value. The saved results do not
-establish fraud prevented, investigation effort, or customer impact.
-
-\subsection{Internal validity}
-
-V1 and V2 differ in feature count and preprocessing controls. Their comparison
-cannot isolate the cause of improvement. A single validation window can also be
-overfit by repeated model and parameter selection.
-
-\subsection{External validity}
-
-IEEE-CIS is anonymized historical competition data. Behavior, prevalence,
-labels, feature availability, and latency constraints can differ from a live
-merchant environment.
-
-\subsection{Reproducibility}
-
-Processed data is locally present and well contracted, and the official V2
-candidate includes SHA-256 checksums and one MLflow holdout run ID. MLflow
-remains local SQLite tracking with container-local artifact paths; a central
-registry ID, human approval record, and rollback smoke evidence are not present.
-
-\section{Production-readiness gates}
-
-\subsection{Gate 1: reproducible serving}
+The review consolidates limitations into five decision-relevant groups:
 
 \begin{enumerate}
-  \item freeze dependencies;
-  \item build the backend/model image;
-  \item load V2 with the expected model version;
-  \item score a full-feature holdout transaction without fallback;
-  \item record image digest and model checksum.
+  \item \textbf{Reproducibility:} local MLflow tracking, workspace-local
+  artifacts, snapshot discrepancies, and single-node pandas training limit
+  portability and scale.
+  \item \textbf{Policy alignment:} the candidate threshold artifact and
+  calibration metadata are not the backend's fixed risk-band authority.
+  \item \textbf{Offline--online parity:} batch historical aggregates are not
+  generated by an online feature service; partial-demo defaults are not
+  equivalent to full-feature scoring.
+  \item \textbf{Operational controls:} fallback is fail-open for demonstration
+  continuity, jobs are in memory, and monitoring, migrations, and bulk
+  re-scoring are absent.
+  \item \textbf{Security and governance:} authentication, authorization,
+  durable audit, immutable registry authority, and production drift/latency
+  monitoring are not evidenced.
 \end{enumerate}
 
-\subsection{Gate 2: approved operating policy}
+These gaps define the boundary of the contribution. They do not invalidate the
+academic data and model workflow, but they prevent a production-readiness
+claim.
 
-\begin{enumerate}
-  \item reproduce the official V2 calibration and threshold evidence on
-  temporal windows not reused for model selection;
-  \item compare the candidate operating points with the configured backend
-  policy, including precision, recall, false positives, false negatives, and
-  calibration;
-  \item define review capacity and error cost;
-  \item approve, store, and enforce review/reject thresholds;
-  \item test exact boundaries through model, backend, and UI.
-\end{enumerate}
+\section{Recommended validation sequence}
 
-\subsection{Gate 3: operational controls}
-
-\begin{enumerate}
-  \item fail readiness when the expected model is unavailable;
-  \item add structured logs, metrics, drift monitoring, and alerting;
-  \item add migrations and durable job orchestration;
-  \item add authentication, authorization, audit history, and secret management;
-  \item add CI across data, model, backend, frontend, and full-stack smoke.
-\end{enumerate}
-
-\subsection{Gate 4: controlled promotion}
-
-Run shadow scoring, compare paired predictions, approve the version with a
-recorded decision, test rollback, and prevent mixed-version historical
-statistics from being interpreted without a model-version filter or re-score.
-
-\section{Overall assessment}
-
-The system is successful against its academic demonstration objective. All
-major layers exist and the data handoff is strongly verified. The gap to
-production is not another dashboard page or another estimator. It is the set of
-controls that makes an existing prediction trustworthy: reproducibility,
-operating policy, lineage, readiness, security, and monitoring.
+Before any future serving decision, reproduce the official candidate from a
+clean dependency and data snapshot, load the exact checksum without fallback,
+align the runtime policy with the approved calibration/threshold evidence, and
+test full-feature scoring with historical features generated by the same
+contract. Only then should an independent candidate version be compared and a
+human approval recorded.

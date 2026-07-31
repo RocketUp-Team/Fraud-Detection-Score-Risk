@@ -1,6 +1,30 @@
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.80\textheight,keepaspectratio]{../../docs/diagrams/final/data-feature-evaluation-contracts.png}
-\caption[Data, feature, and evaluation contracts]{Data, feature, and evaluation contracts (AS-BUILT/HYBRID). The model-ready handover is implemented; online policy and feature-service elements shown with dashed lines remain target concerns.}
+\begin{tikzpicture}[
+  node distance=8mm and 12mm,
+  contract/.style={draw=ReportInk, rounded corners=2pt, align=left,
+    minimum height=15mm, text width=39mm, fill=ReportBlue!8},
+  source/.style={draw=ReportInk, rounded corners=2pt, align=center,
+    minimum height=10mm, text width=43mm, fill=ReportGold!15},
+  gate/.style={draw=ReportInk, diamond, align=center, aspect=2, fill=ReportOrange!15},
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[contract] (data) {\textbf{Data Contract}\\six datasets; labels; metadata; null policy; class weight};
+\node[contract, right=of data] (feature) {\textbf{Feature Contract}\\68 ordered features; 61 numeric; 7 categorical; mappings; versions};
+\node[contract, right=of feature] (eval) {\textbf{Evaluation Contract}\\dataset roles; selection/calibration/policy windows; holdout restriction};
+\node[source, below=of data] (parquet) {Model-ready Parquet};
+\node[source, below=of feature] (artifacts) {Feature order, schema, medians, category policy};
+\node[source, below=of eval] (protocol) {Split configuration and training protocol};
+\node[source, below=of protocol] (evidence) {Manifest, reports, and verifier evidence};
+\node[gate, below=18mm of feature] (gate) {Contract\\validation gate};
+\draw[arrow] (parquet) -- (data);
+\draw[arrow] (artifacts) -- (feature);
+\draw[arrow] (protocol) -- (eval);
+\draw[arrow] (evidence) -| (data.south);
+\draw[arrow] (data) -- (gate);
+\draw[arrow] (feature) -- (gate);
+\draw[arrow] (eval) -- (gate);
+\end{tikzpicture}
+\caption[Data, feature, and evaluation contracts]{Data, feature, and evaluation contracts (HYBRID). Split configuration and the training protocol define the Evaluation Contract; manifests and verifiers provide validation evidence rather than defining policy.}
 \label{fig:final-contracts}
 \end{figure}

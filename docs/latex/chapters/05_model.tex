@@ -1,10 +1,21 @@
 \chapter{Model Development, Evaluation, and Serving}
 \label{chap:model}
 
+\section{Artifact identity and terminology}
+
+This report separates four states that are otherwise easy to conflate. The
+historical V1/V2 comparison refers to earlier LightGBM artifacts and reports.
+The configured V2 software default is the version selected by serving
+configuration, not a promotion approval. The current official candidate is a
+CatBoost balanced package whose metadata also uses the version label
+\texttt{v2}; it is therefore called the \emph{current CatBoost candidate} in
+this chapter. Its promotion decision is \texttt{not\_promoted}, so this report
+does not claim that the candidate replaced the configured serving default.
+
 \section{Model-development protocol}
 
-The official V2 workflow consumes the Spark/Parquet handover and executes the
-following ordered stages:
+The enhanced candidate workflow consumes the Spark/Parquet handover and
+executes the following ordered stages:
 
 \begin{enumerate}
   \item validate the data contract and canonical feature order;
@@ -38,19 +49,19 @@ or CatBoost is distributed over Spark workers.
 \section{Candidate models and selection}
 
 The baseline is Logistic Regression. The compared gradient-boosting families
-are LightGBM, XGBoost, and CatBoost. The current official V2 comparison selects
+are LightGBM, XGBoost, and CatBoost. The current CatBoost candidate comparison selects
 \texttt{catboost\_\_balanced}; the candidate manifest identifies the final
 model as CatBoost trained on the balanced variant.
 
 \begin{table}[H]
 \centering
-\caption{Selected official V2 training evidence}
+\caption{Current CatBoost candidate training evidence}
 \label{tab:v2-training-evidence}
 \begin{tabular}{ll}
 \toprule
 Field & Value\\
 \midrule
-Model version & \texttt{v2}\\
+Artifact version label & \texttt{v2}\\
 Selected model & CatBoost\\
 Training variant & \texttt{balanced}\\
 Feature count & 68\\
@@ -73,7 +84,7 @@ it does not establish a business operating point.
 \section{Temporal development windows}
 
 The validation period is divided into selection, calibration, and policy
-windows. The official V2 metadata records selection boundary
+windows. The current candidate metadata records selection boundary
 \texttt{11713696} and calibration boundary \texttt{12438149}. Model family and
 parameters are selected in the first window, isotonic calibration is fitted in
 the second, and thresholds are selected in the third. Holdout remains the final
@@ -86,11 +97,11 @@ than silently reusing the same holdout.
 
 \input{figures/final_temporal_windows}
 
-\section{Official V2 results}
+\section{Current CatBoost candidate results}
 
 \begin{table}[H]
 \centering
-\caption{Official V2 validation and holdout metrics}
+\caption{Current CatBoost candidate validation and holdout metrics}
 \label{tab:official-v2-metrics}
 \begin{tabular}{lrrrrrr}
 \toprule
@@ -109,21 +120,21 @@ The raw holdout Brier score is 0.0495279 and the calibrated Brier score is
 \texttt{holdout\_metrics\_v2.csv}, and
 \texttt{training\_metadata\_v2.json}.
 
-The current official V2 package is not directly comparable to the historical
+The current CatBoost candidate is not directly comparable to the historical
 LightGBM V1/V2 tables. The official candidate is CatBoost balanced, whereas
 older Markdown reports describe V2 as LightGBM and cite holdout PR-AUC 0.4582.
-The old values are therefore historical evidence, not current official V2
-metrics. A matching V1 final holdout artifact is not present in the current
+The old values are therefore historical evidence, not metrics for the current
+CatBoost candidate. A matching V1 final holdout artifact is not present in the current
 repository, so this chapter does not invent a V1 holdout comparison.
 
 \section{Calibration and threshold policy}
 
-The candidate stores \texttt{calibration\_model\_v2.joblib} and records
+The current candidate stores \texttt{calibration\_model\_v2.joblib} and records
 \texttt{calibration\_method=isotonic}. The threshold artifact selects:
 
 \begin{table}[H]
 \centering
-\caption{Official V2 policy artifact}
+\caption{Current candidate policy artifact}
 \label{tab:v2-policy}
 \begin{tabular}{lr}
 \toprule
@@ -149,7 +160,7 @@ policy is active in serving.
 
 \section{Packaging, checksum, and promotion}
 
-The V2 candidate package includes the final joblib model, training metadata,
+The current candidate package includes the final joblib model, training metadata,
 calibrator, threshold configuration, validation and holdout metrics, threshold
 analysis, candidate manifest, promotion decision, and SHA-256 checksums. The
 candidate manifest records artifact-load smoke \texttt{passed}, model name
@@ -158,7 +169,7 @@ Git commit, and \texttt{git\_dirty=true}.
 
 \begin{table}[H]
 \centering
-\caption{Official V2 promotion gate}
+\caption{Current candidate promotion gate}
 \label{tab:v2-gates}
 \begin{tabular}{lcc}
 \toprule
@@ -178,9 +189,10 @@ Git clean & Fail & \texttt{git\_dirty=true}\\
 \end{table}
 
 The resulting decision is \texttt{not\_promoted}, with
-\texttt{serving\_version\_unchanged=true}. This is correct model governance:
-the failed candidate does not transition into V2; the serving configuration
-remains unchanged.
+\texttt{serving\_version\_unchanged=true}. The current candidate therefore did
+not replace the configured V2 software default. This is a governance outcome,
+not a claim that the candidate became V2 or that the historical LightGBM V2
+artifact is identical to the current CatBoost candidate.
 
 \input{figures/final_promotion_state}
 
@@ -204,7 +216,7 @@ small request. It must not be described as real-time full-feature scoring.
 \section{Serving configuration and MLflow}
 
 Configuration defaults \texttt{FRAUD\_MODEL\_SERVING\_VERSION=v2}, while the
-official promotion decision remains \texttt{not\_promoted}. The safe wording is
+current candidate decision remains \texttt{not\_promoted}. The safe wording is
 \textquotedblleft v2 configured software default\textquotedblright, not
 \textquotedblleft production-promoted model\textquotedblright. Setting
 \texttt{FRAUD\_MODEL\_SERVING\_VERSION=v1} remains the rollback/configuration
@@ -218,7 +230,7 @@ not a serving registry.
 
 \section{Model-readiness decision}
 
-The official V2 package is suitable for continued academic evaluation and
+The current CatBoost candidate is suitable for continued academic evaluation and
 manual review of its evidence. It should not be described as a production model
 until a frozen application smoke loads the expected artifact without fallback,
 the runtime policy is explicitly approved and aligned with the candidate, a
