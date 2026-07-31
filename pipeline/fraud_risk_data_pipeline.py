@@ -97,18 +97,15 @@ def main(argv: list[str] | None = None) -> None:
 
 def _finalize_contract(output_dir: Path) -> None:
     """Add stable names/metadata without duplicating large Parquet datasets."""
-    manifest_path = output_dir / "manifest.json"
     from .processed_contract import build_manifest
     from .verify_processed_data import verify
-    import json
 
-    if not manifest_path.is_file():
-        manifest = build_manifest(output_dir)
-    else:
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            manifest = build_manifest(output_dir)
+    # Rebuild from the materialized Parquet outputs every time.  The legacy
+    # Spark workflow writes an intermediate manifest before export; its schema
+    # hash can describe the in-memory DataFrame rather than the final Parquet
+    # schema.  Verification must compare against the persisted handoff, so
+    # the final manifest cannot reuse that intermediate value.
+    manifest = build_manifest(output_dir)
 
     verification = verify(output_dir, write_report=True)
     manifest.update({

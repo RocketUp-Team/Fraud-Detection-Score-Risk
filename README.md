@@ -44,6 +44,17 @@ Trong lúc chờ bàn giao, mỗi phần phát triển độc lập với mock/s
 
 ## Chạy full stack bằng Docker
 
+Để chạy toàn bộ luồng chính thức từ raw data đến V2 model, kiểm thử và
+application stack:
+
+```bash
+bash scripts/run_official_full.sh
+```
+
+Script dùng duy nhất version chính thức `v2`, không tạo candidate `0.0.x`,
+fail-fast khi một stage lỗi và lưu toàn bộ log/evidence vào
+`reports/official-run/`.
+
 ```bash
 docker compose up --build
 ```

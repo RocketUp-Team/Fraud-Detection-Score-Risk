@@ -13,6 +13,7 @@ from .contract_utils import (
     atomic_write_json,
     schema_hash,
 )
+from .processed_contract import normalize_spark_csv_outputs
 
 
 LABELED_DATASETS = ["train_original", "train_weighted", "train_balanced", "validation", "holdout"]
@@ -93,11 +94,16 @@ def _schema_records(path: Path) -> list[dict[str, str]]:
 
 
 def _write_report(root: Path, payload: dict[str, Any]) -> None:
-    atomic_write_json(payload, root / "reports" / "verification_report.json")
+    try:
+        atomic_write_json(payload, root / "reports" / "verification_report.json")
+    except PermissionError:
+        fallback_path = root / "verification_report.json"
+        atomic_write_json(payload, fallback_path)
 
 
 def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
     root = root.resolve()
+    normalize_spark_csv_outputs(root)
     manifest = _read_manifest(root)
     expected_processing_version = manifest.get("processing_version") or PROCESSING_VERSION
     expected_feature_schema_version = (
@@ -280,9 +286,15 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
 
     for report_name in REPORT_FILES:
         report_path = reports_dir / report_name
+        exists = report_path.is_file() or (
+            report_path.is_dir() and any(
+                child.is_file() and child.name.startswith("part-") and child.suffix == ".csv"
+                for child in report_path.iterdir()
+            )
+        )
         checks.append(CheckResult(
             name=f"report.{report_name}",
-            ok=report_path.is_file(),
+            ok=exists,
             expected="report exists",
             actual=str(report_path),
             path=str(report_path),

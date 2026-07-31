@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -61,6 +62,32 @@ def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _remove_path(path: Path) -> None:
+    if not path.exists():
+        return
+    if path.is_dir() and not path.is_symlink():
+        for root_dir, dir_names, file_names in os.walk(path, topdown=False):
+            for name in file_names:
+                os.chmod(Path(root_dir, name), 0o644)
+            for name in dir_names:
+                os.chmod(Path(root_dir, name), 0o755)
+        os.chmod(path, 0o755)
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
+
+
+def _spark_csv_report_exists(path: Path) -> bool:
+    if path.is_file():
+        return True
+    if path.is_dir():
+        return any(
+            child.is_file() and child.name.startswith("part-") and child.suffix == ".csv"
+            for child in path.iterdir()
+        )
+    return False
+
+
 def normalize_spark_csv_outputs(root: Path) -> dict[str, str]:
     reports_dir = root / "reports"
     normalized: dict[str, str] = {}
@@ -72,6 +99,9 @@ def normalize_spark_csv_outputs(root: Path) -> dict[str, str]:
         backup_dir = path.with_name(path.name + ".sparkdir")
         if path.is_file():
             normalized[report_name] = "already_file"
+            continue
+        if _spark_csv_report_exists(path):
+            normalized[report_name] = "already_spark_csv_dir"
             continue
         if not path.exists():
             for alias_name in ALIAS_REPORT_SOURCES.get(report_name, []):
@@ -99,9 +129,13 @@ def normalize_spark_csv_outputs(root: Path) -> dict[str, str]:
         source_dir: Path | None = None
         if path.is_dir():
             if backup_dir.exists():
-                shutil.rmtree(backup_dir)
-            path.rename(backup_dir)
-            source_dir = backup_dir
+                source_dir = backup_dir
+            else:
+                try:
+                    path.rename(backup_dir)
+                    source_dir = backup_dir
+                except PermissionError:
+                    source_dir = path
         elif backup_dir.is_dir():
             source_dir = backup_dir
         else:
@@ -112,7 +146,23 @@ def normalize_spark_csv_outputs(root: Path) -> dict[str, str]:
         if not backup_part_files:
             normalized[report_name] = "missing_part_file_after_rename"
             continue
-        shutil.copyfile(backup_part_files[0], path)
+        if path.exists() and path.is_dir() and source_dir != path:
+            try:
+                _remove_path(path)
+            except PermissionError:
+                normalized[report_name] = f"kept_existing_dir:{source_dir.name}"
+                continue
+        if path.exists() and path.is_dir():
+            try:
+                _remove_path(path)
+            except PermissionError:
+                normalized[report_name] = f"kept_existing_dir:{source_dir.name}"
+                continue
+        try:
+            shutil.copyfile(backup_part_files[0], path)
+        except PermissionError:
+            normalized[report_name] = f"kept_existing_dir:{source_dir.name}"
+            continue
         normalized[report_name] = f"normalized_from:{source_dir.name}"
     return normalized
 

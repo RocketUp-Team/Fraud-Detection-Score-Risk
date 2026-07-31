@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import numbers
 import os
 import platform
 import shutil
@@ -52,11 +54,35 @@ def json_default(value: Any) -> Any:
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
+def _json_safe(value: Any) -> Any:
+    """Convert non-finite numeric values to JSON ``null`` recursively.
+
+    Pandas uses ``NaN`` for missing numeric cells.  The manifest deliberately
+    uses ``allow_nan=False`` so that it stays standards-compliant JSON; a
+    missing inventory value must therefore become ``null`` rather than the
+    invalid JSON token ``NaN``.
+    """
+    if isinstance(value, numbers.Real) and not math.isfinite(float(value)):
+        return None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
 def atomic_write_json(payload: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     with tmp_path.open("w", encoding="utf-8", newline="\n") as handle:
-        json.dump(payload, handle, indent=2, ensure_ascii=False, allow_nan=False, default=json_default)
+        json.dump(
+            _json_safe(payload),
+            handle,
+            indent=2,
+            ensure_ascii=False,
+            allow_nan=False,
+            default=json_default,
+        )
         handle.write("\n")
     json.loads(tmp_path.read_text(encoding="utf-8"))
     tmp_path.replace(path)
