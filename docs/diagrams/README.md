@@ -3,19 +3,19 @@
 ## Final architecture exports
 
 Bộ sơ đồ hiện hành được sinh từ [`../AN_FINAL_ARCHITECTURE_DIAGRAMS.md`](../AN_FINAL_ARCHITECTURE_DIAGRAMS.md).
-Mermaid source là source of truth; các file `final/01` đến `final/08` là bản
-render đã kiểm tra cú pháp.
+Mermaid source là source of truth; các file trong thư mục `final/` là bản
+render đã kiểm tra cú pháp và được đặt tên theo nội dung sơ đồ.
 
 | File | Nội dung |
 | --- | --- |
-| `final/01.svg` / `final/01.png` | Overall system architecture |
-| `final/02.svg` / `final/02.png` | Layered data architecture |
-| `final/03.svg` / `final/03.png` | Detailed data processing pipeline |
-| `final/04.svg` / `final/04.png` | Leakage-controlled transformation flow |
-| `final/05.svg` / `final/05.png` | Data, feature and evaluation contracts |
-| `final/06.svg` / `final/06.png` | Model training lifecycle |
-| `final/07.svg` / `final/07.png` | Temporal development windows |
-| `final/08.svg` / `final/08.png` | Promotion state machine |
+| `final/overall-system-architecture.svg` / `.png` | Overall system architecture |
+| `final/layered-data-architecture.svg` / `.png` | Layered data architecture |
+| `final/detailed-data-processing-pipeline.svg` / `.png` | Detailed data processing pipeline |
+| `final/leakage-controlled-transformation-flow.svg` / `.png` | Leakage-controlled transformation flow |
+| `final/data-feature-evaluation-contracts.svg` / `.png` | Data, feature and evaluation contracts |
+| `final/model-training-lifecycle.svg` / `.png` | Model training lifecycle |
+| `final/temporal-development-windows.svg` / `.png` | Temporal development windows |
+| `final/promotion-state-machine.svg` / `.png` | Promotion state machine |
 
 Bộ export cũ bên dưới được giữ lại để bảo toàn lịch sử và không đại diện cho
 kiến trúc cuối.

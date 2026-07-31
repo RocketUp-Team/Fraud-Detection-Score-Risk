@@ -5,14 +5,14 @@
 Các ảnh dưới đây là bộ tám sơ đồ cuối, sinh từ
 [`../AN_FINAL_ARCHITECTURE_DIAGRAMS.md`](../AN_FINAL_ARCHITECTURE_DIAGRAMS.md).
 
-1. [Overall system architecture](final/01.png)
-2. [Layered data architecture](final/02.png)
-3. [Detailed data processing pipeline](final/03.png)
-4. [Leakage-controlled transformation flow](final/04.png)
-5. [Data, feature and evaluation contracts](final/05.png)
-6. [Model training lifecycle](final/06.png)
-7. [Temporal development windows](final/07.png)
-8. [Promotion state machine](final/08.png)
+1. [Overall system architecture](final/overall-system-architecture.png)
+2. [Layered data architecture](final/layered-data-architecture.png)
+3. [Detailed data processing pipeline](final/detailed-data-processing-pipeline.png)
+4. [Leakage-controlled transformation flow](final/leakage-controlled-transformation-flow.png)
+5. [Data, feature and evaluation contracts](final/data-feature-evaluation-contracts.png)
+6. [Model training lifecycle](final/model-training-lifecycle.png)
+7. [Temporal development windows](final/temporal-development-windows.png)
+8. [Promotion state machine](final/promotion-state-machine.png)
 
 Các gallery phía dưới là export lịch sử, được giữ lại để traceability.
 

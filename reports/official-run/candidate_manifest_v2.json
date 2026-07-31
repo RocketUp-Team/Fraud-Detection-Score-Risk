@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-07-31T06:48:19.484653+00:00",
+  "candidate_version": "v2",
+  "promotion_status": "not_promoted",
+  "data_root": "/data/processed/ieee_cis_fraud_risk",
+  "processing_version": "ieee-cis-preprocess-2.1.0",
+  "feature_schema_version": "ieee-cis-features-1.1.0",
+  "model_name": "catboost",
+  "feature_count": 68,
+  "holdout_mlflow_run_id": "f26387ca02df4e10bc8ee98594fd75ff",
+  "spark_master": "local[*]",
+  "git_commit": "259d639c87a33bd3c60537720ea69d001f0c8f0f",
+  "git_dirty": "true",
+  "artifact_load_smoke": "passed",
+  "smoke_probability": 0.007561436672967864,
+  "artifact_sha256": "552e6d09339fd9c862cfa8ed84e96a193ed02f8000de28a5e1cf97cf7159ffc5",
+  "checksums": {
+    "final_model_v2.joblib": "552e6d09339fd9c862cfa8ed84e96a193ed02f8000de28a5e1cf97cf7159ffc5",
+    "training_metadata_v2.json": "54678bfc9d63dd18912c7e60458ac44311fda323355c8247faafbafcb5190dc5",
+    "threshold_config_v2.json": "3507965e2fd159700910cceb2c2ad608c769eb701ca505799a6074c970944b77",
+    "validation_metrics_v2.csv": "27896efa24fda6091b313e441f15a9948a5bab87ea2db1db25349ee18e8ea749",
+    "holdout_metrics_v2.csv": "795118f04c182806416c9ac78f41d62f1ea748dfeb9acddc0647f8248333fca5",
+    "threshold_analysis_v2.csv": "3d582c1325ba04c0d0c2e3ae33f0c7dc8e85eda4062b404b89469298afcc6dd8",
+    "promotion_decision_v2.json": "63c1b646f10107edea50540b5d00d853461546b01c4cf6e49c0af9dca9224462"
+  },
+  "required_files": [
+    "final_model_v2.joblib",
+    "training_metadata_v2.json",
+    "threshold_config_v2.json",
+    "validation_metrics_v2.csv",
+    "holdout_metrics_v2.csv",
+    "threshold_analysis_v2.csv"
+  ],
+  "promotion_decision": "/app/artifacts/v2/promotion_decision_v2.json"
+}
