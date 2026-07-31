@@ -1,28 +1,6 @@
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  node distance=5mm and 16mm,
-  stage/.style={draw=ReportInk, rounded corners=2pt, align=center,
-    minimum height=8mm, text width=91mm, fill=ReportBlue!8},
-  fitstage/.style={stage, fill=ReportGold!16},
-  branch/.style={draw=ReportInk, rounded corners=2pt, align=center,
-    minimum height=8mm, text width=42mm, fill=ReportOrange!12},
-  arrow/.style={-{Latex[length=2mm]}, thick}
-]
-\node[stage] (raw) {Raw CSV: required-file, size, header, and schema validation};
-\node[stage, below=of raw] (ingest) {Explicit-schema Spark ingestion and identity-column normalization};
-\node[stage, below=of ingest] (join) {Transaction--identity LEFT JOIN, key audit, and row-grain preservation};
-\node[stage, below=of join] (clean) {Stateless cleanup and base time, amount, presence, and missingness features};
-\node[stage, below=of clean] (split) {Chronological split by \texttt{TransactionDT}};
-\node[fitstage, below=of split] (fit) {Train-only medians, category policy, outlier thresholds, and point-in-time history};
-\node[fitstage, below=of fit] (transform) {Transform train, validation, holdout, and test with frozen policy; resample train only};
-\node[stage, below=of transform] (variants) {Export \texttt{train\_original}, \texttt{train\_weighted}, \texttt{train\_balanced}, validation, holdout, and \texttt{kaggle\_test}};
-\node[stage, below=of variants] (handover) {Write model-ready Parquet, feature artifacts, manifest, schema, reports, and verifier evidence};
-\node[branch, right=of clean] (eda) {EDA reports and figures\\reporting branch; no mandatory model-data mutation};
-\foreach \a/\b in {raw/ingest,ingest/join,join/clean,clean/split,split/fit,fit/transform,transform/variants,variants/handover}
-  \draw[arrow] (\a) -- (\b);
-\draw[arrow] (clean.east) -- (eda.west);
-\end{tikzpicture}
-\caption[Detailed data processing pipeline]{Detailed data processing pipeline (AS-BUILT). The canonical dataset names and output contract are shown explicitly; EDA is a reporting branch rather than a required transformation of model-ready data.}
+\includegraphics[width=\textwidth,height=0.36\textheight,keepaspectratio]{../../docs/diagrams/final/detailed-data-processing-pipeline.png}
+\caption[Detailed data processing pipeline]{Detailed data processing pipeline. Shows canonical dataset names, Spark transformation stages, and output handover contracts.}
 \label{fig:final-detailed-pipeline}
 \end{figure}

@@ -63,8 +63,7 @@ confounded by transaction mix, time, or missingness.
 
 \section{Leakage-controlled transformation order}
 
-Figure~\ref{fig:final-detailed-pipeline} highlights the transforms whose parameters are
-fitted only on the training window.
+To prevent data leakage during feature engineering, all learned preprocessing steps and historical aggregations are fitted strictly on the training partition and applied forward to validation and holdout sets. Figure~\ref{fig:final-detailed-pipeline} illustrates the complete data processing pipeline, detailing stage-by-stage transformations and output handover contracts.
 
 \input{figures/final_detailed_pipeline}
 

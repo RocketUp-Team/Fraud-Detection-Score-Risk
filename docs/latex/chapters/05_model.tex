@@ -57,7 +57,7 @@ This prevents a previous contract failure in which the string
 The boundary must be stated precisely as: \textbf{distributed data preparation
 with single-node Python model training}. Spark writes Parquet; Python training
 converts model matrices to pandas. There is no evidence that LightGBM, XGBoost,
-or CatBoost is distributed over Spark workers.
+or CatBoost is distributed over Spark workers. The end-to-end model development lifecycle, spanning validation, hyperparameter tuning, calibration, and policy selection, is depicted in Figure~\ref{fig:final-training-lifecycle}.
 
 \input{figures/final_training_lifecycle}
 
@@ -184,7 +184,7 @@ Selected reject precision & 0.7397959\\
 
 The model scorer applies the calibrator when the loaded artifact contains one.
 However, the backend runtime decision authority is
-\texttt{backend/src/fraud\_backend/risk.py}: it rounds probability to a
+the Risk Scoring module: it rounds probability to a
 0--100 score, applies fixed bands, and maps those bands to approve, review, or
 reject. The backend does not load the candidate review/reject thresholds as its
 decision policy. This is duplicated ownership, not evidence that the candidate

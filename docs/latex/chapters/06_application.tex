@@ -33,9 +33,14 @@ The React interface presents transaction lists, score details, risk bands,
 SHAP values, review actions, imports, and partial scoring. Mock responses can
 support UI development, but they are not model evidence. The interface uses
 text and numeric alternatives to colour and displays an explicit unavailable
-state when SHAP is absent. Browser and component tests are not automated, and
-frontend types are manually synchronized with backend schemas; these are
-integration limitations rather than evidence of a separate model service.
+state when SHAP is absent. Figure~\ref{fig:ui-dashboard} displays the operational fraud detection interface.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ui_dashboard.png}
+\caption{Enterprise Fraud Detection and Risk Scoring Dashboard Interface.}
+\label{fig:ui-dashboard}
+\end{figure}
 
 \section{Deployment boundary}
 

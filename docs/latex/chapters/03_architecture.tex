@@ -57,9 +57,7 @@ QR-10 & Production monitoring and service objectives. & Not implemented\\
 
 \section{Integrated architecture}
 
-Figure~\ref{fig:final-overall-system} shows the implemented batch and serving
-layers. The central contract is the verified model-ready dataset plus its
-feature and schema metadata.
+The system integrates batch data preparation, offline model training, and real-time inference into a cohesive modular monolith. Figure~\ref{fig:final-overall-system} presents the overall system architecture, illustrating the contract-based data flows between data processing, model development, and online serving layers.
 
 \input{figures/final_overall_system}
 
@@ -99,8 +97,7 @@ loading/import, polling, theme preferences, and rule-based assistance.
 \subsection{Batch preparation}
 
 Raw CSV files are mounted into a Linux Spark container. The pipeline writes
-ignored local artifacts under
-\systempath{data/processed/ieee_cis_fraud_risk}. Downstream modules consume
+ignored local artifacts under the processed data directory. Downstream modules consume
 Parquet and JSON contracts, not in-memory Spark objects.
 
 \subsection{Training}
