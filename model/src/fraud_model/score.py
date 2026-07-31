@@ -18,7 +18,6 @@ _explainer = None
 
 
 def _candidate_paths(kind: str) -> list:
-    version = config.SERVING_MODEL_VERSION
     if kind == "final":
         primary = config.SERVING_FINAL_MODEL_PATH
         legacy = config.ARTIFACTS_DIR / "final_model.joblib"
