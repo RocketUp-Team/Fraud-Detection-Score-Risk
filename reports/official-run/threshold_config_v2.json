@@ -9,6 +9,6 @@
   "selected_reject_precision": 0.7397959183673469,
   "calibration_window": "validation_calibration",
   "policy_window": "validation_policy",
-  "selection_boundary": 11713724.0,
-  "calibration_boundary": 12438287.0
+  "selection_boundary": 11713696.0,
+  "calibration_boundary": 12438149.0
 }

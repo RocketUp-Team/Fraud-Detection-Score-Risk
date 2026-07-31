@@ -891,7 +891,7 @@
       "name": "dataset.non_empty.validation",
       "ok": true,
       "expected": "row_count > 0",
-      "actual": 88490,
+      "actual": 88486,
       "path": "/app/data/processed/ieee_cis_fraud_risk/model_ready/validation",
       "fix": "Inspect upstream export stage for empty dataset."
     },
@@ -1176,7 +1176,7 @@
       "name": "dataset.non_empty.holdout",
       "ok": true,
       "expected": "row_count > 0",
-      "actual": 89094,
+      "actual": 89098,
       "path": "/app/data/processed/ieee_cis_fraud_risk/model_ready/holdout",
       "fix": "Inspect upstream export stage for empty dataset."
     },
@@ -3712,8 +3712,8 @@
       "ok": true,
       "expected": "unique TransactionID",
       "actual": {
-        "rows": 88490,
-        "distinct": 88490
+        "rows": 88486,
+        "distinct": 88486
       },
       "path": "/app/data/processed/ieee_cis_fraud_risk/model_ready/validation",
       "fix": "Inspect split export for duplicated TransactionID rows."
@@ -3723,8 +3723,8 @@
       "ok": true,
       "expected": "unique TransactionID",
       "actual": {
-        "rows": 89094,
-        "distinct": 89094
+        "rows": 89098,
+        "distinct": 89098
       },
       "path": "/app/data/processed/ieee_cis_fraud_risk/model_ready/holdout",
       "fix": "Inspect split export for duplicated TransactionID rows."
@@ -3745,8 +3745,8 @@
       "ok": true,
       "expected": "validation max <= holdout min",
       "actual": {
-        "validation_max": 13136653.0,
-        "holdout_min": 13136664.0
+        "validation_max": 13136583.0,
+        "holdout_min": 13136627.0
       },
       "path": "/app/data/processed/ieee_cis_fraud_risk/model_ready",
       "fix": "Recompute chronological split before fit/export."
@@ -3826,8 +3826,8 @@
     {
       "name": "manifest.row_count.validation",
       "ok": true,
-      "expected": 88490,
-      "actual": 88490,
+      "expected": 88486,
+      "actual": 88486,
       "path": "/app/data/processed/ieee_cis_fraud_risk/model_ready/validation",
       "fix": "Regenerate manifest after export or fix stale row counts."
     },
@@ -3842,8 +3842,8 @@
     {
       "name": "manifest.row_count.holdout",
       "ok": true,
-      "expected": 89094,
-      "actual": 89094,
+      "expected": 89098,
+      "actual": 89098,
       "path": "/app/data/processed/ieee_cis_fraud_risk/model_ready/holdout",
       "fix": "Regenerate manifest after export or fix stale row counts."
     },

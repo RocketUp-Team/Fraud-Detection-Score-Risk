@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-31T06:48:23.215639+00:00",
+  "generated_at": "2026-07-31T07:08:07.629413+00:00",
   "candidate_version": "v2",
   "status": "not_promoted",
   "automatic_promotion": false,
@@ -9,17 +9,17 @@
   "data_verification_status": "ready_for_downstream_training",
   "metrics": {
     "threshold": 0.16,
-    "pr_auc": 0.4266472300837859,
-    "roc_auc": 0.8780747767816386,
+    "pr_auc": 0.42664352758343055,
+    "roc_auc": 0.8780755438413114,
     "precision": 0.38200379867046536,
     "recall": 0.5181964573268921,
     "f1": 0.4397977313106464,
-    "tn": 83386.0,
+    "tn": 83390.0,
     "fp": 2603.0,
     "fn": 1496.0,
     "tp": 1609.0,
-    "raw_brier_score": 0.0495279510664705,
-    "brier_score": 0.024833547956238516
+    "raw_brier_score": 0.04952793260487553,
+    "brier_score": 0.024832559648555186
   },
   "gates": {
     "holdout_pr_auc": false,
