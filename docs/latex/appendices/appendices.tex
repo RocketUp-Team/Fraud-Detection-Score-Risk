@@ -84,19 +84,6 @@ The application diagram is implementation-level evidence for the modular
 monolith. Spark preprocessing and Python model training are separate profiles;
 the diagram does not imply distributed estimator fitting.
 
-\section{Historical model comparison}
-
-The following comparison is retained as historical evidence only. The older
-LightGBM and current CatBoost artifacts use different feature and preprocessing
-contracts, so the figure is not a controlled algorithm-only ablation.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/v1-v2-validation-performance.png}
-\caption{Historical model artifact validation comparison.}
-\label{fig:appendix-historical-model-comparison}
-\end{figure}
-
 \chapter{Feature and Risk Contracts}
 \label{app:contracts}
 

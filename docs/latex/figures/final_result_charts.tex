@@ -1,55 +1,63 @@
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/class-distribution.png}
-\caption[Class distribution]{Class distribution (ARTIFACT-REPORTED). Source: official data-quality/EDA report. The chart is descriptive and does not imply causal relationships.}
-\label{fig:final-class-distribution}
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../../docs/figures/final_report/class-distribution.png}
+    \caption{Class distribution.}
+    \label{fig:final-class-distribution}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../../docs/figures/final_report/fraud-rate-by-product.png}
+    \caption{Fraud rate by ProductCD.}
+    \label{fig:final-fraud-product}
+  \end{subfigure}
+  \caption{Exploratory Data Analysis: Class distribution and fraud rate by ProductCD.}
+  \label{fig:eda-overview-1}
 \end{figure}
 
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/fraud-rate-by-product.png}
-\caption[Fraud rate by ProductCD]{Fraud rate by ProductCD (ARTIFACT-REPORTED). Source: official EDA report; group differences are descriptive associations.}
-\label{fig:final-fraud-product}
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../../docs/figures/final_report/fraud-rate-by-transaction-hour.png}
+    \caption{Fraud rate by transaction hour.}
+    \label{fig:final-fraud-hour}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../../docs/figures/final_report/model-family-comparison.png}
+    \caption{Model-family selection PR-AUC.}
+    \label{fig:final-model-family}
+  \end{subfigure}
+  \caption{Temporal fraud association and model-family performance selection.}
+  \label{fig:eda-and-model-family}
 \end{figure}
 
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/fraud-rate-by-identity-presence.png}
-\caption[Fraud rate by identity presence]{Fraud rate by identity presence (ARTIFACT-REPORTED). Source: official EDA report; identity availability is not interpreted as a causal factor.}
-\label{fig:final-fraud-identity}
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../../docs/figures/final_report/candidate-validation-holdout.png}
+    \caption{Validation vs holdout metrics.}
+    \label{fig:final-candidate-validation-holdout}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../../docs/figures/final_report/holdout-confusion-matrix.png}
+    \caption{Holdout confusion matrix (0.16 threshold).}
+    \label{fig:final-holdout-confusion}
+  \end{subfigure}
+  \caption{Candidate holdout evaluation: Metrics drop and operating confusion matrix.}
+  \label{fig:model-holdout-eval}
 \end{figure}
 
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/fraud-rate-by-transaction-hour.png}
-\caption[Fraud rate by transaction hour]{Fraud rate by transaction hour (ARTIFACT-REPORTED). Source: official EDA report; the plot summarizes temporal association only.}
-\label{fig:final-fraud-hour}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/model-family-comparison.png}
-\caption[Model-family comparison]{Model-family comparison (ARTIFACT-REPORTED). CatBoost balanced has the highest selection-window PR-AUC in the saved comparison artifact.}
-\label{fig:final-model-family}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.82\textwidth]{../../docs/figures/final_report/candidate-validation-holdout.png}
-\caption[Current CatBoost candidate validation and holdout performance]{Current CatBoost candidate validation and holdout performance (ARTIFACT-REPORTED). Holdout ranking performance is lower than validation performance, with the largest decrease in PR-AUC.}
-\label{fig:final-candidate-validation-holdout}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.70\textwidth]{../../docs/figures/final_report/holdout-confusion-matrix.png}
-\caption[Holdout confusion matrix]{Holdout confusion matrix at the review threshold of 0.16 (ARTIFACT-REPORTED). The candidate detects 1,609 fraud cases and misses 1,496, while 2,603 legitimate transactions are flagged as positive.}
-\label{fig:final-holdout-confusion}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.70\textwidth]{../../docs/figures/final_report/calibration-brier.png}
-\caption[Probability calibration]{Raw versus isotonic-calibrated holdout Brier score (ARTIFACT-REPORTED). The lower calibrated score indicates improved probability calibration.}
-\label{fig:final-calibration-brier}
+  \centering
+  \includegraphics[width=0.55\textwidth]{../../docs/figures/final_report/calibration-brier.png}
+  \caption{Probability calibration: Raw vs isotonic-calibrated Brier score on holdout.}
+  \label{fig:final-calibration-brier}
 \end{figure}

@@ -63,11 +63,10 @@ confounded by transaction mix, time, or missingness.
 
 \section{Leakage-controlled transformation order}
 
-Figure~\ref{fig:final-leakage-flow} highlights the transforms whose parameters are
+Figure~\ref{fig:final-detailed-pipeline} highlights the transforms whose parameters are
 fitted only on the training window.
 
 \input{figures/final_detailed_pipeline}
-\input{figures/final_leakage_flow}
 
 The use of \texttt{TransactionDT} produces forward validation rather than a
 random split. This better represents the intended question: whether a model
