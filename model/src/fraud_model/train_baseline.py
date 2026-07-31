@@ -17,11 +17,17 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from . import config
-from .data import DatasetNotFoundError, load_train_weighted, load_validation
+from .data import (
+    DatasetNotFoundError,
+    load_train_weighted,
+    load_validation,
+    split_validation_windows,
+)
 from .features import (
     align_feature_columns,
     apply_categorical_indexer,
     extract_category_mappings,
+    feature_contract_metadata,
     fit_categorical_indexer,
     to_pandas_xy,
 )
@@ -31,7 +37,8 @@ from .tracking import log_dataset_params, training_run
 def main() -> None:
     try:
         train_df = load_train_weighted()
-        val_df = load_validation()
+        val_windows = split_validation_windows(load_validation())
+        val_df = val_windows.selection
     except DatasetNotFoundError as e:
         print(e)
         raise SystemExit(1)
@@ -46,7 +53,10 @@ def main() -> None:
 
     with training_run("baseline"):
         log_dataset_params(len(X_train), len(X_val))
-        model = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
+        model = make_pipeline(
+            StandardScaler(),
+            LogisticRegression(max_iter=1000, random_state=config.RANDOM_SEED),
+        )
         model.fit(X_train, y_train, logisticregression__sample_weight=w_train)
         val_proba = model.predict_proba(X_val)[:, 1]
         roc_auc = roc_auc_score(y_val, val_proba)
@@ -59,6 +69,7 @@ def main() -> None:
     )
 
     config.TRAINING_ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    contract = feature_contract_metadata()
     joblib.dump(
         {
             "model": model,
@@ -68,6 +79,13 @@ def main() -> None:
             "category_mappings": extract_category_mappings(indexer),
             "validation_roc_auc": roc_auc,
             "validation_pr_auc": pr_auc,
+            "processing_version": contract["processing_version"],
+            "feature_schema_version": contract["feature_schema_version"],
+            "required_features": contract["required_features"],
+            "optional_features": contract["optional_features"],
+            "defaultable_features": contract["defaultable_features"],
+            "validation_window": "selection",
+            "validation_window_counts": val_windows.counts,
         },
         config.TRAINING_BASELINE_MODEL_PATH,
     )

@@ -1,0 +1,77 @@
+{
+  "feature_count": 68,
+  "datasets": {
+    "train_original": {
+      "rows": 412956,
+      "columns": 74,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "train_weighted": {
+      "rows": 412956,
+      "columns": 75,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "class_weight",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "train_balanced": {
+      "rows": 58394,
+      "columns": 74,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "validation": {
+      "rows": 88490,
+      "columns": 74,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "holdout": {
+      "rows": 89094,
+      "columns": 74,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "isFraud",
+        "processing_version",
+        "split_name"
+      ]
+    },
+    "kaggle_test": {
+      "rows": 506691,
+      "columns": 73,
+      "extra_non_feature_columns": [
+        "TransactionID",
+        "feature_schema_version",
+        "generated_at",
+        "processing_version",
+        "split_name"
+      ]
+    }
+  }
+}

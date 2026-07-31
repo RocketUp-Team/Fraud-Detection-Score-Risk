@@ -1,0 +1,47 @@
+{
+  "model_version": "0.0.3",
+  "results": {
+    "logreg": {
+      "roc_auc": 0.8219357618291477,
+      "pr_auc": 0.30921108045864926
+    },
+    "lightgbm": {
+      "roc_auc": 0.9116059894894413,
+      "pr_auc": 0.5682231472286197
+    },
+    "xgboost": {
+      "roc_auc": 0.8878753427714998,
+      "pr_auc": 0.5528696073462832
+    },
+    "catboost": {
+      "roc_auc": 0.8833392984048679,
+      "pr_auc": 0.5294610343378247
+    },
+    "logreg__balanced": {
+      "roc_auc": 0.8188065572057697,
+      "pr_auc": 0.31934935924606345
+    },
+    "lightgbm__balanced": {
+      "roc_auc": 0.9078416258099622,
+      "pr_auc": 0.5676669597437123
+    },
+    "xgboost__balanced": {
+      "roc_auc": 0.9085736347359982,
+      "pr_auc": 0.5695716036871442
+    },
+    "catboost__balanced": {
+      "roc_auc": 0.9069722368108452,
+      "pr_auc": 0.5703413678899099
+    }
+  },
+  "best_model": "catboost__balanced",
+  "best_dataset": "balanced",
+  "validation_window": "selection",
+  "validation_window_counts": {
+    "selection": 44243,
+    "calibration": 22122,
+    "policy": 22121
+  },
+  "selection_boundary": 11713696.0,
+  "calibration_boundary": 12438149.0
+}

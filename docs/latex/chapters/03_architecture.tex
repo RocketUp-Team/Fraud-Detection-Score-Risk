@@ -3,167 +3,84 @@
 
 \section{Functional requirements}
 
-The implemented system satisfies the following demonstration requirements:
-
-\begin{longtable}{p{0.12\textwidth}p{0.58\textwidth}p{0.20\textwidth}}
-\caption{Functional requirements and implementation status}
+\begin{longtable}{p{0.14\textwidth}p{0.78\textwidth}}
+\caption{Functional requirements specification}
 \label{tab:functional-requirements}\\
 \toprule
-ID & Requirement & Status\\
+\textbf{ID} & \textbf{Requirement Description}\\
 \midrule
 \endfirsthead
 \toprule
-ID & Requirement & Status\\
+\textbf{ID} & \textbf{Requirement Description}\\
 \midrule
 \endhead
-FR-01 & Validate and process the required transaction and identity CSV files. & Implemented\\
-FR-02 & Produce train, validation, holdout, and unlabeled model-ready datasets. & Verified\\
-FR-03 & Preserve a canonical feature order and preprocessing metadata. & Verified\\
-FR-04 & Compare multiple binary classifiers using validation metrics. & Artifact-reported\\
-FR-05 & Score one transaction and return probability, risk, version, and explanation. & Implemented\\
-FR-06 & Persist scored transactions and human review outcomes. & Implemented\\
-FR-07 & Filter, sort, paginate, and inspect transactions. & Tested in API suite\\
-FR-08 & Import CSV and load processed datasets with progress reporting. & Implemented\\
-FR-09 & Support review approval/rejection and a fraud/legitimate label. & Tested in API suite\\
-FR-10 & Present risk, SHAP evidence, model state, and fallback state in a browser. & Implemented\\
+FR-01 & Validate and process required IEEE-CIS transaction and identity CSV files.\\
+FR-02 & Produce train, validation, holdout, and unlabeled model-ready datasets.\\
+FR-03 & Preserve canonical feature order and preprocessing metadata.\\
+FR-04 & Compare binary classifiers using validation PR-AUC metrics.\\
+FR-05 & Score transactions and return probability, risk score, version, and explanations.\\
+FR-06 & Persist scored transactions and human review outcomes.\\
+FR-07 & Filter, sort, paginate, and inspect transaction records.\\
+FR-08 & Import CSV and load processed datasets with progress reporting.\\
+FR-09 & Support review approval/rejection and fraud/legitimate labels.\\
+FR-10 & Present risk, SHAP evidence, and model state in a browser interface.\\
 \bottomrule
 \end{longtable}
 
 \section{Quality requirements}
 
-\begin{longtable}{p{0.12\textwidth}p{0.58\textwidth}p{0.20\textwidth}}
-\caption{Quality requirements and assessment}
+\begin{longtable}{p{0.14\textwidth}p{0.78\textwidth}}
+\caption{Quality requirements specification}
 \label{tab:quality-requirements}\\
 \toprule
-ID & Requirement & Assessment\\
+\textbf{ID} & \textbf{Requirement Description}\\
 \midrule
 \endfirsthead
 \toprule
-ID & Requirement & Assessment\\
+\textbf{ID} & \textbf{Requirement Description}\\
 \midrule
 \endhead
-QR-01 & Temporal leakage control and non-overlapping splits. & Verified\\
-QR-02 & Reproducible schema and feature contracts. & Verified\\
-QR-03 & Version-aware model artifacts and rollback. & Implemented\\
-QR-04 & Explainable tree-model predictions. & Implemented\\
-QR-05 & Local deployment with bounded data mounts. & Implemented\\
-QR-06 & Automated subsystem tests. & Partial\\
-QR-07 & Auditable experiment and promotion lineage. & Incomplete\\
-QR-08 & Durable background operations. & Incomplete\\
-QR-09 & Authentication, authorization, and audit controls. & Not implemented\\
-QR-10 & Production monitoring and service objectives. & Not implemented\\
+QR-01 & Temporal leakage control and non-overlapping chronological splits.\\
+QR-02 & Reproducible schema and feature contracts.\\
+QR-03 & Version-aware model artifacts and rollback capability.\\
+QR-04 & Explainable tree-model predictions via TreeSHAP.\\
+QR-05 & Local containerized deployment with bounded data mounts.\\
+QR-06 & Automated subsystem test suite.\\
+QR-07 & Auditable experiment and promotion lineage.\\
+QR-08 & Durable background job operations.\\
+QR-09 & Role-based authentication, authorization, and audit logging.\\
+QR-10 & Real-time production latency and drift monitoring.\\
 \bottomrule
 \end{longtable}
 
 \section{Integrated architecture}
 
-Figure~\ref{fig:system-architecture} shows the implemented batch and serving
-layers. The central contract is the verified model-ready dataset plus its
-feature and schema metadata.
+The system integrates batch data preparation, offline ML training, and online inference into an in-process modular monolith. Figure~\ref{fig:final-overall-system} presents the overall architecture and data flow contracts.
 
-\input{figures/system_architecture}
+\input{figures/final_overall_system}
 
-The architecture uses a direct Python dependency between model and backend.
-This avoids network serialization and a separate model service for the
-demonstration. It also means backend dependency resolution and image size are
-coupled to the training project.
+\section{System contracts}
 
-\section{Component responsibilities}
-
-\subsection{Data pipeline}
-
-The data component owns raw-file validation, typed ingestion, transaction--identity
-join preservation, quality and EDA reports, feature engineering, split policy,
-training-fitted transformations, Parquet output, and the manifest/verifier.
-
-\subsection{Model package}
-
-The model component owns dataset loading, training-only categorical indexing,
-candidate comparison, tuning, evaluation, artifact packaging, version path
-selection, SHAP initialization, and the \texttt{score(features)} interface.
-
-\subsection{Backend}
-
-The backend owns API validation, risk bands, automatic decisions, model/fallback
-state, SQL persistence, transaction queries, reviews, CSV import, processed
-dataset discovery, and background loading jobs.
-
-\subsection{Frontend}
-
-The frontend owns user navigation, filtering and pagination, risk presentation,
-SHAP visualization and accessible fallback, review input, ad-hoc scoring, data
-loading/import, polling, theme preferences, and rule-based assistance.
-
-\section{Primary data flows}
-
-\subsection{Batch preparation}
-
-Raw CSV files are mounted into a Linux Spark container. The pipeline writes
-ignored local artifacts under
-\systempath{data/processed/ieee_cis_fraud_risk}. Downstream modules consume
-Parquet and JSON contracts, not in-memory Spark objects.
-
-\subsection{Training}
-
-The model loads the weighted training split and untouched validation/holdout
-splits, fits categorical mappings on training, converts the model matrix to
-pandas, selects a candidate on validation, and writes a versioned artifact.
-
-\subsection{Real-time scoring}
-
-The backend calls the in-process model package. Raw string categorical values
-are mapped using dictionaries persisted with the artifact. Probability and
-local SHAP evidence are mapped into risk presentation and returned through
-Pydantic schemas.
-
-\subsection{Review}
-
-Scored transactions are stored before investigation. The human review result is
-a separate entity so an automatic decision remains distinguishable from a
-reviewer's status and label.
-
-\section{Contracts}
-
-The system has three principal contracts:
-
+The system enforces three primary contracts:
 \begin{enumerate}
-  \item the model-ready data contract, including canonical feature order and
-  schema/version metadata;
-  \item the model scoring contract, including required/defaultable features,
-  probability, SHAP, and version metadata;
-  \item the HTTP contract, including transaction, review, dataset, load, job,
-  import, and scoring types.
+  \item \textbf{Data Contract}: Canonical 68-feature vector and schema hash.
+  \item \textbf{Scoring Contract}: Per-transaction request/response, probability, and TreeSHAP.
+  \item \textbf{API Contract}: Pydantic \& TypeScript REST endpoints.
 \end{enumerate}
 
-The first contract is strongly machine-checked. The third is manually duplicated
-between Pydantic, TypeScript, mocks, and Markdown. At the evidence snapshot, the
-TypeScript declarations omit several backend metadata fields and
-\texttt{scoring\_mode}; OpenAPI-generated types are recommended.
-
-\section{Risk and trust boundaries}
-
-The browser is untrusted input. FastAPI/Pydantic validates JSON and route
-parameters; CSV parsing applies bounded row limits and per-row error handling.
-The database and processed-data mount are trusted local resources.
-
-Joblib model artifacts are also a trust boundary because Python deserialization
-can execute code. Only artifacts produced by a controlled training pipeline
-should be loaded. Current files have no saved immutable checksum registry.
-
-The fallback heuristic is a further trust concern. It keeps the demonstration
-available when the model fails, but it must not be allowed to impersonate a
-production model. The backend exposes a warning, yet readiness remains
-fail-open.
+\input{figures/final_contracts}
 
 \section{Architectural tradeoffs}
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Major architectural tradeoffs}
 \label{tab:architecture-tradeoffs}
 \begin{tabularx}{\textwidth}{p{0.25\textwidth}XX}
 \toprule
-Choice & Benefit & Cost\\
+\textbf{Choice} & \textbf{Benefit} & \textbf{Cost}\\
 \midrule
 Monorepo and path dependency & Simple handoff and one Compose stack & Backend inherits model dependencies\\
 Spark then pandas & Scalable preparation and familiar estimators & Driver-memory training ceiling\\
@@ -176,3 +93,48 @@ Manual TypeScript types & No generator setup & Contract drift risk\\
 \end{tabularx}
 \end{table}
 
+\section{Main source code components}
+
+Table~\ref{tab:main-source-files} outlines the primary source implementation files and core responsibilities across project components.
+
+\begin{table}[H]
+\centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
+\caption{Main Source Files and Component Responsibilities}
+\label{tab:main-source-files}
+\begin{tabularx}{\textwidth}{p{0.24\textwidth}p{0.34\textwidth}X}
+\toprule
+\textbf{Component} & \textbf{Module reference} & \textbf{Responsibility}\\
+\midrule
+Spark Preprocessing & Preprocessing Pipeline & Schema ingestion, left join, leakage-free transformation, Parquet export\\
+Data Verifier & Verification Engine & Validates dataset row counts, schema hash, split overlap, verification report\\
+Model Training & Estimator Training Module & Single-node candidate training, tuning, calibration, holdout evaluation\\
+Backend Scoring & FastAPI Scoring Service & Artifact loading, probability scoring, SHAP calculation, FastAPI endpoints\\
+Frontend Dashboard & React UI Dashboard & React UI, risk queue, SHAP feature rendering, analyst review workflow\\
+Docker Deployment & Multi-container Orchestration & Multi-container service orchestration (backend, frontend, db, preprocessing)\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Distributed Spark execution evidence}
+
+Table~\ref{tab:spark-execution-evidence} presents the Spark execution configurations and deployment specification available in the repository.
+
+\begin{table}[H]
+\centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
+\caption{Distributed Spark Execution Evidence}
+\label{tab:spark-execution-evidence}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.18\textwidth} >{\raggedright\arraybackslash}p{0.32\textwidth} >{\centering\arraybackslash}p{0.06\textwidth} >{\centering\arraybackslash}p{0.06\textwidth} >{\centering\arraybackslash}p{0.07\textwidth} >{\centering\arraybackslash}p{0.08\textwidth} X}
+\toprule
+\textbf{Spark mode} & \textbf{Master URL} & \textbf{Wk} & \textbf{Cpu} & \textbf{Mem} & \textbf{Out} & \textbf{Deployment Spec}\\
+\midrule
+Local Preproc & \texttt{local[4]} & \val{1} & \val{4} & \val{8GB} & \val{280MB} & Preprocessing Service Spec\\
+Cluster Mode & \texttt{spark://master:7077} & \val{2} & \val{4} & \val{8GB} & \val{280MB} & Standalone Cluster Spec\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textit{Note: Cluster configuration is implemented, but a clean end-to-end distributed runtime was not independently verified.}

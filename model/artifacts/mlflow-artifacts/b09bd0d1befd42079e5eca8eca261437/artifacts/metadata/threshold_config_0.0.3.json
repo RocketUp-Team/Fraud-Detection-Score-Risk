@@ -1,0 +1,14 @@
+{
+  "review_threshold": 0.14,
+  "reject_threshold": 0.47,
+  "selection_rule": "max_recall_then_f1_with_min_precision",
+  "reject_selection_rule": "lowest_threshold_meeting_reject_precision",
+  "min_precision": 0.3,
+  "min_reject_precision": 0.6,
+  "selected_review_precision": 0.3210412147505423,
+  "selected_reject_precision": 0.6366906474820144,
+  "calibration_window": "validation_calibration",
+  "policy_window": "validation_policy",
+  "selection_boundary": 11713696.0,
+  "calibration_boundary": 12438149.0
+}

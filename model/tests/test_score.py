@@ -32,6 +32,9 @@ def _make_tree_artifact(path):
             "model_name": "lightgbm",
             "feature_columns": FEATURE_COLUMNS,
             "category_mappings": {"ProductCD": {"w": 0, "c": 1, "__MISSING__": 2}},
+            "required_features": FEATURE_COLUMNS,
+            "defaultable_features": ["ProductCD"],
+            "optional_features": [],
         },
         path,
     )
@@ -77,21 +80,30 @@ def test_score_handles_unseen_categorical_value_without_crashing(tmp_path, monke
     monkeypatch.setattr(config, "SERVING_FINAL_MODEL_PATH", final_path)
     monkeypatch.setattr(config, "SERVING_MODEL_VERSION", "v2")
 
-    result = score_module.score({"TransactionAmt": 50.0, "ProductCD": "NEVER_SEEN_BEFORE"})
+    result = score_module.score(
+        {
+            "TransactionAmt": 50.0,
+            "C1": 1.0,
+            "C2": 2.0,
+            "C3": 0.0,
+            "C4": -1.0,
+            "ProductCD": "NEVER_SEEN_BEFORE",
+        }
+    )
 
     assert 0.0 <= result["proba"] <= 1.0
 
 
-def test_score_defaults_missing_features_to_sentinel_value(tmp_path, monkeypatch):
+def test_score_allows_partial_demo_scoring(tmp_path, monkeypatch):
     final_path = tmp_path / "final_model.joblib"
     _make_tree_artifact(final_path)
     monkeypatch.setattr(config, "SERVING_FINAL_MODEL_PATH", final_path)
     monkeypatch.setattr(config, "SERVING_MODEL_VERSION", "v2")
 
-    # Không truyền C1..C4/ProductCD — không được crash, phải tự dùng giá trị mặc định.
     result = score_module.score({"TransactionAmt": 50.0})
 
     assert 0.0 <= result["proba"] <= 1.0
+    assert result["scoring_mode"] == "partial_demo"
 
 
 def test_score_falls_back_to_baseline_when_final_model_missing(tmp_path, monkeypatch):
@@ -116,13 +128,25 @@ def test_score_raises_file_not_found_when_no_artifact_available(tmp_path, monkey
         score_module.score({"TransactionAmt": 10.0})
 
 
-def test_score_chap_nhan_feature_None():
+def test_score_chap_nhan_feature_none(tmp_path, monkeypatch):
     """Feature có mặt nhưng giá trị None phải được coi như thiếu (-999).
 
     CSV thật luôn có ô trống; nếu None đi vào DataFrame thì cột thành dtype
     object và LightGBM từ chối cả dòng.
     """
-    from fraud_model.score import score
+    final_path = tmp_path / "final_model.joblib"
+    _make_tree_artifact(final_path)
+    monkeypatch.setattr(config, "SERVING_FINAL_MODEL_PATH", final_path)
+    monkeypatch.setattr(config, "SERVING_MODEL_VERSION", "v2")
 
-    result = score({"TransactionAmt": 100.0, "D2": None, "dist1": None, "card4": None})
+    result = score_module.score(
+        {
+            "TransactionAmt": 100.0,
+            "C1": None,
+            "C2": None,
+            "C3": 0.0,
+            "C4": 1.0,
+            "ProductCD": None,
+        }
+    )
     assert 0.0 <= result["proba"] <= 1.0

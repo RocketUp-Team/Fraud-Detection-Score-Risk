@@ -1,32 +1,6 @@
 \begin{figure}[H]
 \centering
-\resizebox{0.98\textwidth}{!}{%
-\begin{tikzpicture}[
-  node distance=11mm and 16mm,
-  svc/.style={draw=ReportInk,rounded corners=2pt,align=center,
-    minimum width=34mm,minimum height=11mm,fill=ReportOrange!12},
-  store/.style={draw=ReportInk,cylinder,shape border rotate=90,aspect=.25,
-    align=center,minimum width=32mm,minimum height=13mm,fill=ReportBlue!10},
-  arrow/.style={-{Latex[length=2mm]},thick}
-]
-\node[svc] (browser) {Browser};
-\node[svc, right=of browser] (front) {React/Vite\\port 5173};
-\node[svc, below=of front] (back) {FastAPI\\port 8000};
-\node[store, right=of back] (db) {PostgreSQL\\port 5432};
-\node[store, left=of back] (data) {Processed\\Parquet mount};
-\node[svc, below=of back] (model) {In-process\\fraud-model};
-\node[svc, right=of db] (admin) {Adminer\\port 8081};
-
-\draw[arrow] (browser) -- (front);
-\draw[arrow] (browser) |- (back);
-\draw[arrow] (back) -- (db);
-\draw[arrow] (data) -- (back);
-\draw[arrow] (back) -- (model);
-\draw[arrow] (admin) -- (db);
-\end{tikzpicture}
-}
-\caption[Default application deployment]{Default application deployment.
-Adminer is optional; Spark training services are a separate Compose profile and
-are not needed for request-time scoring.}
+\includegraphics[width=\textwidth,height=0.36\textheight,keepaspectratio]{../../docs/diagrams/final/Application-deployment.png}
+\caption[Default application deployment]{Default application deployment. Browser, React/Vite, FastAPI backend, PostgreSQL, and in-process fraud model.}
 \label{fig:deployment}
 \end{figure}

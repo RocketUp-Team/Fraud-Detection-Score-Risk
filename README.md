@@ -44,6 +44,17 @@ Trong lúc chờ bàn giao, mỗi phần phát triển độc lập với mock/s
 
 ## Chạy full stack bằng Docker
 
+Để chạy toàn bộ luồng chính thức từ raw data đến V2 model, kiểm thử và
+application stack:
+
+```bash
+bash scripts/run_official_full.sh
+```
+
+Script dùng duy nhất version chính thức `v2`, không tạo candidate `0.0.x`,
+fail-fast khi một stage lỗi và lưu toàn bộ log/evidence vào
+`reports/official-run/`.
+
 ```bash
 docker compose up --build
 ```
@@ -124,13 +135,16 @@ Spark UI: `http://localhost:8080`.
 
 Kết quả so sánh model V1/V2 được ghi tại
 [`docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md`](./docs/AN_MODEL_V1_V2_COMPARISON_REPORT.md).
-V2 hiện tốt hơn V1 trên holdout PR-AUC (`0.4582` so với `0.4298`) nhưng vẫn là
-đã được promote làm serving default; rollback bằng
+V2 hiện tốt hơn V1 trên holdout PR-AUC (`0.4582` so với `0.4298`) và đang là
+serving default. Candidate mới luôn qua promotion gate và không tự thay V2;
+rollback bằng
 `FRAUD_MODEL_SERVING_VERSION=v1` nếu cần.
 
-Nếu Spark cluster image không resolve được, có thể chạy toàn bộ training V2
-bằng Spark local trong Docker:
+Chạy candidate mới bằng Spark local trong Docker:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\train_model_v2_full.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\train_model.ps1 `
+  -Mode local `
+  -TrainingVersion 0.0.3 `
+  -DataRoot candidates\ieee_cis_fraud_risk_2_1_0
 ```

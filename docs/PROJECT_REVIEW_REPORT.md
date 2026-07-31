@@ -25,10 +25,12 @@ the four documented subsystem workstreams are visible and mostly consistent:
 - the frontend models the same response shapes and presents the scoring/review
   flow.
 
-The best-evidenced result is the processed-data contract. The model result is
-promising but less reproducible: V2 is the saved offline champion, while model
-loading, MLflow history, calibration, and operating thresholds are not fully
-evidenced. The application layer is feature-complete for a demonstration but
+The best-evidenced result is the processed-data contract. V2 remains the saved
+offline champion by holdout PR-AUC and the current serving default. A later
+`0.0.2` XGBoost candidate adds five completed MLflow stage runs, isotonic
+calibration, selected review/reject thresholds, and holdout operating metrics,
+but its holdout PR-AUC (`0.4318`) is below V2 (`0.4582`) and it has not been
+promoted. The application layer is feature-complete for a demonstration but
 deliberately omits production controls.
 
 ## 2. Scope and method
@@ -59,17 +61,12 @@ contains the raw and processed evidence used by the project.
 5. Missing dependencies, services, credentials, or artifacts are recorded as
    blockers, not silently replaced with a passing claim.
 
-### 2.3 Worktree preservation
+### 2.3 Reviewed update context
 
-The review preserves the pre-existing modifications to:
-
-- `model/pyproject.toml`;
-- `model/uv.lock`;
-- `docs/3. Thesis_Template_MSE_FPT University.pdf`.
-
-The dependency changes constrain pandas below 3 and PyArrow below 22 for MLflow
-compatibility. They are treated as current worktree evidence, not as changes
-introduced by this documentation task.
+The review includes commit `c6cc994`, which constrains pandas below 3 and
+PyArrow below 22 for MLflow compatibility, changes the local MLflow backend to
+SQLite, and records the current thesis/report updates. Ignored local artifacts
+were inspected as execution evidence but are not committed as source files.
 
 ## 3. Completion matrix
 
@@ -84,10 +81,11 @@ introduced by this documentation task.
 | Baseline and multi-model comparison | Complete | Scripts and V1/V2 comparison JSON |
 | V2 final artifact | Present | Joblib plus training metadata |
 | V2 independent reproduction | Partial | Metrics saved; local model load initially blocked |
-| MLflow implementation | Implemented | Source and dependency |
-| MLflow run history | Not evidenced | Only experiment metadata observed |
-| Probability calibration | Planned/partial | Code paths exist; V2 artifact absent |
-| Business threshold policy | Not complete | Backend uses fixed risk bands |
+| `0.0.2` candidate artifact | Present | XGBoost, calibration, thresholds, holdout metrics |
+| MLflow implementation | Verified locally | SQLite backend and five finished stage runs |
+| MLflow run history | Partial | Local/ignored history exists; no registry or promotion record |
+| Probability calibration | Candidate-only | Isotonic calibration saved for `0.0.2`, not V2 |
+| Business threshold policy | Not complete | Candidate thresholds are not enforced by backend |
 | SHAP local explanations | Implemented | TreeSHAP scoring and UI |
 | FastAPI scoring/review API | Complete for demo | Routes, schemas, tests |
 | PostgreSQL/SQLite persistence | Complete for demo | SQLAlchemy models and Compose |
@@ -126,22 +124,25 @@ Saved metadata reports that V2 LightGBM improves holdout PR-AUC from `0.4298` to
 - V1 and V2 use different feature contracts (53 versus 68 features);
 - the review initially could not load V2 without installing LightGBM;
 - V2 metadata omits operating-point precision/recall/confusion counts;
-- no calibration or threshold artifact is present;
+- V2 has no calibration or threshold artifact;
 - model checksums and registry records are absent;
-- completed MLflow runs were not found.
+- the later `0.0.2` XGBoost candidate has fuller evaluation evidence but a lower
+  holdout PR-AUC (`0.4318`) than V2 (`0.4582`) and is not the serving default.
 
 The correct statement is therefore: **V2 is the artifact-reported offline
 champion and current code default; production effectiveness is not established.**
 
-### F3. Model promotion wording is internally inconsistent
+### F3. Legacy model-promotion wording has been reconciled
 
-**Severity:** medium
+**Severity:** informational
 **Confidence:** high
 
-`model/src/fraud_model/config.py` defaults to V2, while the scoring module
-docstring still says V1 is the current default. Existing comparison reports
-contain both “do not promote yet” recommendations and “V2 has been promoted”
-conclusions.
+`model/src/fraud_model/config.py` defaults to V2. Before this follow-up review,
+the scoring module docstring still said V1 was the current default; it has now
+been corrected. The V1/V2 comparison report also previously mixed “do not
+promote yet” recommendations with “V2 has been promoted” conclusions; those
+statements now consistently distinguish the V2 software default from an
+unrecorded production promotion.
 
 Operational source truth is V2-by-default with an environment rollback to V1.
 The documentation should continue to separate that software default from a
@@ -174,17 +175,21 @@ scorer and expose a warning. This is useful during a short demonstration, but a
 production service should fail readiness or require explicit demo-mode opt-in.
 Otherwise syntactically valid scores may be mistaken for model predictions.
 
-### F6. MLflow exists in source but not in evidence
+### F6. MLflow run history exists, but controlled promotion does not
 
 **Severity:** high
 **Confidence:** high
 
-The model package contains an MLflow tracking wrapper and the current dependency
-definition includes MLflow. The observed local MLflow directory contains an
-experiment metadata file but no completed run folders, metrics, parameters, or
-logged model artifacts.
+The local SQLite tracking database contains five finished `0.0.2` stage runs:
+baseline, candidate comparison, validation/tuning, threshold/calibration, and
+final holdout. Parameters and metrics are queryable, and the candidate artifact
+directory contains the corresponding evaluation files.
 
-Documentation must describe MLflow as implemented but not proven by saved runs.
+The evidence remains local and Git-ignored. Artifact URIs reference the
+container-local `/app/artifacts/mlflow-artifacts` path, and the database has no
+registered models, model versions, promotion aliases, immutable model checksum,
+or approval/rollback record. MLflow therefore supports local experiment audit,
+but not yet a portable model-registry or controlled-promotion claim.
 
 ### F7. Backend and frontend are complete for the intended demonstration
 
@@ -293,15 +298,14 @@ OpenAPI-generated types would reduce this three-source synchronization risk.
 | R1 | No auth/authorization/audit controls | Critical | Backend/platform |
 | R2 | Missing fail-closed model readiness | High | Model/backend |
 | R3 | Threshold policy not connected to validation | High | Model/product/backend |
-| R4 | No completed MLflow/model-registry evidence | High | ML engineering |
-| R5 | Operating-point and calibration evidence missing | High | ML engineering |
+| R4 | Local MLflow runs exist, but registry/promotion/checksum evidence is absent | High | ML engineering |
+| R5 | Candidate calibration/thresholds are not the served backend policy | High | ML engineering/product/backend |
 | R6 | Manifest/verifier lifecycle status mismatch | Medium | Data engineering |
-| R7 | Documentation conflicts about promotion | Medium | ML engineering |
-| R8 | No durable jobs or schema migrations | Medium | Backend/platform |
-| R9 | No automated frontend/browser tests | Medium | Frontend |
-| R10 | Manual API type synchronization | Medium | Backend/frontend |
-| R11 | Driver-memory pandas training boundary | Medium | ML/data engineering |
-| R12 | No bulk re-score/version-isolated analytics | Medium | Backend/product |
+| R7 | No durable jobs or schema migrations | Medium | Backend/platform |
+| R8 | No automated frontend/browser tests | Medium | Frontend |
+| R9 | Manual API type synchronization | Medium | Backend/frontend |
+| R10 | Driver-memory pandas training boundary | Medium | ML/data engineering |
+| R11 | No bulk re-score/version-isolated analytics | Medium | Backend/product |
 
 ## 8. Recommended remediation sequence
 
@@ -314,10 +318,13 @@ OpenAPI-generated types would reduce this three-source synchronization risk.
 
 ### Gate 2 — Evidence-based policy
 
-1. Produce calibration and threshold tables on separated temporal windows.
+1. Reproduce calibration and threshold tables on windows not reused for model
+   selection.
 2. Define review capacity and error costs.
-3. Select review/reject thresholds from explicit targets.
-4. Test exact threshold boundaries in model and API layers.
+3. Approve or revise the `0.0.2` review/reject thresholds against explicit
+   targets and compare them with V2.
+4. Connect the approved contract to backend decisions and test exact boundaries
+   in model and API layers.
 
 ### Gate 3 — Operational assurance
 
@@ -355,6 +362,9 @@ candidate.
 - `model/artifacts/model_comparison.json`;
 - `model/artifacts/v2/model_comparison_v2.json`;
 - `model/artifacts/v2/training_metadata_v2.json`;
+- ignored local `model/artifacts/0.0.2/` calibration, threshold, validation, and
+  holdout evidence;
+- ignored local `model/artifacts/mlflow.db` run/metric/parameter records;
 - `reports/static_validation_report.md`;
 - `reports/runtime_validation_report.md`;
 - `reports/MODEL_TRAINING_REVIEW_REPORT.md`.

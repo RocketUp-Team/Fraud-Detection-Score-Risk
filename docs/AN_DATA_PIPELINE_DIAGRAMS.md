@@ -1,4 +1,7 @@
-# An Data Pipeline Diagrams
+# An Data Pipeline Diagrams — HISTORICAL / SUPERSEDED
+
+> **Authoritative replacement:** [`AN_FINAL_ARCHITECTURE_DIAGRAMS.md`](AN_FINAL_ARCHITECTURE_DIAGRAMS.md).
+> The final diagrams correct the as-built/target boundary and leakage wording.
 
 ## 1. Layered Data Architecture
 

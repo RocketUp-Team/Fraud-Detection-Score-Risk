@@ -3,218 +3,100 @@
 
 \section{Source validation and typed ingestion}
 
-The raw inventory contains the four required IEEE-CIS files and an optional
-sample-submission file. The four required files occupy approximately 1.29 GB.
-The pipeline validates discovery, required names, sizes, headers, and schemas
-before performing expensive Spark actions.
+The raw IEEE-CIS dataset contains \val{4} CSV files totaling \val{1.29~GB} (Table~\ref{tab:source-files}). The Spark pipeline applies explicit schemas and file discovery checks.
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Observed source files}
 \label{tab:source-files}
 \begin{tabularx}{\textwidth}{Xrr}
 \toprule
-File & Bytes & Role\\
+\textbf{File} & \textbf{Bytes} & \textbf{Role}\\
 \midrule
-\texttt{train\_transaction.csv} & 683,351,067 & Labeled transactions\\
-\texttt{train\_identity.csv} & 26,529,680 & Optional train identity\\
-\texttt{test\_transaction.csv} & 613,194,934 & Unlabeled transactions\\
-\texttt{test\_identity.csv} & 25,797,161 & Optional test identity\\
+\texttt{train\_transaction.csv} & \val{683,351,067} & Labeled transactions\\
+\texttt{train\_identity.csv} & \val{26,529,680} & Optional train identity\\
+\texttt{test\_transaction.csv} & \val{613,194,934} & Unlabeled transactions\\
+\texttt{test\_identity.csv} & \val{25,797,161} & Optional test identity\\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Explicit Spark schemas avoid inferring a different type across runs and make
-conversion failures measurable. Identity column names are normalized before
-the join.
-
 \section{Join integrity}
 
-The transaction table is the authoritative row set and identity is joined with
-a left join on \texttt{TransactionID}. Table~\ref{tab:join-audit} shows that the
-join preserves every transaction row.
+Row authority is preserved via a LEFT JOIN on \texttt{TransactionID} (Table~\ref{tab:join-audit}).
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Transaction--identity join audit}
 \label{tab:join-audit}
 \begin{tabular}{lrrrr}
 \toprule
-Dataset & Transactions & Identity matches & Unmatched & Row difference\\
+\textbf{Dataset} & \textbf{Transactions} & \textbf{Identity matches} & \textbf{Unmatched} & \textbf{Row difference}\\
 \midrule
-Train & 590,540 & 144,233 & 446,307 & 0\\
-Test & 506,691 & 141,907 & 364,784 & 0\\
+Train & \val{590,540} & \val{144,233} & \val{446,307} & \val{0}\\
+Test & \val{506,691} & \val{141,907} & \val{364,784} & \val{0}\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The large unmatched count is expected. Presence and missingness features
-preserve information about identity availability without dropping rows.
-
-\section{Exploratory analysis and quality controls}
-
-The pipeline writes source inventory, key and join audits, duplicate summaries,
-invalid-record summaries, missingness profiles, class distributions, temporal
-aggregations, product/card/device/email breakdowns, and outlier reports.
-
-These reports are descriptive. A higher observed fraud rate for a device or
-product group does not establish a causal relationship; the group can be
-confounded by transaction mix, time, or missingness.
-
 \section{Leakage-controlled transformation order}
 
-Figure~\ref{fig:data-pipeline} highlights the transforms whose parameters are
-fitted only on the training window.
+Transformations fit strictly on training partitions and apply forward to validation and holdout. Figure~\ref{fig:final-detailed-pipeline} details the execution pipeline.
 
-\input{figures/data_pipeline}
-
-The use of \texttt{TransactionDT} produces forward validation rather than a
-random split. This better represents the intended question: whether a model
-trained on earlier transactions ranks later transactions.
+\input{figures/final_detailed_pipeline}
 
 \section{Chronological split}
 
+Sorting by \texttt{TransactionDT} creates non-overlapping chronological splits (Table~\ref{tab:chronological-splits}).
+
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Chronological labeled splits}
 \label{tab:chronological-splits}
 \begin{tabular}{lrrrr}
 \toprule
-Dataset & Rows & Fraud & Fraud rate & \texttt{TransactionDT} range\\
+\textbf{Dataset} & \textbf{Rows} & \textbf{Fraud} & \textbf{Fraud rate} & \textbf{\texttt{TransactionDT} range}\\
 \midrule
-Train & 412,956 & 14,522 & 3.5166\% & 86,400--10,432,902\\
-Validation & 88,490 & 3,036 & 3.4309\% & 10,432,915--13,136,653\\
-Holdout & 89,094 & 3,105 & 3.4851\% & 13,136,664--15,811,131\\
+Train & \val{412,956} & \val{14,522} & \val{3.5166\%} & \val{86,400}--\val{10,432,902}\\
+Validation & \val{88,486} & \val{3,036} & \val{3.4310\%} & \val{10,432,915}--\val{13,136,583}\\
+Holdout & \val{89,098} & \val{3,105} & \val{3.4849\%} & \val{13,136,627}--\val{15,811,131}\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The saved verifier found unique identifiers inside each split and zero overlap
-between split pairs. The nearly stable prevalence across natural windows makes
-the comparison interpretable, although one validation window cannot quantify
-variation across multiple historical regimes.
+\section{Feature engineering \& class balance}
 
-\section{Feature engineering}
-
-\subsection{Time features}
-
-Time features include transaction day, week, hour, a day-of-week proxy, age in
-days, and a night-transaction flag. The raw \texttt{TransactionDT} is retained
-in the canonical feature order.
-
-\subsection{Amount features}
-
-Amount processing includes the raw value, logarithm, capped value, decimal
-component, amount band, and ratios/deviations relative to card history. Saved
-outlier thresholds are learned from training and applied forward.
-
-\subsection{Missingness and presence}
-
-The pipeline produces counts and ratios for selected/identity missing values and
-flags for identity, device, payer/recipient email, distance, address, and shared
-email domain presence.
-
-\subsection{Anonymized behavior fields}
-
-Selected \texttt{C1--C14}, \texttt{D1--D15}, and distance features are retained.
-Their public semantic meaning is limited, so this report describes them as
-behavioral/anonymized variables rather than inventing business definitions.
-
-\subsection{Historical entity features}
-
-Card, email, and device keys produce prior transaction counts and amount
-aggregates. Card history additionally includes standard deviation and time since
-the previous transaction. Training rows use prior-window history; later splits
-receive lookups fitted only from the training window.
-
-\subsection{Categorical features}
-
-The seven categorical fields are:
-
-\begin{itemize}
-  \item \texttt{ProductCD}, \texttt{card4}, and \texttt{card6};
-  \item \texttt{DeviceType} and \texttt{device\_family};
-  \item \texttt{M4} and \texttt{amount\_band}.
-\end{itemize}
-
-String indexers are fitted on training. The extracted mappings are serialized
-with the model for Spark-free request-time encoding.
-
-\section{Missing-value and class-imbalance strategies}
-
-Numeric medians and categorical missing policies are persisted. At serving,
-missing values that remain after categorical mapping use a numeric sentinel.
-This is compatible with the current tree models, but the sentinel must remain
-part of the model contract.
-
-The primary training set uses class weights and keeps all 412,956 training
-rows. A second set undersamples legitimate examples:
+The canonical \val{68}-feature vector includes Time, Amount, Missingness, Anonymized behavior (\texttt{C1--C14}, \texttt{D1--D15}), Historical entity aggregates, and Categoricals.
 
 \begin{table}[H]
 \centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
 \caption{Training and evaluation class distributions}
 \label{tab:class-balance}
 \begin{tabular}{lrrr}
 \toprule
-Dataset & Legitimate & Fraud & Legitimate-to-fraud ratio\\
+\textbf{Dataset} & \textbf{Legitimate} & \textbf{Fraud} & \textbf{Ratio}\\
 \midrule
-\texttt{train\_original} & 398,434 & 14,522 & 27.44\\
-\texttt{train\_weighted} & 398,434 & 14,522 & 27.44\\
-\texttt{train\_balanced} & 43,872 & 14,522 & 3.02\\
-\texttt{validation} & 85,454 & 3,036 & 28.15\\
-\texttt{holdout} & 85,989 & 3,105 & 27.69\\
+\texttt{train\_original} & \val{398,434} & \val{14,522} & \val{27.44}\\
+\texttt{train\_weighted} & \val{398,434} & \val{14,522} & \val{27.44}\\
+\texttt{train\_balanced} & \val{43,872} & \val{14,522} & \val{3.02}\\
+\texttt{validation} & \val{85,450} & \val{3,036} & \val{28.15}\\
+\texttt{holdout} & \val{85,993} & \val{3,105} & \val{27.70}\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Validation and holdout remain untouched. This is essential because precision
-and calibration depend on class prevalence.
-
-\section{Output contract}
-
-The pipeline exports curated data, splits, model-ready Parquet, feature-store
-tables, preprocessing artifacts, schema artifacts, reports, and demonstration
-cases. The canonical model-ready datasets are:
-
-\begin{itemize}
-  \item \texttt{train\_original};
-  \item \texttt{train\_weighted};
-  \item \texttt{train\_balanced};
-  \item \texttt{validation};
-  \item \texttt{holdout};
-  \item \texttt{kaggle\_test}.
-\end{itemize}
-
 \section{Verification result}
 
-The saved verifier reports 82 checks passed and no failures. It validates
-dataset presence, row counts, identifiers, labels, weights, feature order,
-schema hashes, chronological order, split overlap, and required artifacts.
-
-One lifecycle inconsistency remains. The regenerated top-level manifest records:
-
-\begin{lstlisting}
-verification_pending
-\end{lstlisting}
-
-The dedicated verification report records the later terminal value:
+The automated verifier passes \val{94} checks with zero failures, confirming handoff readiness:
 
 \begin{lstlisting}
 ready_for_downstream_training
 \end{lstlisting}
-
-Future finalization should write this terminal verifier result back to the
-manifest atomically.
-
-\section{Data limitations}
-
-\begin{itemize}
-  \item Feature semantics are partly anonymized.
-  \item Entity aggregates are batch features; a production online path is not
-  implemented.
-  \item The training matrix is collected to pandas before estimator fitting.
-  \item There is one chronological validation window rather than temporal
-  cross-validation.
-  \item Native Windows is not the canonical full Parquet execution path.
-  \item The local processed tree is large and intentionally excluded from Git.
-\end{itemize}

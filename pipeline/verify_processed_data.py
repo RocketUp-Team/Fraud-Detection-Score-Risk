@@ -13,6 +13,7 @@ from .contract_utils import (
     atomic_write_json,
     schema_hash,
 )
+from .processed_contract import normalize_spark_csv_outputs
 
 
 LABELED_DATASETS = ["train_original", "train_weighted", "train_balanced", "validation", "holdout"]
@@ -59,6 +60,10 @@ def _read_manifest(root: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def _dataset(path: Path):
     try:
         import pyarrow.dataset as ds  # type: ignore
@@ -89,12 +94,21 @@ def _schema_records(path: Path) -> list[dict[str, str]]:
 
 
 def _write_report(root: Path, payload: dict[str, Any]) -> None:
-    atomic_write_json(payload, root / "reports" / "verification_report.json")
+    try:
+        atomic_write_json(payload, root / "reports" / "verification_report.json")
+    except PermissionError:
+        fallback_path = root / "verification_report.json"
+        atomic_write_json(payload, fallback_path)
 
 
 def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
     root = root.resolve()
+    normalize_spark_csv_outputs(root)
     manifest = _read_manifest(root)
+    expected_processing_version = manifest.get("processing_version") or PROCESSING_VERSION
+    expected_feature_schema_version = (
+        manifest.get("feature_schema_version") or FEATURE_SCHEMA_VERSION
+    )
     checks: list[CheckResult] = []
     model_ready = root / "model_ready"
     preprocessing_dir = root / "artifacts" / "preprocessing"
@@ -183,8 +197,8 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
             versions = set(v for v in _table_column_values(dataset_path, "processing_version") if v is not None)
             checks.append(CheckResult(
                 name=f"dataset.processing_version.{dataset_name}",
-                ok=versions == {PROCESSING_VERSION},
-                expected=PROCESSING_VERSION,
+                ok=versions == {expected_processing_version},
+                expected=expected_processing_version,
                 actual=sorted(versions),
                 path=str(dataset_path),
                 fix="Rewrite dataset metadata columns from preprocessing finalizer.",
@@ -194,8 +208,8 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
             versions = set(v for v in _table_column_values(dataset_path, "feature_schema_version") if v is not None)
             checks.append(CheckResult(
                 name=f"dataset.feature_schema_version.{dataset_name}",
-                ok=versions == {FEATURE_SCHEMA_VERSION},
-                expected=FEATURE_SCHEMA_VERSION,
+                ok=versions == {expected_feature_schema_version},
+                expected=expected_feature_schema_version,
                 actual=sorted(versions),
                 path=str(dataset_path),
                 fix="Rewrite dataset metadata columns from preprocessing finalizer.",
@@ -208,37 +222,114 @@ def verify(root: Path, write_report: bool = False) -> dict[str, Any]:
     checks.append(CheckResult("artifact.numeric_medians", medians_path.is_file(), "numeric_medians.json exists", str(medians_path), str(medians_path), "Generate preprocessing median artifact."))
     checks.append(CheckResult("artifact.model_ready_schema", model_ready_schema_path.is_file(), "model_ready_schema.json exists", str(model_ready_schema_path), str(model_ready_schema_path), "Generate model_ready schema artifact."))
 
+    canonical_feature_columns: list[str] | None = None
+    if feature_order_path.is_file():
+        feature_contract = _read_json(feature_order_path)
+        raw_feature_columns = feature_contract.get("feature_columns")
+        if isinstance(raw_feature_columns, list):
+            canonical_feature_columns = raw_feature_columns
+        checks.append(CheckResult(
+            name="artifact.feature_order.processing_version",
+            ok=feature_contract.get("processing_version") == expected_processing_version,
+            expected=expected_processing_version,
+            actual=feature_contract.get("processing_version"),
+            path=str(feature_order_path),
+            fix="Regenerate feature_order.json with the dataset processing version.",
+        ))
+        checks.append(CheckResult(
+            name="artifact.feature_order.feature_schema_version",
+            ok=feature_contract.get("feature_schema_version") == expected_feature_schema_version,
+            expected=expected_feature_schema_version,
+            actual=feature_contract.get("feature_schema_version"),
+            path=str(feature_order_path),
+            fix="Regenerate feature_order.json with the dataset feature schema version.",
+        ))
+        checks.append(CheckResult(
+            name="artifact.feature_order.count",
+            ok=(
+                canonical_feature_columns is not None
+                and len(canonical_feature_columns) == 68
+            ),
+            expected=68,
+            actual=(
+                len(canonical_feature_columns)
+                if canonical_feature_columns is not None
+                else None
+            ),
+            path=str(feature_order_path),
+            fix="Restore the canonical 68-feature logical contract.",
+        ))
+        checks.append(CheckResult(
+            name="artifact.feature_order.unique",
+            ok=(
+                canonical_feature_columns is not None
+                and len(canonical_feature_columns)
+                == len(set(canonical_feature_columns))
+            ),
+            expected="68 unique feature names",
+            actual=canonical_feature_columns,
+            path=str(feature_order_path),
+            fix="Remove duplicate names from the canonical feature order.",
+        ))
+
+    if expected_processing_version == PROCESSING_VERSION:
+        outlier_path = preprocessing_dir / "outlier_thresholds.json"
+        outlier_payload = _read_json(outlier_path) if outlier_path.is_file() else {}
+        checks.append(CheckResult(
+            name="artifact.outliers.train_only_fit",
+            ok=outlier_payload.get("fit_scope") == "chronological_training_only",
+            expected="chronological_training_only",
+            actual=outlier_payload.get("fit_scope"),
+            path=str(outlier_path),
+            fix="Fit amount thresholds after chronological splitting using train only.",
+        ))
+
     for report_name in REPORT_FILES:
         report_path = reports_dir / report_name
+        exists = report_path.is_file() or (
+            report_path.is_dir() and any(
+                child.is_file() and child.name.startswith("part-") and child.suffix == ".csv"
+                for child in report_path.iterdir()
+            )
+        )
         checks.append(CheckResult(
             name=f"report.{report_name}",
-            ok=report_path.is_file(),
+            ok=exists,
             expected="report exists",
             actual=str(report_path),
             path=str(report_path),
             fix=f"Generate report {report_name} during preprocessing.",
         ))
 
-    # Schema consistency for labeled datasets
-    labeled_feature_columns: dict[str, list[str]] = {}
-    for dataset_name in LABELED_DATASETS:
+    # Schema consistency for all six public model-ready datasets.
+    dataset_feature_columns: dict[str, list[str]] = {}
+    for dataset_name in REQUIRED_DATASETS:
         dataset_path = model_ready / dataset_name
         if not dataset_path.is_dir():
             continue
         columns = _dataset_columns(dataset_path)
         feature_columns = [c for c in columns if c not in {"TransactionID", "isFraud", "class_weight", "split_name", "processing_version", "feature_schema_version", "generated_at"}]
-        labeled_feature_columns[dataset_name] = feature_columns
-    if labeled_feature_columns:
-        baseline = next(iter(labeled_feature_columns.values()))
-        for dataset_name, columns in labeled_feature_columns.items():
+        dataset_feature_columns[dataset_name] = feature_columns
+    if dataset_feature_columns:
+        baseline = next(iter(dataset_feature_columns.values()))
+        for dataset_name, columns in dataset_feature_columns.items():
             checks.append(CheckResult(
                 name=f"schema.feature_consistency.{dataset_name}",
                 ok=columns == baseline,
                 expected=baseline,
                 actual=columns,
                 path=str(model_ready / dataset_name),
-                fix="Ensure model-ready feature order/selection is identical across labeled datasets.",
+                fix="Ensure model-ready feature order/selection is identical across all datasets.",
             ))
+            if canonical_feature_columns is not None:
+                checks.append(CheckResult(
+                    name=f"schema.feature_contract.{dataset_name}",
+                    ok=columns == canonical_feature_columns,
+                    expected=canonical_feature_columns,
+                    actual=columns,
+                    path=str(model_ready / dataset_name),
+                    fix="Export every dataset in the exact canonical feature order.",
+                ))
 
     # Split order and overlap
     split_bounds: dict[str, tuple[Any, Any]] = {}

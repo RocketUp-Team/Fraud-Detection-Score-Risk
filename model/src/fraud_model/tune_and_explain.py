@@ -26,29 +26,56 @@ from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
 from . import config
-from .data import DatasetNotFoundError, load_train_balanced, load_train_weighted, load_validation
+from .data import (
+    DatasetNotFoundError,
+    load_train_balanced,
+    load_train_weighted,
+    load_validation,
+    split_validation_windows,
+)
 from .evaluation import binary_metrics
 from .features import (
     align_feature_columns,
     apply_categorical_indexer,
     extract_category_mappings,
+    feature_contract_metadata,
     fit_categorical_indexer,
     to_pandas_xy,
 )
 from .tracking import log_completed_run
 
 PARAM_GRIDS = {
-    "logreg": [{"max_iter": 1000}],
+    "logreg": [{"max_iter": 1000, "random_state": config.RANDOM_SEED}],
     "lightgbm": [
-        {"n_estimators": n, "max_depth": d, "learning_rate": lr, "verbosity": -1}
+        {
+            "n_estimators": n,
+            "max_depth": d,
+            "learning_rate": lr,
+            "verbosity": -1,
+            "random_state": config.RANDOM_SEED,
+            "deterministic": True,
+            "force_col_wise": True,
+        }
         for n, d, lr in itertools.product([200, 400], [4, 6], [0.05, 0.1])
     ],
     "xgboost": [
-        {"n_estimators": n, "max_depth": d, "learning_rate": lr, "eval_metric": "aucpr"}
+        {
+            "n_estimators": n,
+            "max_depth": d,
+            "learning_rate": lr,
+            "eval_metric": "aucpr",
+            "random_state": config.RANDOM_SEED,
+        }
         for n, d, lr in itertools.product([200, 400], [4, 6], [0.05, 0.1])
     ],
     "catboost": [
-        {"iterations": n, "depth": d, "learning_rate": lr, "verbose": False}
+        {
+            "iterations": n,
+            "depth": d,
+            "learning_rate": lr,
+            "verbose": False,
+            "random_seed": config.RANDOM_SEED,
+        }
         for n, d, lr in itertools.product([200, 400], [4, 6], [0.05, 0.1])
     ],
 }
@@ -79,15 +106,19 @@ def main() -> None:
         raise SystemExit(f"Model tốt nhất '{best_name}' không có trainer tương ứng")
 
     try:
-        train_df = load_train_weighted()
+        indexer_train_df = load_train_weighted()
+        train_df = indexer_train_df
         if dataset_variant == "balanced":
             train_df = load_train_balanced()
-        val_df = load_validation()
+        validation_windows = split_validation_windows(load_validation())
+        val_df = validation_windows.selection
     except DatasetNotFoundError as e:
         print(e)
         raise SystemExit(1)
 
-    indexer = fit_categorical_indexer(train_df)
+    # Category vocabulary always comes from the complete weighted training
+    # population, even when the selected estimator trains on undersampled data.
+    indexer = fit_categorical_indexer(indexer_train_df)
     train_df = apply_categorical_indexer(indexer, train_df)
     val_df = apply_categorical_indexer(indexer, val_df)
 
@@ -132,6 +163,7 @@ def main() -> None:
     print(f"[tune] top-5 feature (SHAP trung bình |giá trị|): {top5_global_features}")
 
     config.TRAINING_ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    contract = feature_contract_metadata()
     import pandas as pd
     pd.DataFrame([validation_metrics]).to_csv(config.TRAINING_VALIDATION_METRICS_PATH, index=False)
     joblib.dump(
@@ -144,6 +176,12 @@ def main() -> None:
             "val_roc_auc": val_roc_auc,
             "val_pr_auc": best_pr_auc,
             "top5_global_features": top5_global_features,
+            "processing_version": contract["processing_version"],
+            "feature_schema_version": contract["feature_schema_version"],
+            "required_features": contract["required_features"],
+            "optional_features": contract["optional_features"],
+            "defaultable_features": contract["defaultable_features"],
+            "validation_window": "selection",
         },
         config.TRAINING_FINAL_MODEL_PATH,
     )
@@ -158,6 +196,13 @@ def main() -> None:
                 "validation_roc_auc": val_roc_auc,
                 "validation_pr_auc": best_pr_auc,
                 "feature_count": len(X_train.columns),
+                "processing_version": contract["processing_version"],
+                "feature_schema_version": contract["feature_schema_version"],
+                "validation_window": "selection",
+                "validation_window_counts": validation_windows.counts,
+                "selection_boundary": validation_windows.selection_boundary,
+                "calibration_boundary": validation_windows.calibration_boundary,
+                "promotion_status": "candidate_training",
             },
             f,
             indent=2,

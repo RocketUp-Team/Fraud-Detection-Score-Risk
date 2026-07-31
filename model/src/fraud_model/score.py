@@ -1,10 +1,10 @@
 """Module đóng gói cuối cùng để Trung gọi từ backend (bàn giao Ngày 5, xem
 docs/RISK_SCORING_PLAN.md mục 2 và 4).
 
-Mặc định serving dùng model hiện hành `v1`. Artifact cũ được gom logic dưới
-nhãn `v1`; các lần train mới nên ghi sang `v2` để không đè lên model đang
-phục vụ. `score()` ưu tiên model cuối của serving version hiện tại, rồi mới
-fallback sang baseline cùng version. Với `v1`, code còn hỗ trợ legacy root
+Mặc định serving dùng model hiện hành `v2`. Artifact cũ được gom logic dưới
+nhãn `v1`; các lần train mới nên ghi sang version riêng để không đè lên model
+đang phục vụ. `score()` ưu tiên model cuối của serving version hiện tại, rồi
+mới fallback sang baseline cùng version. Với `v1`, code còn hỗ trợ legacy root
 artifact để tương thích ngược.
 """
 import joblib
@@ -25,9 +25,12 @@ def _candidate_paths(kind: str) -> list:
     else:
         primary = config.SERVING_BASELINE_MODEL_PATH
         legacy = config.ARTIFACTS_DIR / "baseline_logreg.joblib"
-    if version == "v1":
-        return [primary, legacy]
-    return [primary]
+    # Keep the versioned artifact first, but retain compatibility with the
+    # legacy root artifact only for the configured serving path.  Tests and
+    # callers may override the path to an isolated temporary location; those
+    # overrides must not accidentally load a repository-level artifact.
+    configured_primary = config._artifact_paths_for(version)[kind]
+    return [primary, legacy] if primary == configured_primary else [primary]
 
 
 def _load_artifact() -> dict:
@@ -121,22 +124,6 @@ def score(features: dict) -> dict:
     columns = artifact["feature_columns"]
     model_name = artifact.get("model_name", "baseline_logreg")
     mappings = artifact.get("category_mappings", {})
-    required_features = set(artifact.get("required_features", columns))
-    defaultable_features = set(artifact.get("defaultable_features", []))
-    optional_features = set(artifact.get("optional_features", []))
-
-    missing_required = sorted(
-        feature
-        for feature in required_features
-        if feature not in features and feature not in defaultable_features and feature not in optional_features
-    )
-    if missing_required:
-        raise ValueError(
-            "Thiếu required features cho full-feature scoring: "
-            + ", ".join(missing_required[:10])
-            + ("..." if len(missing_required) > 10 else "")
-        )
-
     encoded = encode_categoricals_pandas(features, mappings)
     # Cột THIẾU và cột CÓ nhưng giá trị None đều phải thành -999. Chỉ dùng
     # `.get(col, -999)` là không đủ: giá trị None vẫn đi qua, làm cột đó thành

@@ -11,8 +11,6 @@ model/data/raw/
 model/data/processed/
 !model/data/raw/.gitkeep
 !model/data/processed/.gitkeep
-model/artifacts/
-!model/artifacts/.gitkeep
 model/catboost_info/
 
 # Node / frontend
@@ -42,5 +40,7 @@ data/data/notebook/*
 data/processed/ieee_cis_spark/*
 data/processed/ieee_cis_fraud_risk/*
 !data/processed/ieee_cis_fraud_risk/.gitkeep
+data/processed/candidates/*
+!data/processed/candidates/.gitkeep
 data/processed/**/spark-local/
 *._SUCCESS*

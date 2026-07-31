@@ -1,13 +1,15 @@
 """Small MLflow integration shared by the training entry points.
 
-The default tracking URI is a local file store under ``model/artifacts`` so
-training remains reproducible offline and works in both Spark cluster and
-Spark local Docker modes. Set ``MLFLOW_TRACKING_URI`` to a remote tracking
-server when one is available.
+The default tracking URI uses a local SQLite backend under
+``model/artifacts`` so training remains reproducible offline and works in
+both Spark cluster and Spark local Docker modes. Set ``MLFLOW_TRACKING_URI``
+to use a remote tracking server when one is available.
 """
 from __future__ import annotations
 
 import os
+import hashlib
+import json
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -18,19 +20,29 @@ from . import config
 
 
 def configure() -> None:
-    db_path = (config.ARTIFACTS_DIR / "mlflow.db").resolve()
-    tracking_uri = os.environ.get(
-        "MLFLOW_TRACKING_URI",
-        f"sqlite:///{db_path.as_posix()}",
-    )
+    configured_uri = os.environ.get("MLFLOW_TRACKING_URI")
+    artifact_location: str | None = None
+    if configured_uri:
+        tracking_uri = configured_uri
+    else:
+        config.ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+        db_path = (config.ARTIFACTS_DIR / "mlflow.db").resolve()
+        artifact_root = config.ARTIFACTS_DIR / "mlflow-artifacts"
+        artifact_root.mkdir(parents=True, exist_ok=True)
+        tracking_uri = f"sqlite:///{db_path.as_posix()}"
+        artifact_location = artifact_root.resolve().as_uri()
+
     mlflow.set_tracking_uri(tracking_uri)
     experiment_name = os.environ.get("MLFLOW_EXPERIMENT", "fraud-detection-training")
     experiment = mlflow.get_experiment_by_name(experiment_name)
     if experiment is None:
-        mlflow.create_experiment(
-            experiment_name,
-            artifact_location=(config.ARTIFACTS_DIR / "mlflow-artifacts").resolve().as_uri(),
-        )
+        if artifact_location is None:
+            mlflow.create_experiment(experiment_name)
+        else:
+            mlflow.create_experiment(
+                experiment_name,
+                artifact_location=artifact_location,
+            )
     mlflow.set_experiment(experiment_name)
 
 
@@ -52,12 +64,31 @@ def training_run(stage: str, *, tags: dict[str, str] | None = None) -> Iterator:
 
 
 def log_dataset_params(train_rows: int, validation_rows: int) -> None:
+    feature_contract_path = (
+        config.PROCESSED_DATA_ROOT
+        / "artifacts"
+        / "preprocessing"
+        / "feature_order.json"
+    )
+    contract_hash = None
+    processing_version = None
+    feature_schema_version = None
+    if feature_contract_path.is_file():
+        payload = json.loads(feature_contract_path.read_text(encoding="utf-8"))
+        processing_version = payload.get("processing_version")
+        feature_schema_version = payload.get("feature_schema_version")
+        contract_hash = hashlib.sha256(feature_contract_path.read_bytes()).hexdigest()
     mlflow.log_params(
         {
             "training_version": config.TRAINING_MODEL_VERSION,
             "train_rows": train_rows,
             "validation_rows": validation_rows,
             "feature_contract": str(config.MODEL_READY_DIR),
+            "feature_contract_sha256": contract_hash,
+            "processing_version": processing_version,
+            "feature_schema_version": feature_schema_version,
+            "git_commit": os.environ.get("FRAUD_GIT_COMMIT", "unknown"),
+            "git_dirty": os.environ.get("FRAUD_GIT_DIRTY", "unknown"),
         }
     )
 

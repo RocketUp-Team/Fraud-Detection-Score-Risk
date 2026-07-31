@@ -1,0 +1,8 @@
+# Local demo override: avoids colliding with an existing host PostgreSQL.
+services:
+  db:
+    ports: !reset
+      - "5433:5432"
+  backend:
+    environment:
+      CORS_ALLOW_ALL: "true"

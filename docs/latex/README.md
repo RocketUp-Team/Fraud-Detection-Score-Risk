@@ -52,5 +52,8 @@ XeLaTeX falls back to TeX Gyre Termes, a metrically compatible serif face.
 - `appendices/` — API, feature, runbook, and test reference;
 - `references.bib` — academic and software sources.
 
-The generated PDF is an evidence snapshot of the repository as inspected on
-30 July 2026. It distinguishes current verification from saved artifact claims.
+The Markdown architecture report and official-run artifacts were synchronized
+into the LaTeX source on 31 July 2026. The checked-in PDF remains an older
+evidence snapshot and has intentionally not been rebuilt yet. Review the
+updated split counts, official V2 CatBoost metrics, calibration/promotion
+status, and policy-ownership caveat before building a new PDF.

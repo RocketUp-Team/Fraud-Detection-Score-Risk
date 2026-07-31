@@ -2,9 +2,12 @@
 
 Phiên bản hiện tại:
 
-- pipeline_version: `2.0.0`
-- processing_version: `ieee-cis-preprocess-2.0.0`
-- feature_schema_version: `ieee-cis-features-1.0.0`
+- pipeline_version: `2.1.0`
+- processing_version: `ieee-cis-preprocess-2.1.0`
+- feature_schema_version: `ieee-cis-features-1.1.0`
+
+Stable data `2.0.0` remains available until the staged `2.1.0` data and its
+model candidate pass all promotion gates.
 
 ## 1. Mục đích
 
@@ -138,6 +141,8 @@ Numeric:
 
 - median imputation fit trên chronological training split
 - artifact tại `artifacts/preprocessing/numeric_medians.json`
+- amount outlier/capping thresholds fit trên chronological training split
+- artifact tại `artifacts/preprocessing/outlier_thresholds.json`
 
 Categorical:
 
@@ -146,6 +151,10 @@ Categorical:
 - category policy tại `artifacts/preprocessing/category_policy.json`
 
 Không được refit imputer hoặc category handling trên validation, holdout hoặc kaggle_test.
+
+Historical count/sum/average features are point-in-time: each row may use
+transactions ordered before it by `(TransactionDT, TransactionID)`, but never
+the current row, a future row, or any label.
 
 ## 7. Compatibility rules
 

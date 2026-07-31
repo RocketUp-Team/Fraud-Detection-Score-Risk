@@ -15,6 +15,7 @@ import mlflow
 
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
+from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.pipeline import make_pipeline
@@ -22,7 +23,13 @@ from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
 from . import config
-from .data import DatasetNotFoundError, load_train_balanced, load_train_weighted, load_validation
+from .data import (
+    DatasetNotFoundError,
+    load_train_balanced,
+    load_train_weighted,
+    load_validation,
+    split_validation_windows,
+)
 from .features import (
     align_feature_columns,
     apply_categorical_indexer,
@@ -48,7 +55,8 @@ def main() -> dict:
     try:
         train_df = load_train_weighted()
         balanced_df = load_train_balanced()
-        val_df = load_validation()
+        validation_windows = split_validation_windows(load_validation())
+        val_df = validation_windows.selection
     except DatasetNotFoundError as e:
         print(e)
         raise SystemExit(1)
@@ -65,23 +73,42 @@ def main() -> dict:
     X_val = align_feature_columns(X_val, list(X_train.columns))
 
     models = {
-        "logreg": make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000)),
-        "lightgbm": LGBMClassifier(n_estimators=300, verbosity=-1),
-        "xgboost": XGBClassifier(n_estimators=300, eval_metric="aucpr"),
-        "catboost": CatBoostClassifier(iterations=300, verbose=False),
+        "logreg": make_pipeline(
+            StandardScaler(),
+            LogisticRegression(max_iter=1000, random_state=config.RANDOM_SEED),
+        ),
+        "lightgbm": LGBMClassifier(
+            n_estimators=300,
+            verbosity=-1,
+            random_state=config.RANDOM_SEED,
+            deterministic=True,
+            force_col_wise=True,
+        ),
+        "xgboost": XGBClassifier(
+            n_estimators=300,
+            eval_metric="aucpr",
+            random_state=config.RANDOM_SEED,
+        ),
+        "catboost": CatBoostClassifier(
+            iterations=300,
+            verbose=False,
+            random_seed=config.RANDOM_SEED,
+        ),
     }
 
     with training_run("compare"):
         log_dataset_params(len(X_train), len(X_val))
         results = {}
-        for name, model in models.items():
+        for name, model_template in models.items():
+            model = clone(model_template)
             _, results[name] = _fit_and_score(name, model, X_train, y_train, w_train, X_val, y_val)
             mlflow.log_metrics({f"{name}_weighted_validation_roc_auc": results[name]["roc_auc"], f"{name}_weighted_validation_pr_auc": results[name]["pr_auc"]})
             print(
                 f"[compare] {name:10s} validation ROC-AUC={results[name]['roc_auc']:.4f}  "
                 f"PR-AUC={results[name]['pr_auc']:.4f}"
             )
-        for name, model in models.items():
+        for name, model_template in models.items():
+            model = clone(model_template)
             balanced_name = f"{name}__balanced"
             _, results[balanced_name] = _fit_and_score(name, model, X_balanced, y_balanced, None, X_val, y_val)
             mlflow.log_metrics({f"{name}_balanced_validation_roc_auc": results[balanced_name]["roc_auc"], f"{name}_balanced_validation_pr_auc": results[balanced_name]["pr_auc"]})
@@ -101,6 +128,10 @@ def main() -> dict:
                 "results": results,
                 "best_model": best_name,
                 "best_dataset": "balanced" if best_name.endswith("__balanced") else "weighted",
+                "validation_window": "selection",
+                "validation_window_counts": validation_windows.counts,
+                "selection_boundary": validation_windows.selection_boundary,
+                "calibration_boundary": validation_windows.calibration_boundary,
             },
             f,
             indent=2,

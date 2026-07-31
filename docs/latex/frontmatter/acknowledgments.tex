@@ -1,13 +1,28 @@
 \chapter*{Acknowledgments}
 \addcontentsline{toc}{chapter}{Acknowledgments}
 
-The members of Group 1 sincerely thank their supervisor, TAN Le Duy, for the
-guidance and feedback provided during the development and documentation of this
-project.
+The members of RocketUpTeam sincerely thank supervisor TAN Le Duy for guidance and feedback provided throughout project development and documentation.
 
-The project team consists of Dương Bình An, Lê Quang Tuyến, Phạm Đức Long,
-Đỗ Quốc Trung, Dương Hồng Quân, and Nguyễn Lê Hồng Nhi. The repository records
-subsystem responsibilities for data processing and exploratory analysis, model
-development, backend engineering, and frontend engineering. The interfaces and
-handover contracts between these areas made it possible to evaluate the system
-as one end-to-end artifact.
+\section*{Team Roster and Repository Role Mapping}
+
+Table~\ref{tab:team-roster} lists the project team members, official roles, and primary repository responsibilities.
+
+\begin{table}[H]
+\centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
+\caption{Team Roster and Repository Role Mapping}
+\label{tab:team-roster}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.25\textwidth} >{\raggedright\arraybackslash}p{0.32\textwidth} X}
+\toprule
+\textbf{Member Name} & \textbf{Role} & \textbf{Primary Responsibility}\\
+\midrule
+TUYEN Le Quang & Project Leader & Responsible for system ideation and overall project management.\\
+NHI Nguyen Le Hong & Content \& Presentation Coordinator & Responsible for synthesizing project content, designing slides, and developing the presentation strategy.\\
+AN Duong Binh & Big Data \& Pipeline Engineer & Responsible for Spark data ingestion, left joins, temporal splitting, and feature contract verification.\\
+LONG Pham Duc & Machine Learning Engineer & Responsible for classifier training, hyperparameter tuning, isotonic calibration, and metric evaluation.\\
+TRUNG Do Quoc & Backend \& API Engineer & Responsible for FastAPI scoring service, database persistence, and scoring contracts.\\
+QUAN Duong Hong & Frontend \& UI Engineer & Responsible for React dashboard UI, risk visualizations, and analyst review workflow.\\
+\bottomrule
+\end{tabularx}
+\end{table}

@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.preprocessing
-    image: fraud-risk-preprocessor:2.0.0
+    image: fraud-risk-preprocessor:2.1.0
     environment:
       PROJECT_ROOT: /app
       IEEE_CIS_DATA_DIR: /app/data/raw
@@ -14,7 +14,9 @@ services:
       SPARK_SHUFFLE_PARTITIONS: "64"
       SPARK_DEFAULT_PARALLELISM: "8"
       RUN_FULL_PROFILE: "true"
-      RUN_MODEL_DEMO: "true"
+      # Candidate selection and holdout evaluation belong to the versioned
+      # model workflow, not preprocessing.
+      RUN_MODEL_DEMO: "false"
       # The canonical downstream contract is model_ready + aggregate lookup
       # tables. Wide convenience tables are optional and can exhaust local
       # Spark JVMs on this 1.3 GB dataset.
@@ -28,15 +30,16 @@ services:
     restart: "no"
 
   verify-processed:
-    image: fraud-risk-preprocessor:2.0.0
+    image: fraud-risk-preprocessor:2.1.0
     entrypoint: ["python", "-m", "pipeline.verify_processed_data"]
     volumes:
-      - ./data/processed:/app/data/processed:ro
+      # The verifier atomically refreshes reports/verification_report.json.
+      - ./data/processed:/app/data/processed
     command: ["--output-dir", "/app/data/processed/ieee_cis_fraud_risk"]
     restart: "no"
 
   inspect-manifest:
-    image: fraud-risk-preprocessor:2.0.0
+    image: fraud-risk-preprocessor:2.1.0
     entrypoint: ["python", "-c"]
     volumes:
       - ./data/processed:/app/data/processed:ro

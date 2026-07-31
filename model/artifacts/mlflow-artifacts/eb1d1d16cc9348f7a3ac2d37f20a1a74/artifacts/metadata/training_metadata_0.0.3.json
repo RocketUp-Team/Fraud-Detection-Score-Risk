@@ -1,0 +1,21 @@
+{
+  "model_version": "0.0.3",
+  "training_dataset": "balanced",
+  "best_model": "catboost",
+  "artifact_path": "/app/artifacts/0.0.3/final_model_0.0.3.joblib",
+  "comparison_path": "/app/artifacts/0.0.3/model_comparison_0.0.3.json",
+  "validation_roc_auc": 0.9048908303863826,
+  "validation_pr_auc": 0.5750057369744869,
+  "feature_count": 68,
+  "processing_version": "ieee-cis-preprocess-2.1.0",
+  "feature_schema_version": "ieee-cis-features-1.1.0",
+  "validation_window": "selection",
+  "validation_window_counts": {
+    "selection": 44243,
+    "calibration": 22122,
+    "policy": 22121
+  },
+  "selection_boundary": 11713696.0,
+  "calibration_boundary": 12438149.0,
+  "promotion_status": "candidate_training"
+}

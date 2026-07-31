@@ -1,0 +1,39 @@
+{
+  "generated_at": "2026-07-30T21:05:57.452918+00:00",
+  "candidate_version": "0.0.3",
+  "status": "not_promoted",
+  "automatic_promotion": false,
+  "reference_v2_pr_auc": 0.4582,
+  "minimum_roc_auc": 0.8746,
+  "minimum_precision": 0.3,
+  "data_verification_status": "ready_for_downstream_training",
+  "metrics": {
+    "threshold": 0.14,
+    "pr_auc": 0.4341953182029281,
+    "roc_auc": 0.8770878946387671,
+    "precision": 0.37298665439484585,
+    "recall": 0.5220611916264091,
+    "f1": 0.4351093812911019,
+    "tn": 83268.0,
+    "fp": 2725.0,
+    "fn": 1484.0,
+    "tp": 1621.0,
+    "raw_brier_score": 0.04951798151413843,
+    "brier_score": 0.024951450721268146
+  },
+  "gates": {
+    "holdout_pr_auc": false,
+    "holdout_roc_auc": true,
+    "review_precision": true,
+    "calibration_non_regression": true,
+    "artifact_checksum": true,
+    "artifact_load_smoke": true,
+    "data_contract_verification": true,
+    "version_match": true,
+    "git_clean": true
+  },
+  "failed_gates": [
+    "holdout_pr_auc"
+  ],
+  "serving_version_unchanged": true
+}

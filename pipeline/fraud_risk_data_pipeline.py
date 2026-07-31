@@ -35,6 +35,9 @@ def _read_simple_yaml(path: Path) -> dict[str, Any]:
 def _setdefault_from_config(config: dict[str, Any]) -> None:
     spark = config.get("spark", {})
     imbalance = config.get("imbalance", {})
+    split = config.get("split", {})
+    outliers = config.get("outliers", {})
+    quantiles = outliers.get("quantiles", [0.01, 0.05, 0.25, 0.50, 0.75, 0.95, 0.99])
     values = {
         "IEEE_CIS_DATA_DIR": str((PROJECT_ROOT / config.get("input_dir", "data/data/ieee-fraud-detection")).resolve()),
         "IEEE_CIS_OUTPUT_DIR": str((PROJECT_ROOT / config.get("output_dir", "data/processed/ieee_cis_fraud_risk")).resolve()),
@@ -45,6 +48,13 @@ def _setdefault_from_config(config: dict[str, Any]) -> None:
         "SPARK_DEFAULT_PARALLELISM": str(spark.get("default_parallelism", 8)),
         "IMBALANCE_RATIO": str(imbalance.get("undersample_legitimate_to_fraud", 3.0)),
         "PIPELINE_SEED": str(imbalance.get("seed", 42)),
+        "TRAIN_RATIO": str(split.get("train_ratio", 0.70)),
+        "VALIDATION_RATIO": str(split.get("validation_ratio", 0.15)),
+        "HOLDOUT_RATIO": str(split.get("holdout_ratio", 0.15)),
+        "SPLIT_RELATIVE_ERROR": str(split.get("relative_error", 0.001)),
+        "OUTLIER_QUANTILES": ",".join(str(value) for value in quantiles),
+        "OUTLIER_RELATIVE_ERROR": str(outliers.get("relative_error", 0.01)),
+        "OUTLIER_TRANSFORM_RELATIVE_ERROR": str(outliers.get("transform_relative_error", 0.001)),
         "PROJECT_ROOT": str(PROJECT_ROOT),
     }
     for key, value in values.items():
@@ -57,7 +67,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--master")
-    parser.add_argument("--skip-model-demo", action="store_true")
+    model_demo = parser.add_mutually_exclusive_group()
+    model_demo.add_argument("--run-model-demo", action="store_true")
+    model_demo.add_argument("--skip-model-demo", action="store_true")
     parser.add_argument("--skip-profile", action="store_true")
     return parser
 
@@ -73,7 +85,9 @@ def main(argv: list[str] | None = None) -> None:
         os.environ["IEEE_CIS_OUTPUT_DIR"] = str(args.output_dir.resolve())
     if args.master:
         os.environ["SPARK_MASTER"] = args.master
-    if args.skip_model_demo:
+    if args.run_model_demo:
+        os.environ["RUN_MODEL_DEMO"] = "true"
+    elif args.skip_model_demo:
         os.environ["RUN_MODEL_DEMO"] = "false"
     if args.skip_profile:
         os.environ["RUN_FULL_PROFILE"] = "false"
@@ -86,15 +100,13 @@ def _finalize_contract(output_dir: Path) -> None:
     manifest_path = output_dir / "manifest.json"
     from .processed_contract import build_manifest
     from .verify_processed_data import verify
-    import json
 
-    if not manifest_path.is_file():
-        manifest = build_manifest(output_dir)
-    else:
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            manifest = build_manifest(output_dir)
+    # Rebuild from the materialized Parquet outputs every time.  The legacy
+    # Spark workflow writes an intermediate manifest before export; its schema
+    # hash can describe the in-memory DataFrame rather than the final Parquet
+    # schema.  Verification must compare against the persisted handoff, so
+    # the final manifest cannot reuse that intermediate value.
+    manifest = build_manifest(output_dir)
 
     verification = verify(output_dir, write_report=True)
     manifest.update({

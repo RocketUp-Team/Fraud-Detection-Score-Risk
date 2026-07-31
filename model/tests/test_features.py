@@ -1,20 +1,11 @@
-import pytest
-
 from fraud_model.features import (
     apply_categorical_indexer,
+    encode_categorical_frame,
     encode_categoricals_pandas,
     extract_category_mappings,
     fit_categorical_indexer,
     to_pandas_xy,
 )
-from fraud_model.spark_session import get_spark
-
-
-@pytest.fixture(scope="module")
-def spark():
-    session = get_spark()
-    yield session
-    session.stop()
 
 
 def _make_train_val(spark):
@@ -32,7 +23,14 @@ def _make_train_val(spark):
     return train_df, val_df
 
 
-def test_indexer_fits_on_train_and_applies_to_validation_without_refit(spark):
+def test_indexer_fits_on_train_and_applies_to_validation_without_refit(
+    spark,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "fraud_model.features._canonical_feature_columns",
+        lambda: None,
+    )
     train_df, val_df = _make_train_val(spark)
 
     indexer = fit_categorical_indexer(train_df)
@@ -60,3 +58,14 @@ def test_encode_categoricals_pandas_uses_train_fitted_mapping_and_handles_unseen
     assert known["ProductCD"] == mappings["ProductCD"]["W"]
     assert known["TransactionAmt"] == 10.0
     assert unseen["ProductCD"] == len(mappings["ProductCD"])
+
+
+def test_encode_categorical_frame_reuses_frozen_mapping_for_unseen_values():
+    import pandas as pd
+
+    mappings = {"ProductCD": {"w": 0, "c": 1}}
+    frame = pd.DataFrame({"ProductCD": ["w", "never-seen"]})
+
+    encoded = encode_categorical_frame(frame, mappings)
+
+    assert encoded["ProductCD"].tolist() == [0.0, 2.0]

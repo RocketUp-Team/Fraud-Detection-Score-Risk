@@ -37,13 +37,40 @@ def threshold_table(y_true, proba, thresholds: np.ndarray | None = None) -> pd.D
     return pd.DataFrame([binary_metrics(y_true, proba, float(t)) for t in thresholds])
 
 
-def choose_recall_first_threshold(table: pd.DataFrame, min_precision: float = 0.30) -> dict:
+def choose_recall_first_threshold(
+    table: pd.DataFrame,
+    min_precision: float = 0.30,
+    min_reject_precision: float = 0.60,
+) -> dict:
     eligible = table[table["precision"] >= min_precision]
     pool = eligible if not eligible.empty else table
     selected = pool.sort_values(["recall", "f1", "precision"], ascending=False).iloc[0]
+    review_threshold = float(selected["threshold"])
+
+    reject_candidates = table[
+        (table["threshold"] >= review_threshold)
+        & (table["precision"] >= min_reject_precision)
+    ]
+    if not reject_candidates.empty:
+        reject = reject_candidates.sort_values(
+            ["threshold", "recall", "precision"],
+            ascending=[True, False, False],
+        ).iloc[0]
+        reject_rule = "lowest_threshold_meeting_reject_precision"
+    else:
+        reject_pool = table[table["threshold"] >= review_threshold]
+        reject = reject_pool.sort_values(
+            ["precision", "recall", "threshold"],
+            ascending=[False, False, False],
+        ).iloc[0]
+        reject_rule = "best_available_precision_fallback"
     return {
-        "review_threshold": float(selected["threshold"]),
-        "reject_threshold": float(min(0.95, selected["threshold"] + 0.20)),
+        "review_threshold": review_threshold,
+        "reject_threshold": float(reject["threshold"]),
         "selection_rule": "max_recall_then_f1_with_min_precision",
+        "reject_selection_rule": reject_rule,
         "min_precision": float(min_precision),
+        "min_reject_precision": float(min_reject_precision),
+        "selected_review_precision": float(selected["precision"]),
+        "selected_reject_precision": float(reject["precision"]),
     }
