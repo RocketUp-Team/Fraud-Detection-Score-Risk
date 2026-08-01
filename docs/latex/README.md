@@ -12,8 +12,8 @@ Review `metadata.tex` and confirm:
 - the supervisor name;
 - the convocation year.
 
-The appendix distinguishes repository-recorded subsystem roles from team
-members whose detailed contribution statement still requires confirmation.
+The acknowledgments section contains the single official team roster and
+repository role mapping table.
 
 ## Build
 
