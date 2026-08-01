@@ -325,9 +325,9 @@ To advance the platform toward enterprise-grade production deployment, five key 
 |---|---|---|
 | 👨‍💼 **TUYEN Le Quang** | Project Leader | Overall project ideation, management, thesis narrative. |
 | 🔧 **AN Duong Binh** | Big Data & Pipeline Engineer | Spark ingestion, temporal splitting, 68-feature engineering, data contracts. |
-| 🧠 **LONG Pham Duc** | Machine Learning Engineer | Model comparison, hyperparameter tuning, isotonic calibration, holdout evaluation. |
+| 🖥️ **LONG Pham Duc** | Frontend & UI Engineer | React dashboard, SHAP charts, transaction queue, review workflow. |
 | ⚙️ **TRUNG Do Quoc** | Backend & API Engineer | FastAPI backend, PostgreSQL schema, Docker compose setup, REST contracts. |
-| 🖥️ **QUAN Duong Hong** | Frontend & UI Engineer | React dashboard, SHAP charts, transaction queue, review workflow. |
+| 🧠 **QUAN Duong Hong** | Machine Learning Engineer | Model comparison, hyperparameter tuning, SHAP explainability, isotonic calibration, holdout evaluation. |
 | 📝 **NHI Nguyen Le Hong** | Content & Presentation Coordinator | Content synthesis, slide design, presentation strategy. |
 
 **🎓 Project Supervisor**: TAN Le Duy

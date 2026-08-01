@@ -73,7 +73,7 @@ docs/
 |---|---|---|
 | **Lê Quang Tuyến** | `TUYEN Le Quang` | Project Leader |
 | **Dương Bình An** | `AN Duong Binh` | Big Data & Pipeline Engineer |
-| **Phạm Đức Long** | `LONG Pham Duc` | Machine Learning Engineer |
+| **Phạm Đức Long** | `LONG Pham Duc` | Frontend & UI Engineer |
 | **Đỗ Quốc Trung** | `TRUNG Do Quoc` | Backend & API Engineer |
-| **Dương Hồng Quân** | `QUAN Duong Hong` | Frontend & UI Engineer |
+| **Dương Hồng Quân** | `QUAN Duong Hong` | Machine Learning Engineer |
 | **Nguyễn Lê Hồng Nhi** | `NHI Nguyen Le Hong` | Content & Presentation Coordinator |
