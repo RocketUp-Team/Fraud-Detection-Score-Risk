@@ -1,52 +1,53 @@
 \begin{figure}[H]
   \centering
-  \begin{subfigure}[b]{0.45\textwidth}
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../../docs/figures/final_report/class-distribution.png}
+    \includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{../../docs/figures/final_report/class-distribution.png}
     \caption{Class distribution.}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.45\textwidth}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../../docs/figures/final_report/fraud-rate-by-product.png}
+    \includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{../../docs/figures/final_report/fraud-rate-by-product.png}
     \caption{Fraud rate by ProductCD.}
   \end{subfigure}
-  \\[2pt]
-  \begin{subfigure}[b]{0.45\textwidth}
+  \caption{Dataset-level fraud composition and product-level fraud rate.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../../docs/figures/final_report/fraud-rate-by-transaction-hour.png}
+    \includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{../../docs/figures/final_report/fraud-rate-by-transaction-hour.png}
     \caption{Fraud rate by transaction hour.}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.45\textwidth}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../../docs/figures/final_report/model-family-comparison.png}
+    \includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{../../docs/figures/final_report/model-family-comparison.png}
     \caption{Model-family selection PR-AUC.}
   \end{subfigure}
-  \caption{Exploratory Data Analysis and Model-Family Selection Evidence.}
+  \caption{Exploratory transaction timing and candidate-model comparison.}
   \label{fig:eda-overview-all}
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \begin{subfigure}[b]{0.45\textwidth}
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../../docs/figures/final_report/candidate-validation-holdout.png}
-    \caption{Validation vs holdout metrics.}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.45\textwidth}
+    \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio]{../../docs/figures/final_report/candidate-validation-holdout.png}
+    \caption{Validation versus holdout metrics.}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../../docs/figures/final_report/holdout-confusion-matrix.png}
+    \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio]{../../docs/figures/final_report/holdout-confusion-matrix.png}
     \caption{Holdout confusion matrix.}
   \end{subfigure}
-  \caption{Candidate holdout evaluation \& confusion matrix.}
+  \caption{Holdout evaluation evidence for ranking and classification behaviour.}
   \label{fig:model-holdout-eval}
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.45\textwidth]{../../docs/figures/final_report/calibration-brier.png}
-  \caption{Probability calibration: Raw vs isotonic-calibrated Brier score.}
+  \includegraphics[width=\textwidth,height=0.48\textheight,keepaspectratio]{../../docs/figures/final_report/calibration-brier.png}
+  \caption{Probability calibration: raw versus isotonic-calibrated Brier score.}
   \label{fig:final-calibration-brier}
 \end{figure}

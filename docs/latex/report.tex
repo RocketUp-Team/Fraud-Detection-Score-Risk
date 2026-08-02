@@ -1,30 +1,31 @@
-\documentclass[12pt,a4paper,oneside]{report}
+\documentclass[12pt,letterpaper,oneside]{report}
 
-\usepackage[a4paper,left=2.5cm,right=1.0cm,top=1.5cm,bottom=1.5cm,footskip=0.6cm]{geometry}
+\usepackage[letterpaper,left=1.25in,right=1.25in,top=1.0in,bottom=1.0in,footskip=0.45in]{geometry}
 \usepackage{fontspec}
-\IfFontExistsTF{Arial}
-  {\setmainfont{Arial}\setsansfont{Arial}}
-  {\IfFontExistsTF{TeX Gyre Heros}
-     {\setmainfont{TeX Gyre Heros}\setsansfont{TeX Gyre Heros}}
+\IfFontExistsTF{Times New Roman}
+  {\setmainfont{Times New Roman}\setsansfont{Arial}}
+  {\IfFontExistsTF{TeX Gyre Termes}
+     {\setmainfont{TeX Gyre Termes}\setsansfont{TeX Gyre Heros}}
      {}}
 \IfFontExistsTF{Courier New}
   {\setmonofont{Courier New}}
   {\setmonofont{TeX Gyre Cursor}}
-\renewcommand{\familydefault}{\sfdefault}
+\renewcommand{\familydefault}{\rmdefault}
 
 \usepackage{setspace}
-\setstretch{1.05}
+\setstretch{1.50}
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{3pt}
+\setlength{\parskip}{12pt}
 \setlength{\emergencystretch}{3em}
+\setlength{\hfuzz}{10pt}
 \usepackage{titlesec}
 \titleformat{\chapter}[display]
   {\normalfont\centering\bfseries}
-  {\large CHAPTER \thechapter}
+  {\large Chapter \thechapter}
   {2pt}
-  {\Large\MakeUppercase}
-\titlespacing*{\chapter}{0pt}{0pt}{6pt}
-\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.8em}{}
+  {\Large}
+\titlespacing*{\chapter}{0pt}{-0.25in}{14pt}
+\titleformat{\section}{\normalfont\normalsize\bfseries}{\thesection}{0.8em}{}
 \titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.8em}{}
 \titleformat{\subsubsection}{\normalfont\small\bfseries}{\thesubsubsection}{0.8em}{}
 \titlespacing*{\section}{0pt}{4pt}{2pt}
@@ -45,6 +46,7 @@
 \usepackage{longtable}
 \usepackage{tabularx}
 \usepackage{array}
+\setlength{\tabcolsep}{4pt}
 \usepackage{multirow}
 \usepackage{makecell}
 \usepackage{graphicx}
@@ -87,6 +89,14 @@
   pdfkeywords={fraud detection, risk scoring, Apache Spark, CatBoost, calibration, SHAP}
 }
 \usepackage{microtype}
+\usepackage{fancyhdr}
+\fancyhf{}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[R]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}}
 
 \newcommand{\evidence}[1]{}
 \newcommand{\systempath}[1]{\texttt{#1}}
@@ -111,7 +121,8 @@
 \vspace{0.12in}
 {\large\AuthorList\par}
 \vfill
-{\large Final Group Project Report submitted for BDA501 -- Big Data\par}
+    {\large A thesis submitted in conformity with the requirements\par}
+    {\large for the degree of Master of Software Engineering\par}
 \vfill
 {\large \copyright\ Copyright by \GroupName\ \ConvocationYear\par}
 \end{center}
@@ -132,9 +143,10 @@
 \vspace{0.10in}
 {\large\AuthorList\par}
 \vfill
-{\large Final Group Project Report submitted for BDA501 -- Big Data\par}
+    {\large A thesis submitted in conformity with the requirements\par}
+    {\large for the degree of Master of Software Engineering\par}
 \vspace{0.18in}
-{\small Project repository: \href{\RepositoryURL}{\nolinkurl{\RepositoryURL}}\par}
+{\small GitHub repository: \href{\RepositoryURL}{\nolinkurl{\RepositoryURL}}\par}
 \vfill
 {\large Supervisor:\par}
 {\large \SupervisorOne\par}
@@ -146,18 +158,25 @@
 \pagenumbering{arabic}
 \setcounter{page}{3}
 \input{frontmatter/abstract}
+\thispagestyle{empty}
 \clearpage
 \input{frontmatter/acknowledgments}
+\thispagestyle{empty}
 \clearpage
 \input{frontmatter/abbreviations}
+\thispagestyle{empty}
 \clearpage
 \tableofcontents
+\thispagestyle{empty}
 \clearpage
 \listoffigures
+\thispagestyle{empty}
 \clearpage
 \listoftables
+\thispagestyle{empty}
 \clearpage
 
+\pagestyle{fancy}
 \input{chapters/01_introduction}
 \input{chapters/02_background}
 \input{chapters/03_architecture}

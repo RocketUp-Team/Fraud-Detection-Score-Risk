@@ -3,7 +3,80 @@
 
 \section{Evidence status}
 
-The verifier passes \val{94} validation checks with status \texttt{ready\_for\_downstream\_training}. Saved artifacts provide empirical evidence for data contracts, baseline comparisons, and candidate holdout evaluation.
+The verifier passes \val{94} validation checks and records the status
+\path{ready_for_downstream_training}. The saved artifacts provide empirical
+evidence for the data contract, split integrity, baseline comparisons, and
+candidate holdout evaluation. This is a statement about the consistency and
+readiness of the recorded workflow; it is not a statement that the current
+candidate has passed the promotion gate or that the overall application is
+production-ready.
+
+The validation evidence should be read at three levels. At the data level,
+the pipeline verifies row preservation, schema consistency, split separation,
+and feature-order stability. At the modelling level, the saved comparisons
+show how imbalance treatment and model family affect ranking and operating
+metrics. At the application level, the packaged artefact can be loaded and
+mapped to the scoring contract. The evidence is strongest for these recorded
+local runs; it is weaker for long-running production concerns such as drift,
+availability, access control, and performance under concurrent traffic.
+
+\section{Reported validation results}
+
+The accompanying project presentation and the repository artifacts report a
+consistent validation story. At the data-processing level, the verifier passes
+\val{94} checks with zero failures and produces the status
+\path{ready_for_downstream_training}. The transaction--identity audit preserves
+all \val{590,540} training transactions and all \val{506,691} test
+transactions, while the chronological split produces \val{412,956} training,
+\val{88,486} validation, and \val{89,098} holdout rows. The fraud rates in the
+three windows remain close to the overall rate, which supports comparison
+without replacing the time-ordered evaluation design.
+
+At the model-selection level, CatBoost Balanced is the current candidate after
+achieving the strongest recorded validation result in the model-family
+comparison. Its validation PR-AUC is \val{0.5806} and validation ROC-AUC is
+\val{0.9081}. These values support candidate selection, but they are not used
+as a release claim by themselves. The holdout evaluation is deliberately
+reported separately: holdout PR-AUC is \val{0.4266}, holdout ROC-AUC is
+\val{0.8781}, precision is \val{0.3820}, recall is \val{0.5182}, and the
+post-calibration Brier score is \val{0.0248}. The difference between validation
+and holdout PR-AUC is the central reason the candidate remains unpromoted.
+
+At the application level, the project reports that the backend can return a
+calibrated fraud probability, a 0--100 risk score, a risk band, a decision, the
+model version, and TreeSHAP attributions. The API supports both
+\texttt{full\_feature} and \texttt{partial\_demo} scoring modes, while the
+React review layer presents the score and explanation for analyst inspection.
+This evidence demonstrates an integrated serving path; it does not establish
+production latency, online feature parity, or autonomous decision safety.
+
+\begin{table}[H]
+\centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
+\caption{Consolidated validation and reported project results}
+\label{tab:reported-validation-results}
+\begin{tabularx}{\textwidth}{p{0.22\textwidth}p{0.25\textwidth}X}
+\toprule
+\textbf{Validation layer} & \textbf{Reported result} & \textbf{Interpretation}\\
+\midrule
+Data contract & \val{94} passed, \val{0} failed & Model-ready handover is structurally valid and traceable.\\
+Chronological split & \val{412,956}/\val{88,486}/\val{89,098} rows & Time-ordered train, validation, and holdout windows are non-overlapping.\\
+Candidate selection & Validation PR-AUC \val{0.5806}; ROC-AUC \val{0.9081} & CatBoost Balanced is the current challenger.\\
+Holdout evaluation & PR-AUC \val{0.4266}; ROC-AUC \val{0.8781} & Later-period ranking quality falls below the promotion target.\\
+Operating point & Precision \val{0.3820}; recall \val{0.5182}; Brier \val{0.0248} & The candidate provides a usable review trade-off, but requires policy and monitoring controls.\\
+Promotion decision & \texttt{not\_promoted} & Holdout PR-AUC is below target \val{0.4582}; the serving default is unchanged.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The consolidated-results table provides one reading path across the system.
+The first two rows establish that the data contract and chronological windows
+are valid. The next rows show that CatBoost Balanced is strong during
+validation but weaker on holdout, and that its operating threshold produces a
+precision-recall trade-off suitable for review rather than blind automation.
+The final row records the governance consequence: the candidate remains
+unpromoted because the primary holdout ranking gate is not met.
 
 \input{figures/final_result_charts}
 
@@ -33,12 +106,23 @@ Offline--online feature mismatch & Standardized backend feature loader mapping s
 \end{tabularx}
 \end{table}
 
+The challenges table connects each technical risk to an implemented control and
+an evidence location. The controls are layered: row preservation protects the
+join, train-only transformations protect against leakage, the frozen feature
+vector protects compatibility, and the backend loader protects request-time
+mapping. The table also shows where the controls stop, since offline--online
+mismatch and the Spark-to-pandas boundary remain known limitations.
+
 \section{Consolidated limitations}
 
-\begin{enumerate}
-  \item \textbf{Reproducibility}: Local MLflow tracking and single-node pandas training.
-  \item \textbf{Policy Alignment}: Runtime backend risk bands decoupled from offline threshold optimization.
-  \item \textbf{Offline-Online Parity}: Real-time feature store for historical aggregates not implemented.
-  \item \textbf{Operational Controls}: Fail-open fallback heuristic and in-memory background jobs.
-  \item \textbf{Security \& Governance}: Authentication, role-based authorization, and durable audit logs absent.
-\end{enumerate}
+The first limitation concerns reproducibility at scale: experiment tracking is local and the estimator stage uses single-node pandas-compatible matrices, so the workflow has a clear memory and operational ceiling. The second concerns policy alignment: backend risk bands are configured separately from offline threshold optimisation, which can cause the displayed decision policy and the evaluated operating point to diverge. The third concerns offline--online parity because a real-time feature store for historical aggregates has not been implemented; the API therefore cannot yet guarantee that every online aggregate is calculated in exactly the same way as its training counterpart. The fourth concerns operational controls, since the demonstration includes a fail-open heuristic and in-memory background jobs that could conceal model-loading failures or lose work after restart. The fifth concerns security and governance: authentication, role-based authorization, and durable audit logging are not complete, so the system should not be used to make unsupervised real-world decisions.
+
+These limitations affect how the results should be used. The model metrics are
+appropriate for comparing the recorded candidates and for demonstrating a
+controlled validation procedure. They are not sufficient to estimate fraud
+loss reduction, customer impact, or regulatory suitability in a live business
+context. Before operational use, the project would need an online feature
+parity test, a policy calibration study with real review capacity, security
+testing, durable audit trails, drift monitoring, rollback procedures, and
+repeated evaluation on later data. The explicit limitation statement is thus a
+guardrail around interpretation, not a rejection of the current results.

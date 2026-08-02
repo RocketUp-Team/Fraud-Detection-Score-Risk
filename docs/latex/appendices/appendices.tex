@@ -29,6 +29,13 @@ Decision = approve | review | reject
 \end{table}
 \endgroup
 
+The core-field table defines the shared vocabulary between the scoring service
+and the dashboard. Probability is kept distinct from the display score, while
+risk band and decision represent policy interpretation rather than raw model
+output. The scoring mode records whether the request used the complete contract
+or the reduced demonstration path, and the SHAP field carries local explanation
+evidence for analyst review.
+
 \section{Endpoint summary}
 
 \begingroup
@@ -50,6 +57,12 @@ POST & \path|/transactions/{id}/review| & Analyst review decision update\\
 \end{tabularx}
 \end{table}
 \endgroup
+
+The endpoint table groups the API by the user's workflow. Health and metadata
+endpoints establish service and model state, scoring creates a risk assessment,
+transaction endpoints support queue inspection, and the review endpoint records
+the human outcome. This mapping makes it possible to trace a dashboard action
+back to a specific backend responsibility.
 
 \chapter{Deployment and Feature Contracts}
 \label{app:contracts}
@@ -78,6 +91,13 @@ Categorical & \texttt{ProductCD}, \texttt{card4}, \texttt{card6}, \texttt{Device
 \end{tabularx}
 \end{table}
 
+The feature-group table explains how the canonical vector is organised. Amount
+and time describe the immediate transaction, missingness and presence features
+describe the availability of identity evidence, behaviour features capture
+anonymised patterns, and categorical fields preserve selected discrete signals.
+The groups are explanatory; the model still consumes the exact frozen feature
+order defined by the data contract.
+
 \chapter{Runbook and Role Mapping}
 \label{app:runbook}
 
@@ -101,3 +121,9 @@ Review update & Status/label persist and queue/statistics invalidate\\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+The acceptance table converts the system requirements into repeatable smoke
+tests. A successful handoff, model startup, full or partial score, and review
+update together cover the main path from stored artefact to analyst action.
+These scenarios demonstrate functional integration, but they do not replace
+load testing, security testing, drift monitoring, or production recovery tests.

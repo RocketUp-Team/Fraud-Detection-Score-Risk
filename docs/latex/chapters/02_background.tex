@@ -3,12 +3,134 @@
 
 \section{Imbalanced temporal ranking}
 
-Fraud detection is framed as binary temporal ranking on rare positive cases (fraud rate $\approx$ \val{3.5\%}). Chronological splitting along \texttt{TransactionDT} preserves temporal order and prevents lookahead leakage.
+Fraud detection is framed here as binary temporal ranking on rare positive cases, with an observed fraud rate of approximately \val{3.5\%}. The model must rank risky transactions highly enough for investigators to review them efficiently, while the evaluation must reflect the fact that future transactions are not available when the model is trained. Chronological splitting along \texttt{TransactionDT} preserves that direction of time and reduces lookahead leakage. The resulting metrics should therefore be interpreted as evidence of performance on a later time window, not as proof that the model will behave identically under every future fraud pattern.
 
 \section{IEEE-CIS dataset structure}
 
-The dataset contains \val{590,540} training transactions and optional identity records \parencite{ieeecis2019}. Preserving transaction row authority via LEFT JOIN prevents data loss while capturing missingness indicators.
+The dataset contains \val{590,540} labelled training transactions together with optional identity records \parencite{ieeecis2019}. Transaction attributes and identity attributes are stored separately, so joining them is a central data-engineering decision. The pipeline preserves the transaction table as the authoritative grain through a LEFT JOIN. This prevents transactions from disappearing merely because no identity record exists, while the resulting missingness is retained as information that can be used by the model and examined during quality analysis.
+
+\section{Dataset provenance and competition context}
+
+IEEE-CIS Fraud Detection was released as a Kaggle research prediction
+competition hosted by the IEEE Computational Intelligence Society in 2019.
+The competition asked participants to detect fraudulent customer transactions
+from structured transaction and identity information, and it attracted a large
+community of participants and teams \parencite{ieeecis2019}. The dataset is
+useful for this project because it is large enough to require a deliberate
+data-processing strategy, contains both numerical and categorical variables,
+and represents a fraud setting in which the positive class is rare. It is also
+appropriate for studying the boundary between offline model development and
+online risk scoring because the transaction and identity information must be
+combined before a model can use the full available context.
+
+The public dataset should not be interpreted as a complete representation of a
+bank's production data. The fields are anonymised, the original business
+definitions of many variables are unavailable, and the recorded competition
+period does not cover every geography, merchant population, or fraud pattern.
+Consequently, the project uses the data as a reproducible benchmark and
+engineering workload. Claims in this report concern the recorded benchmark and
+the implemented pipeline; they are not claims about the prevalence of fraud in
+the wider financial system.
+
+\section{Raw files, records, and feature groups}
+
+The raw release contains four principal files. The labelled transaction table
+contains \val{590,540} rows and 394 columns, including the target
+\texttt{isFraud}; the corresponding identity table contains \val{144,233}
+rows and 41 columns. The unlabelled test transaction table contains
+\val{506,691} rows and 393 columns, while the test identity table contains
+\val{141,907} rows and 41 columns. The project inventory records the four files
+as approximately \val{1.29~GB} in total. The difference between the number of
+transaction rows and identity rows is expected: identity information is
+available for only a subset of transactions, which is why a transaction-
+authoritative join is required.
+
+The transaction table combines several conceptual groups. Core fields include
+\texttt{TransactionID}, \texttt{TransactionDT}, \texttt{TransactionAmt}, and
+\texttt{ProductCD}. Card and address fields describe payment-instrument and
+location-related patterns, while the \texttt{C}, \texttt{D}, \texttt{M}, and
+\texttt{V} families contain anonymised counts, time differences, matching
+signals, and engineered behavioural variables. The identity table adds fields
+related to device and digital identity, including variables such as
+\texttt{DeviceType}, \texttt{DeviceInfo}, and anonymised identity attributes.
+Because the variable meanings are intentionally hidden, the pipeline uses
+their type, missingness, temporal position, and observed predictive behaviour
+without assigning unsupported business interpretations to individual columns.
+
+\section{Target definition and class distribution}
+
+The target variable is \texttt{isFraud}, where the positive value denotes a
+fraudulent transaction and the negative value denotes a legitimate transaction.
+The local dataset inventory reports \val{20,663} fraud transactions and
+\val{569,877} legitimate transactions, producing a fraud rate of
+\val{3.499\%} and a legitimate-to-fraud ratio of approximately \val{27.58:1}.
+This ratio changes the meaning of every model metric. In particular, a model
+that predicts the majority class for almost all rows may appear accurate while
+being operationally useless. The project therefore preserves the natural
+class distribution in validation and holdout and uses weighting or controlled
+sampling only as an explicitly recorded training decision.
+
+\section{Anonymisation, missingness, and reproducibility}
+
+Anonymisation protects the original commercial data but limits the amount of
+domain interpretation that can be justified. A variable named \texttt{V123}
+cannot be described as a particular customer or device behaviour without an
+external data dictionary, so the report refers to feature families and
+measured effects rather than inventing semantic meanings. Missing values are
+also not automatically treated as noise. The absence of an identity record or
+the absence of a device attribute may be correlated with the way a transaction
+was collected. The project measures and preserves this missingness, while
+training-only imputation prevents information from the validation or holdout
+period leaking into the preprocessing state.
+
+The dataset is therefore reproducible at the file, schema, split, and contract
+levels. The source inventory identifies the expected files and sizes, the
+pipeline records the join and split audits, and the model-ready export freezes
+the feature order and preprocessing metadata. Reproducing a numeric result
+still requires the same source release, software dependencies, configuration,
+and model artefacts; the public availability of the dataset alone does not
+guarantee identical results.
 
 \section{Technology boundary}
 
-Architecture operates via \textbf{distributed Spark data preparation with single-node Python estimator training}. CatBoost, LightGBM, XGBoost, and Logistic Regression are evaluated, using TreeSHAP for feature attribution \parencite{lundberg2017shap}.
+The architecture deliberately separates \textbf{distributed Spark data preparation from single-node Python estimator training}. Spark is responsible for schema-aware ingestion, joins, temporal transformations, aggregate feature construction, and Parquet handover. After the model-ready contract is produced, Python-based estimators are trained and evaluated against the same frozen feature order. CatBoost, LightGBM, XGBoost, and Logistic Regression are compared, and TreeSHAP is used to provide local feature attributions for tree-model predictions \parencite{lundberg2017shap}. This boundary satisfies the project requirement to use a big-data processing engine while making the current training-memory limitation explicit.
+
+\section{Why accuracy is insufficient for this dataset}
+
+Accuracy is a poor primary measure when legitimate transactions outnumber
+fraudulent transactions by roughly twenty-eight to one. A classifier that labels
+almost every row as legitimate can obtain a high accuracy value while detecting
+very little fraud. The report therefore gives priority to PR-AUC, which measures
+the precision-recall ranking behaviour under the rare-positive setting, and
+uses ROC-AUC as a complementary measure of class separation. Precision and
+recall at an operating threshold are reported because the review queue has a
+finite capacity and because investigators need to understand the trade-off
+between missed fraud and additional alerts. The Brier score is also retained
+for the calibrated candidate because a usable risk probability should be
+interpretable as more than an arbitrary ranking number.
+
+\section{Temporal leakage and operational realism}
+
+Temporal leakage occurs when information from a later period influences a
+training feature, preprocessing parameter, threshold, or model-selection
+decision. In a fraud system this can happen subtly: an entity aggregate may
+include transactions that happened after the row being scored, or an imputer
+may be fitted using the distribution of the holdout window. The project reduces
+this risk by ordering rows with \texttt{TransactionDT}, fitting learned state
+on the earlier training window, selecting candidates on validation, and
+reporting final performance on a later holdout. This design is more demanding
+than a random split, but it produces evidence that is closer to the actual
+operating situation in which the model scores transactions arriving after its
+training history.
+
+\section{Interpretability as a review requirement}
+
+The system treats explainability as an operational requirement rather than a
+decorative visual. A fraud analyst needs to know which input characteristics
+contributed to a high score, especially when a legitimate customer may be
+temporarily blocked or escalated. TreeSHAP provides local attributions for
+tree-based models, allowing the interface to display the strongest positive
+and negative contributions for an individual transaction. These attributions
+explain the model's association with the observed feature vector; they do not
+prove that a feature caused the transaction to be fraudulent. That distinction
+is preserved in the report and in the application wording.

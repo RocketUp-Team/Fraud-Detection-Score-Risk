@@ -3,29 +3,33 @@
 
 \section{Conclusion}
 
-The project demonstrates an end-to-end fraud scoring system separating distributed Spark data preparation from single-node Python model training. CatBoost Balanced achieved validation ROC-AUC \val{0.9081} and PR-AUC \val{0.5806} (holdout ROC-AUC \val{0.8781}, PR-AUC \val{0.4266}), while candidate status remains \texttt{not\_promoted}.
+The project demonstrates an end-to-end fraud scoring workflow that separates distributed Spark data preparation from single-node Python model training and in-process API serving. The strongest current challenger, CatBoost Balanced, achieves validation ROC-AUC \val{0.9081} and PR-AUC \val{0.5806}; on the later holdout it achieves ROC-AUC \val{0.8781} and PR-AUC \val{0.4266}. Because holdout PR-AUC is below the required promotion target, the candidate remains \texttt{not\_promoted}. The most defensible conclusion is therefore that the project has produced a coherent and auditable academic demonstration, not a production-ready fraud decision system.
+
+The main lesson is that fraud-risk quality depends on the relationship between
+data, time, model, policy, and review workflow. The Spark pipeline protects the
+data boundary and produces a reusable contract, while the model workflow
+provides a disciplined comparison between candidate families. Calibration,
+TreeSHAP explanations, and analyst review make the score more usable, but they
+do not remove the need for monitoring and governance. The failed holdout
+promotion gate is particularly informative: it shows that a candidate can be
+technically valid, explainable, and strong on validation while still requiring
+more evidence before becoming the runtime default.
 
 \section{Summary of research question answers}
 
-\begin{itemize}
-  \item \textbf{RQ1 (Data Integrity)}: Leakage-free chronological splits and schema contracts are verified.
-  \item \textbf{RQ2 (Classifier Performance)}: CatBoost achieved highest PR-AUC; performance degrades gracefully on holdout.
-  \item \textbf{RQ3 (Serving Architecture)}: In-process Python model package enables Spark-free real-time scoring.
-  \item \textbf{RQ4 (System Boundaries)}: Architectural limits (offline-online parity, fail-open fallback) bound the demo.
-\end{itemize}
+The answer to RQ1 is positive within the recorded evidence: chronological splits, schema contracts, and the automated verification checks support a leakage-controlled handover. The answer to RQ2 is qualified: CatBoost Balanced obtains the highest validation PR-AUC among the current candidates, but its holdout PR-AUC falls below the promotion target, so validation leadership is not sufficient for promotion. The answer to RQ3 is also positive for the demonstration: the in-process Python package can score requests without a Spark dependency at request time. Finally, RQ4 is answered by the limitations documented in the validation chapter: offline--online feature parity, policy ownership, fallback behaviour, security, and monitoring define the boundary between the current demo and a deployable service.
 
 \section{Future work}
 
-To advance the system toward enterprise production deployment, five key engineering and research directions are identified:
+The first priority is to implement a real-time feature store, for example with Feast or a Redis-backed stream-processing layer, so that rolling entity aggregates can be calculated consistently at inference time. The second priority is to separate operational policy from model weights by introducing a dynamic threshold and risk-band service that authorised risk officers can update without redeploying the model artifact. The third priority is to add MLOps controls for population stability, prediction drift, experiment lineage, and controlled retraining when validated performance falls below an agreed service level. A later research direction is to model relationships between transactions, devices, cards, and identities with graph neural networks and temporal sequence models, since coordinated fraud may not be visible in isolated rows. Finally, the analyst experience can be strengthened by extending TreeSHAP with actionable counterfactual explanations that clarify which measurable conditions would change a review outcome.
 
-\begin{enumerate}
-  \item \textbf{Real-Time Feature Store and Online-Offline Parity}: Implement a low-latency online feature store (e.g., Feast or Redis-backed stream processing engine) to calculate streaming aggregations (e.g., rolling 1-hour transaction counts per card) with sub-10ms latency, guaranteeing complete feature parity between offline Spark training and online API inference.
-  
-  \item \textbf{Decoupled Dynamic Policy and Threshold Management}: Separate operational risk decisions (\texttt{approve}, \texttt{review}, \texttt{reject}) from offline model weights. Implement a dynamic policy engine allowing risk officers to update decision thresholds and risk bands in real time without redeploying model artifacts.
-  
-  \item \textbf{Continuous MLOps, Drift Detection, and Auto-Retraining}: Deploy automated monitoring for population stability (PSI) and prediction drift (Kolmogorov-Smirnov tests). Integrate automated CI/CD re-training pipelines triggered when holdout PR-AUC drops below SLA thresholds.
-  
-  \item \textbf{Graph Neural Networks and Temporal Sequence Modeling}: Integrate Graph Neural Networks (GNNs) on transaction-device-entity bipartite graphs to detect coordinated fraud rings, combined with temporal Transformer architectures for sequential pattern analysis.
-  
-  \item \textbf{Actionable Counterfactual Recourse and Analyst UX}: Extend local TreeSHAP explanations with actionable counterfactual recourse, providing analysts with precise quantitative factors necessary to resolve flagged review cases.
-\end{enumerate}
+The recommended implementation order follows dependency risk. Online feature
+parity should be addressed first because a stronger model cannot compensate for
+features that are calculated differently at serving time. Policy ownership and
+audit logging should follow so that decisions are traceable and thresholds can
+be changed safely. Drift monitoring and automated retraining should then be
+introduced only after the measurement and rollback procedures are stable.
+Graph and sequence models are research extensions rather than immediate
+replacement candidates; they should be evaluated against the same chronological
+holdout and promotion gates. This sequence keeps future complexity tied to
+measurable operational benefit.

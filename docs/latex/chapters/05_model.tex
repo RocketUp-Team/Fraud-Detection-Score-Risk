@@ -3,7 +3,7 @@
 
 \section{Artifact identity and terminology}
 
-The project evaluates four model states: Historical V2 (LightGBM), Serving Default V2 (Configured champion), and Current Candidate (CatBoost Balanced, status: \texttt{not\_promoted}) (Table~\ref{tab:model-identifiers}).
+The project distinguishes historical evidence from the currently configured runtime artifact. Table~\ref{tab:model-identifiers} separates the Historical V2 LightGBM artifact, the LightGBM model that remains the configured serving default, and the current CatBoost Balanced challenger. This distinction is necessary because the strongest candidate in a new experiment must not be described as the serving champion until it passes the promotion gates.
 
 \begin{table}[H]
 \centering
@@ -20,15 +20,39 @@ Current candidate & CatBoost balanced & Challenger & Not promoted\\
 \end{tabular}
 \end{table}
 
+The identifier table prevents three different concepts from being merged into
+one label. Historical V2 is an earlier LightGBM artifact, the serving default
+is the configured runtime champion, and the CatBoost Balanced model is only a
+current challenger. A candidate can win a validation comparison without
+becoming the model served by the application.
+
 \section{Model-development protocol}
 
-Architecture operates via \textbf{distributed Spark data preparation with single-node Python estimator training}. Figure~\ref{fig:final-training-lifecycle} illustrates the end-to-end training lifecycle.
+The training lifecycle follows the same boundary described in the architecture chapter: \textbf{Spark performs distributed data preparation, while Python estimators are fitted on a single node}. Figure~\ref{fig:final-training-lifecycle} illustrates how model-ready artifacts are loaded, candidate families are trained, validation metrics guide selection, calibration and thresholds are recorded, and the untouched holdout is used for final evidence. The workflow is reproducible at the level of contracts and saved metadata, although the single-node estimator stage remains a scalability boundary.
+
+Model selection is intentionally performed before holdout evaluation. Candidate
+families are fitted using the training contract, compared on the validation
+window, and then subjected to calibration and operating-threshold decisions
+that are also based on information available before the holdout. The holdout
+is not used to tune hyperparameters or choose the winning family. This design
+prevents the final metric from becoming another training signal and makes the
+holdout result a more credible estimate of later-period behaviour. It also
+explains why the report distinguishes validation selection metrics from
+holdout operating metrics rather than presenting one undifferentiated score.
 
 \input{figures/final_training_lifecycle}
 
 \section{PySpark MLlib DecisionTree baseline}
 
-To satisfy BDA501 big-data ML baseline requirements, a PySpark MLlib \texttt{DecisionTreeClassifier} pipeline evaluates the \val{68}-feature vector across three dataset variants (Table~\ref{tab:mllib-decision-tree}).
+To satisfy the BDA501 big-data machine-learning requirement, a PySpark MLlib
+\texttt{DecisionTreeClassifier} pipeline evaluates the \val{68}-feature vector
+across original, weighted, and undersampled training variants. The results in
+Table~\ref{tab:mllib-decision-tree} show the effect of imbalance treatment
+clearly. The unweighted tree produces very low PR-AUC because it is dominated
+by the majority class. Weighting increases recall and ranking quality
+substantially, but precision falls because the model raises more alerts.
+Undersampling changes the training distribution and improves neither ranking
+quality nor generalisation enough to replace the weighted baseline.
 
 \begin{table}[H]
 \centering
@@ -50,9 +74,26 @@ To satisfy BDA501 big-data ML baseline requirements, a PySpark MLlib \texttt{Dec
 \end{tabular}
 \end{table}
 
+The DecisionTree table provides a transparent baseline for the imbalance
+problem. The unweighted tree has high precision but very low recall and PR-AUC,
+which means that it identifies only a small fraction of fraud. Class weighting
+raises recall and ranking quality substantially, but precision decreases as the
+model produces more alerts. Undersampling changes the class ratio and reduces
+training time, yet its PR-AUC remains close to the weak baseline.
+
 \section{Candidate models and selection}
 
-Evaluation compares Logistic Regression, LightGBM, XGBoost, and CatBoost (Table~\ref{tab:model-family-comparison}). CatBoost Balanced achieved highest PR-AUC.
+Evaluation compares Logistic Regression, LightGBM, XGBoost, and CatBoost under the same downstream contract, as shown in Table~\ref{tab:model-family-comparison}. CatBoost Balanced achieves the highest validation PR-AUC among the listed candidates, narrowly exceeding weighted LightGBM while also retaining a strong ROC-AUC. This result supports selecting CatBoost Balanced as the current challenger, but it does not by itself justify replacing the serving default because model promotion depends on the later holdout and governance gates.
+
+The comparison also illustrates why model choice cannot be based on a single
+metric or on model name. Logistic Regression provides a useful linear
+reference but underperforms the boosting candidates on the nonlinear and
+high-cardinality feature space. LightGBM and XGBoost provide strong ranking
+baselines, while CatBoost Balanced obtains the best validation PR-AUC in the
+recorded comparison. The selected candidate is therefore a result of the
+observed contract-specific experiment, not a claim that CatBoost is always
+superior for fraud detection. A different temporal window, sampling policy,
+or feature contract could change the ordering.
 
 \begin{table}[H]
 \centering
@@ -73,9 +114,25 @@ CatBoost & Balanced & \val{0.9070} & \val{0.5703} & Selected\\
 \end{tabular}
 \end{table}
 
+The model-family table shows that the linear reference is weaker than the
+boosting families on the recorded feature contract. LightGBM, XGBoost, and
+CatBoost capture nonlinear relationships more effectively, while CatBoost
+Balanced obtains the highest validation PR-AUC in this comparison. The table
+supports selecting it as a challenger, not claiming universal superiority.
+
 \section{Current CatBoost candidate results}
 
-Table~\ref{tab:official-v2-metrics} records candidate performance across validation and holdout splits.
+Table~\ref{tab:official-v2-metrics} records the candidate across the validation and holdout windows. Validation results are used for model selection, while holdout results are treated as the more conservative estimate of performance on later data. The candidate reaches validation PR-AUC \val{0.5806} and ROC-AUC \val{0.9081}; on holdout, these decrease to \val{0.4266} and \val{0.8781}. The decrease is not evidence that the pipeline failed, but it is evidence that the candidate is sensitive to temporal shift and must be judged against the promotion threshold rather than the validation result alone.
+
+At the selected holdout operating point, the candidate reports precision of
+\val{0.3820} and recall of \val{0.5182}. In practical terms, the review queue
+captures slightly more than half of the fraud cases represented by the
+holdout while keeping the flagged set substantially smaller than the full
+transaction population. The trade-off is not universally optimal: a bank with
+high investigation capacity may prefer higher recall and tolerate more false
+alerts, while a constrained team may require higher precision. The report
+therefore treats the threshold as a policy decision that must remain visible
+and configurable, rather than as a permanent property of the model weights.
 
 \begin{table}[H]
 \centering
@@ -93,9 +150,26 @@ Holdout & \val{0.16} & \val{0.4266} & \val{0.8781} & \val{0.3820} & \val{0.5182}
 \end{tabular}
 \end{table}
 
+The candidate-metrics table separates selection evidence from final evidence.
+Validation results justify further evaluation, but the holdout decline in
+PR-AUC and ROC-AUC shows that later-period behaviour is more difficult.
+Precision and recall describe the practical review trade-off, while the Brier
+score records probability reliability after calibration. The columns should
+therefore be read together rather than reduced to one headline metric.
+
 \section{Packaging, checksum, and promotion}
 
-The candidate promotion gate evaluated \val{9} criteria (Table~\ref{tab:v2-gates}). Due to holdout PR-AUC degradation (\val{0.4266} vs target \val{0.4582}), the promotion decision remains \texttt{not\_promoted}.
+The candidate promotion gate evaluates nine criteria, summarized in Table~\ref{tab:v2-gates}. The decisive failure is holdout PR-AUC: the observed \val{0.4266} is below the target \val{0.4582}. Although holdout ROC-AUC, review precision, calibration non-regression, checksum integrity, artifact loading, and data-contract checks pass, those successes do not override the failed ranking-quality gate. The candidate therefore remains \texttt{not\_promoted}, and the configured serving default is unchanged. This conservative decision keeps experimental performance claims separate from runtime behaviour.
+
+The promotion state also demonstrates the value of separating technical
+validity from model quality. A checksum match proves that the expected file
+was loaded, but it does not prove that the model is good. A passing schema gate
+proves that the feature vector is compatible, but it does not prove that the
+candidate generalises. Conversely, a failed performance gate does not mean
+that the data contract or serving package is broken. The promotion process
+keeps these questions separate so that the team can improve the candidate or
+revise the target without losing confidence in the integrity of the serving
+default.
 
 \begin{table}[H]
 \centering
@@ -120,8 +194,15 @@ Git clean & Fail & \texttt{git\_dirty=true}\\
 \end{tabular}
 \end{table}
 
+The promotion-gate table demonstrates that technical integrity and model
+quality are different checks. Checksums, artifact loading, the data contract,
+version matching, ROC-AUC, precision, and calibration pass, but holdout PR-AUC
+fails because \val{0.4266} is below \val{0.4582}. The candidate remains
+unpromoted and the serving default is unchanged; this is a controlled release
+decision rather than a failure of the entire pipeline.
+
 \input{figures/final_promotion_state}
 
 \section{Request-time scoring}
 
-Real-time scoring maps categoricals via persisted indexers, applies isotonic calibration, and computes TreeSHAP feature attributions \parencite{lundberg2017shap}. Responses support \texttt{full\_feature} and \texttt{partial\_demo} modes.
+At request time, the scoring package maps categorical values using persisted indexers, applies the saved preprocessing and isotonic calibration state, and computes TreeSHAP feature attributions \parencite{lundberg2017shap}. The API supports both \texttt{full\_feature} and \texttt{partial\_demo} modes so that the demonstration can score complete model-ready records while still showing the user-interface flow for reduced examples. This packaging removes the need to start Spark for each request, but it also means that online feature construction must remain aligned with the offline contract if the system is ever deployed beyond the demonstration setting.

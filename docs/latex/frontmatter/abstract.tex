@@ -17,16 +17,14 @@
 This thesis presents an academic fraud risk scoring workflow for the IEEE-CIS
 dataset. Apache Spark performs typed ingestion, transaction--identity joining,
 quality auditing, chronological leakage-controlled processing, feature
-engineering, and Parquet handover. Python model training compares Logistic
-Regression, LightGBM, XGBoost, and CatBoost after the Spark-to-pandas boundary.
-The system packages feature mappings, calibration, thresholds, and explanations
-for an in-process FastAPI service with a React review interface.
-
-The current CatBoost balanced candidate reports validation ROC-AUC 0.9081210 and
-PR-AUC 0.5805993, with holdout ROC-AUC 0.8780755 and PR-AUC 0.4266435. The current
-CatBoost candidate is labelled \texttt{v2} in its metadata, but its promotion decision is
-\texttt{not\_promoted}; the configured V2 software default remains unchanged.
-The principal limitations are offline--online historical-feature mismatch,
-duplicated policy ownership, local lineage, single-node training, fail-open
-fallback, and incomplete security and monitoring controls. The result is a
-bounded academic demonstration, not a production-readiness claim.
+engineering, and Parquet handover. Python training compares Logistic Regression,
+LightGBM, XGBoost, and CatBoost after the Spark-to-pandas boundary. The scoring
+package records preprocessing mappings, calibration state, thresholds, model
+metadata, and local explanations for an in-process FastAPI service with a React
+review interface. The current CatBoost balanced candidate achieves validation
+ROC-AUC 0.9081 and PR-AUC 0.5806, with holdout ROC-AUC 0.8781 and PR-AUC 0.4266.
+Because holdout PR-AUC is below the promotion target, the candidate remains
+not promoted and the configured serving default is unchanged. Offline--online
+feature mismatch, single-node training, fallback behaviour, and incomplete
+security and monitoring controls limit the result to an auditable academic
+demonstration rather than a production-readiness claim.

@@ -3,45 +3,73 @@
 
 \section{Integrated serving architecture}
 
-The application operates as an \textbf{in-process model-serving modular monolith}. FastAPI imports the scoring package directly, persisting scored transactions in PostgreSQL/SQLite and serving a React dashboard.
+The application operates as an \textbf{in-process model-serving modular monolith}. FastAPI imports the scoring package directly, which keeps the request path simple and avoids a separate model-serving network hop. Scored transactions are persisted through PostgreSQL or the local SQLite configuration, while the React dashboard consumes typed API responses. This arrangement is appropriate for a controlled academic demonstration because the data contract, scoring logic, persistence layer, and user interface can be exercised together; however, it also concentrates several responsibilities in one deployable unit and therefore leaves scaling, isolation, and operational fault handling for future work.
+
+The request path begins when a transaction is submitted or imported. The API
+validates the request shape, maps the available fields to the canonical
+feature order, invokes the packaged model, applies calibration and policy
+mapping, and persists the resulting score. The response then carries both
+machine-oriented values, such as probability and model version, and
+human-oriented values, such as risk band, decision, and feature explanation.
+Keeping these values together makes it possible to reproduce what the analyst
+saw at the time of review and to distinguish an old score from a score produced
+after a model update.
 
 \section{Scoring and review workflow}
 
-The backend returns probability, risk score (\val{0}--\val{100}), risk band, decision, and TreeSHAP attributions. Scored transactions and human analyst reviews are stored as distinct database entities.
+For each scored transaction, the backend returns a calibrated probability, a risk score on a \val{0}--\val{100} scale, a risk band, an operational decision, and TreeSHAP attributions. The probability expresses the model output, whereas the risk band and decision are policy-facing interpretations and should not be confused with the learned model itself. Scored transactions and human analyst reviews are stored as distinct database entities, allowing the system to preserve both the automated assessment and the later human outcome. The interface figures in this section show how the monitoring queue, transaction detail, explanation panel, and review action form one analyst workflow.
+
+The review workflow is designed as a human-in-the-loop process. A high-risk
+score creates a prioritisation signal, not an automatic declaration of fraud.
+An analyst can inspect the transaction context and the most influential
+features, then record a review outcome. Separating the automated score from the
+human review is valuable for later evaluation because analyst labels can be
+used to examine false positives, missed fraud, and threshold performance. It
+also avoids overwriting the original model output when a reviewer disagrees
+with the prediction.
 
 \begin{figure}[H]
   \centering
-  \begin{subfigure}[b]{0.45\textwidth}
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/transactions.png}
+    \includegraphics[width=\linewidth,height=0.38\textheight,keepaspectratio]{figures/transactions.png}
     \caption{Transaction monitoring queue.}
     \label{fig:ui-transactions}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.45\textwidth}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/score-result.png}
+    \includegraphics[width=\linewidth,height=0.38\textheight,keepaspectratio]{figures/score-result.png}
     \caption{Risk score and SHAP feature importance.}
     \label{fig:ui-score-result}
   \end{subfigure}
-  \\[2pt]
-  \begin{subfigure}[b]{0.45\textwidth}
+  \caption{Primary analyst views for triage and model-assisted risk interpretation.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/detail.png}
+    \includegraphics[width=\linewidth,height=0.38\textheight,keepaspectratio]{figures/detail.png}
     \caption{Transaction detail panel.}
     \label{fig:ui-detail}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.45\textwidth}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.48\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{figures/review.png}
+    \includegraphics[width=\linewidth,height=0.38\textheight,keepaspectratio]{figures/review.png}
     \caption{Analyst fraud review workflow.}
     \label{fig:ui-review}
   \end{subfigure}
-  \caption{Application User Interface: Real-time risk scoring, inspection queue, and analyst review workflow.}
-  \label{fig:ui-overview-all}
+  \caption{Detailed inspection and human-review actions supported by the application.}
 \end{figure}
 
 \section{Deployment boundary}
 
-Docker Compose orchestrates preprocessing, training, backend, and React UI profiles, mounting processed Parquet artifacts into the backend container.
+Docker Compose orchestrates the preprocessing, training, backend, and React UI profiles, with processed Parquet artifacts mounted into the backend container. This provides a repeatable local deployment path and makes the subsystem boundaries visible to evaluators. It should not be interpreted as evidence of production availability: the current deployment still relies on local configuration, limited background-job durability, incomplete security controls, and a fallback path whose operational behaviour requires stronger monitoring.
+
+The deployment boundary is therefore deliberately local and demonstrable. It
+supports repeatable evaluation of the data contract, model package, API
+responses, persistence path, and user-interface flow on one controlled
+environment. It does not yet establish multi-instance coordination, durable
+queue processing, secret management, service-level latency, or safe recovery
+from partial failure. Those properties require an operational environment and
+test evidence beyond the current academic scope.
