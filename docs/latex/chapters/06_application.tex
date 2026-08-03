@@ -19,6 +19,17 @@ after a model update.
 
 For each scored transaction, the backend returns a calibrated probability, a risk score on a \val{0}--\val{100} scale, a risk band, an operational decision, and TreeSHAP attributions. The probability expresses the model output, whereas the risk band and decision are policy-facing interpretations and should not be confused with the learned model itself. Scored transactions and human analyst reviews are stored as distinct database entities, allowing the system to preserve both the automated assessment and the later human outcome. The interface figures in this section show how the monitoring queue, transaction detail, explanation panel, and review action form one analyst workflow.
 
+The operating policy is explicit in the packaged V2 artifact. The review
+threshold is fraud probability \val{0.16}, and the reject threshold is
+\val{0.53}. The review threshold is selected by maximising recall and then F1
+subject to minimum precision \val{0.30}; the reject threshold is the lowest
+threshold meeting minimum reject precision \val{0.60}. After conversion to a
+risk score, scores \val{0}--\val{19} are low and approve, \val{20}--\val{39}
+are guarded and approve, \val{40}--\val{59} are medium and review,
+\val{60}--\val{79} are high and review, and \val{80}--\val{100} are critical
+and reject. This policy is separate from model ranking and can be changed
+through a governed policy update without changing the learned weights.
+
 The review workflow is designed as a human-in-the-loop process. A high-risk
 score creates a prioritisation signal, not an automatic declaration of fraud.
 An analyst can inspect the transaction context and the most influential
@@ -73,3 +84,10 @@ environment. It does not yet establish multi-instance coordination, durable
 queue processing, secret management, service-level latency, or safe recovery
 from partial failure. Those properties require an operational environment and
 test evidence beyond the current academic scope.
+
+No formal latency benchmark or throughput target is claimed in this report.
+The repository includes API tests and a warm-up path for model loading, but
+request-time p50/p95 latency, concurrent-request capacity, and end-to-end
+batch throughput require a controlled performance test on the target hardware.
+This distinction prevents the port configuration and successful functional
+response from being misread as production performance evidence.

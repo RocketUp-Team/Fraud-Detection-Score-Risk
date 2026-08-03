@@ -38,6 +38,12 @@ evidence for analyst review.
 
 \section{Endpoint summary}
 
+The local reference deployment exposes the API through FastAPI/Uvicorn at
+\url{http://localhost:8000}; the browser dashboard uses port \val{5173},
+and PostgreSQL uses port \val{5432}. The endpoint table records the request
+surface used for health checks, metadata inspection, scoring, import, dataset
+loading, transaction review, and asynchronous job monitoring.
+
 \begingroup
 \small
 \begin{table}[H]

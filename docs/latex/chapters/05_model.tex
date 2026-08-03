@@ -40,6 +40,16 @@ holdout result a more credible estimate of later-period behaviour. It also
 explains why the report distinguishes validation selection metrics from
 holdout operating metrics rather than presenting one undifferentiated score.
 
+The comparison run uses \val{300} estimators or iterations for LightGBM,
+XGBoost, and CatBoost, with project seed \val{42}; Logistic Regression uses
+\texttt{max\_iter=1000}. The validation tuning grid evaluates \val{200} and
+\val{400} estimators or iterations, tree depths \val{4} and \val{6}, and
+learning rates \val{0.05} and \val{0.10} for the boosting families. LightGBM
+is configured as deterministic and column-wise, XGBoost evaluates
+\texttt{aucpr}, and CatBoost uses a fixed random seed. These settings describe
+the implemented search space rather than claiming that every combination was
+equally successful.
+
 \input{figures/final_training_lifecycle}
 
 \section{PySpark MLlib DecisionTree baseline}

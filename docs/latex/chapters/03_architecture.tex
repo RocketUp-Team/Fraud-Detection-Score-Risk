@@ -149,6 +149,52 @@ promotion decision separate from the model-training library: an experiment can
 complete successfully while still failing the holdout-quality gate and
 remaining unpromoted \parencite{mlflow}.
 
+\section{Implementation parameters and reproducibility}
+
+Table~\ref{tab:implementation-parameters} records the concrete implementation
+parameters used by the project. Version ranges are reported from the repository
+manifests, while values such as Spark memory, shuffle partitions, ratios, and
+random seed are taken from the pipeline configuration.
+
+\begin{table}[H]
+\centering
+\small
+\rowcolors{2}{ReportGray!25}{white}
+\caption{Implementation parameters and reproducibility settings}
+\label{tab:implementation-parameters}
+\begin{tabularx}{\textwidth}{p{0.30\textwidth}X}
+\toprule
+\textbf{Parameter} & \textbf{Recorded value and interpretation}\\
+\midrule
+Python runtime & Model and backend packages require Python \val{3.11} or newer; no single patch version is claimed.\\
+Spark runtime & The model package and Docker training image use Apache Spark/PySpark \val{3.5.1}.\\
+Data preparation & Spark \texttt{local[4]}, driver memory \val{8~GB}, driver result limit \val{1~GB}, shuffle partitions \val{64}, default parallelism \val{8}.\\
+Cluster configuration & Standalone Spark master on port \val{7077}; two workers, each configured with \val{2} cores and \val{4~GB} memory.\\
+Split policy & Chronological ratios of \val{70\%}/\val{15\%}/\val{15\%} for train, validation, and holdout.\\
+Randomness & Imbalance sampling seed \val{42}; model-family estimators use the same seed where supported.\\
+Missingness policy & Missingness bands use thresholds \val{0.20}, \val{0.70}, and \val{0.95}; quantile summaries use relative error \val{0.01}.\\
+Serving stack & FastAPI/Uvicorn on port \val{8000}; React/Vite on \val{5173}; PostgreSQL \val{16} on \val{5432}; optional Adminer on \val{8081}.\\
+Feature handover & Frozen canonical vector of \val{68} features with preprocessing metadata, categorical mappings, feature order, and schema hash.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The repository contains two dependency manifests with different PySpark
+constraints: the model package and preprocessing environment pin PySpark to
+\val{3.5.1}, whereas the generic root \texttt{requirements.txt} declares
+\texttt{pyspark>=4.2.0}. The controlled training and Docker path used for the
+reported results is the former \val{3.5.1} environment. This discrepancy is
+retained as a reproducibility limitation and should be resolved before a clean
+installation is published as the single official environment.
+
+The model manifest declares CatBoost \val{1.2.10} or newer, LightGBM
+\val{4.7.0} or newer, XGBoost \val{3.2.0} or newer, scikit-learn
+\val{1.9.0} or newer, SHAP \val{0.51.0} or newer, and MLflow \val{3.3.0} or
+newer. The backend manifest declares FastAPI \val{0.139.2} or newer,
+Uvicorn \val{0.51.0} or newer, SQLAlchemy \val{2.0.36} or newer, and psycopg
+\val{3.2.3} or newer. These are dependency constraints rather than a claim
+that every component was independently benchmarked at its latest release.
+
 \section{Architectural tradeoffs}
 
 \begin{table}[H]
