@@ -3,7 +3,7 @@
 
 \section{Problem context}
 
-Online transaction fraud is an imbalanced classification problem with rare positive instances and asymmetric error costs \parencite{ieeecis2019,amazonfraudbenchmark}.
+Online transaction fraud is an imbalanced binary-classification problem in which the positive class is uncommon but operationally important. In the IEEE-CIS data used in this project, fraudulent transactions account for only a small fraction of all observations. This imbalance means that a model can appear accurate while failing to identify a meaningful share of fraud. It also creates asymmetric error costs: a false negative may allow a fraudulent transaction to proceed, whereas a false positive may send a legitimate transaction to manual review. The system is therefore evaluated as a ranking and decision-support system rather than through accuracy alone \parencite{ieeecis2019,amazonfraudbenchmark}.
 
 \begin{quote}
 How can a reproducible big-data pipeline, an imbalanced-classification model, an explainable scoring API, and a human-review interface be integrated into one auditable fraud risk scoring system?
@@ -11,19 +11,9 @@ How can a reproducible big-data pipeline, an imbalanced-classification model, an
 
 \section{Objectives \& research questions}
 
-\begin{itemize}
-  \item Ingest and validate the \val{1.29~GB} IEEE-CIS dataset via Apache Spark.
-  \item Construct leakage-free chronological dataset splits (\texttt{train}, \texttt{val}, \texttt{holdout}).
-  \item Compare MLlib DecisionTree, LightGBM, XGBoost, and CatBoost classifiers.
-  \item Serve packaged models behind a FastAPI scoring API with TreeSHAP explanations and React UI.
-\end{itemize}
+The first objective is to ingest and validate the \val{1.29~GB} IEEE-CIS dataset through Apache Spark so that the project can demonstrate an auditable big-data preparation process. The second objective is to create chronological, leakage-controlled \texttt{train}, \texttt{validation}, and \texttt{holdout} partitions. The third objective is to compare a Spark MLlib DecisionTree baseline with Logistic Regression, LightGBM, XGBoost, and CatBoost candidates using ranking-oriented metrics. The final objective is to package the selected scoring logic behind a FastAPI service, return TreeSHAP explanations, and expose the result through a React interface that supports analyst review.
 
-\begin{description}[style=multiline,leftmargin=1.6cm,labelwidth=1.2cm]
-  \item[RQ1:] Can raw data be processed without identifier overlap or temporal leakage?
-  \item[RQ2:] Which classifier achieves highest validation PR-AUC and retains holdout performance?
-  \item[RQ3:] Can the model be served efficiently without a Spark dependency at request time?
-  \item[RQ4:] What technical boundaries separate the academic demo from production readiness?
-\end{description}
+The study is guided by four research questions. RQ1 asks whether the raw data can be processed while preserving transaction identity and preventing temporal leakage. RQ2 asks which classifier obtains the strongest validation PR-AUC and whether that ranking is retained on the later holdout period. RQ3 asks whether the packaged model can perform request-time scoring without requiring a live Spark dependency. RQ4 asks which architectural and operational limitations distinguish the academic demonstration from a production-ready fraud platform.
 
 \section{BDA501 requirement compliance}
 
@@ -55,3 +45,47 @@ Demo readiness & Full-stack Docker Compose deployment with React UI \& FastAPI s
 \bottomrule
 \end{tabularx}
 \end{table}
+
+The compliance matrix shows that the project addresses the BDA501 requirements
+as an integrated workflow rather than as isolated demonstrations. The dataset
+size and Spark ingestion establish the big-data requirement, while the
+chronological split, model comparison, and saved metrics establish the
+analytical requirement. The architecture, source-code, and Docker rows show
+that the implementation is also packaged as a runnable system. The matrix does
+not mean that every quality requirement is production-complete; it records the
+available project evidence and makes the remaining operational limitations
+explicit in later chapters.
+
+\section{Scope, contribution, and report organisation}
+
+The scope of this report is the complete evidence path from raw competition
+files to an analyst-facing risk decision. The report does not treat a model
+score as an isolated artefact. Instead, it evaluates whether the input data is
+preserved correctly, whether transformations are applied without future
+information, whether the model is compared on an appropriate imbalanced metric,
+and whether the resulting artefact can be loaded and explained by the serving
+application. This broader scope is important because a strong offline score is
+not useful if the online service receives a different feature representation or
+if an analyst cannot understand why a transaction was flagged.
+
+The complete implementation, configuration files, and reproducibility
+artifacts are maintained in the project GitHub repository at
+\href{\RepositoryURL}{\nolinkurl{\RepositoryURL}}. The principal contribution is an integrated, contract-oriented demonstration.
+The data pipeline records schema and feature-order assumptions, the training
+workflow separates model selection from holdout evaluation, and the serving
+layer exposes both a calibrated risk value and local feature attribution. The
+project also makes its negative evidence visible. In particular, the current
+CatBoost challenger is not promoted because its holdout PR-AUC misses the gate,
+and the application is explicitly bounded by missing online feature-store,
+security, and monitoring controls. Reporting these boundaries is part of the
+technical contribution because it prevents a demonstration result from being
+misinterpreted as a production claim.
+
+The remainder of the report first establishes the fraud-detection setting and
+the dataset assumptions. It then describes the system contracts and integrated
+architecture, followed by the Spark data pipeline and feature-engineering
+decisions. The model chapter explains the comparison protocol and promotion
+decision. The application chapter describes request-time scoring and analyst
+review, while the validation chapter brings together empirical evidence,
+challenges, and limitations before the conclusion identifies the next
+engineering steps.
